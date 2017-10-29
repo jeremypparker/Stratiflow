@@ -15,7 +15,7 @@ public:
     static constexpr double L2 = 3.5;  // size of domain spanwise
     static constexpr double L3 = 15.0; // half size of domain vertically
 
-    const double deltaT = 0.001;
+    const double deltaT = 0.01;
     const double nu = 0.001;
 
     using NField = NodalField<N1,N2,N3>;
@@ -56,9 +56,9 @@ public:
         for (int k=0; k<s; k++)
         {
             implicitSolveDirichlet[k].compute(
-                MatrixXd::Identity(N3, N3)-a_IM[k][k]*deltaT*dim3Derivative2Dirichlet);
+                MatrixXd::Identity(N3, N3)-a_IM[k][k]*deltaT*nu*dim3Derivative2Dirichlet);
             implicitSolveNeumann[k].compute(
-                MatrixXd::Identity(N3, N3)-a_IM[k][k]*deltaT*dim3Derivative2Neumann);
+                MatrixXd::Identity(N3, N3)-a_IM[k][k]*deltaT*nu*dim3Derivative2Neumann);
         }
 
         // we solve each vetical line separately, so N1*N2 total solves
@@ -151,7 +151,7 @@ public:
     {
         // plot some arrows
         unsigned int skip1 = 5;
-        unsigned int skip3 = 5;
+        unsigned int skip3 = 1;
 
         matplotlibcpp::figure();
 
@@ -193,10 +193,13 @@ private:
 
         // z = (I-a A)^-1 A y
         y1.Dim3MatMul(dim3Derivative2Neumann, v1);
+        v1 *= nu;
         v1.Dim3Solve(implicitSolveNeumann[k], z1);
         y2.Dim3MatMul(dim3Derivative2Neumann, v2);
+        v2 *= nu;
         v2.Dim3Solve(implicitSolveNeumann[k], z2);
         y3.Dim3MatMul(dim3Derivative2Dirichlet, v3);
+        v3 *= nu;
         v3.Dim3Solve(implicitSolveDirichlet[k], z3);
     }
 
@@ -375,11 +378,11 @@ int main()
     auto x3 = ChebPoints(IMEXRK::N3, IMEXRK::L3);
     for (int j=0; j<IMEXRK::N3; j++)
     {
-        //initialU1.slice(j).setConstant(tanh(x3(j)));
-        initialU1.slice(j) = exp(-x3(j)*x3(j));
+        initialU1.slice(j).setConstant(tanh(x3(j)));
+        //initialU1.slice(j) = exp(-x3(j)*x3(j));
 
-        initialU1.slice(j) += 0.01*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
-        initialU3.slice(j) += 0.01*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
+        initialU1.slice(j) += 0.03*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
+        initialU3.slice(j) += 0.03*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
     }
     solver.SetVelocity(initialU1, initialU3);
 
@@ -390,7 +393,7 @@ int main()
         std::cout << "Step " << step << std::endl;
         solver.TimeStep();
 
-        if(step%4==0)
+        if(step%20==0)
         {
             solver.Quiver(std::to_string(step)+".png", IMEXRK::N2/2);
         }
