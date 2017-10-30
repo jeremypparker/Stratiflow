@@ -64,7 +64,7 @@ TEST_CASE("Simple derivatives Neumann")
 
     // also do second derviative
     ModalField<N1,N2,N3> f5(BoundaryCondition::Neumann);
-    f2.Dim3MatMul(ChebSecondDerivativeMatrix(BoundaryCondition::Neumann, L, N3), f3);
+    f2.Dim3MatMul(ChebSecondDerivativeMatrix(BoundaryCondition::Neumann, L, N3), f5);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Neumann);
     f5.ToNodal(f6);
@@ -74,7 +74,7 @@ TEST_CASE("Simple derivatives Neumann")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            expected.stack(j1, j2) = -2*tanh(x)/(cosh(x)*cosh(x));
+            expected2.stack(j1, j2) = -2*tanh(x)/(cosh(x)*cosh(x));
         }
     }
 
@@ -120,7 +120,7 @@ TEST_CASE("Simple derivatives Dirichlet")
 
     // also do second derviative
     ModalField<N1,N2,N3> f5(BoundaryCondition::Dirichlet);
-    f2.Dim3MatMul(ChebSecondDerivativeMatrix(BoundaryCondition::Dirichlet, L, N3), f3);
+    f2.Dim3MatMul(ChebSecondDerivativeMatrix(BoundaryCondition::Dirichlet, L, N3), f5);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Dirichlet);
     f5.ToNodal(f6);
@@ -130,7 +130,7 @@ TEST_CASE("Simple derivatives Dirichlet")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            expected.stack(j1, j2) = (4*x*x-2)*exp(-x*x);
+            expected2.stack(j1, j2) = (4*x*x-2)*exp(-x*x);
         }
     }
 
