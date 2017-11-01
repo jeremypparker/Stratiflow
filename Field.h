@@ -13,12 +13,6 @@ using namespace Eigen;
 
 using complex = std::complex<double>;
 
-enum class BoundaryCondition
-{
-    Dirichlet,
-    Neumann
-};
-
 template<typename T, int N1, int N2, int N3>
 class Field
 {

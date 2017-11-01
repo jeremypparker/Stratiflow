@@ -2,7 +2,7 @@
 
 #include <Eigen/Core>
 
-#include "Field.h"
+#include "Constants.h"
 
 MatrixXd ChebSecondDerivativeMatrix(BoundaryCondition bc, double L, int N);
 MatrixXd ChebDerivativeMatrix(BoundaryCondition originalBC, double L, int N);
