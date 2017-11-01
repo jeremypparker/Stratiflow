@@ -15,7 +15,7 @@ public:
     static constexpr double L2 = 3.5;  // size of domain spanwise
     static constexpr double L3 = 15.0; // half size of domain vertically
 
-    const double deltaT = 0.01;
+    const double deltaT = 0.0005;
     const double nu = 0.001;
 
     using NField = NodalField<N1,N2,N3>;
@@ -346,22 +346,25 @@ int main()
         initialU1.slice(j).setConstant(tanh(x3(j)));
         //initialU1.slice(j) = exp(-x3(j)*x3(j));
 
-        initialU1.slice(j) += 0.03*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
-        initialU3.slice(j) += 0.03*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
+        if (j!=0 && j!=IMEXRK::N3-1 && j!= IMEXRK::N3/2)
+        {
+            initialU1.slice(j) += 0.1*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU3.slice(j) += 0.1*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
+        }
     }
     solver.SetVelocity(initialU1, initialU3);
 
     solver.Quiver("initial.png", IMEXRK::N2/2);
     solver.Profile("profile.png", 0, 0);
 
-    for (int step=0; step<10000; step++)
+    for (int step=0; step<20000; step++)
     {
         std::cout << "Step " << step << std::endl;
         solver.TimeStep();
 
-        if(step%20==0)
+        if(step%200==0)
         {
-            //solver.Quiver(std::to_string(step)+".png", IMEXRK::N2/2);
+            solver.Quiver(std::to_string(step)+".png", IMEXRK::N2/2);
             solver.Profile(std::to_string(step)+"profile.png", 0, 0);
         }
     }
