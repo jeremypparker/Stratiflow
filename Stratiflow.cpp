@@ -28,9 +28,8 @@ public:
     , u3(BoundaryCondition::Dirichlet)
     , p(BoundaryCondition::Neumann)
 
-    , y1(u1), y2(u2), y3(u3)
-    , z1(u1), z2(u2), z3(u3)
-    , v1(u1), v2(u2), v3(u3)
+    , R1(u1), R2(u2), R3(u3)
+    , r1(u1), r2(u2), r3(u3)
     , U1(BoundaryCondition::Neumann)
     , U2(BoundaryCondition::Neumann)
     , U3(BoundaryCondition::Dirichlet)
@@ -56,9 +55,9 @@ public:
         for (int k=0; k<s; k++)
         {
             implicitSolveDirichlet[k].compute(
-                MatrixXd::Identity(N3, N3)-a_IM[k][k]*deltaT*nu*dim3Derivative2Dirichlet);
+                MatrixXd::Identity(N3, N3)-0.5*h[k]*nu*dim3Derivative2Dirichlet);
             implicitSolveNeumann[k].compute(
-                MatrixXd::Identity(N3, N3)-a_IM[k][k]*deltaT*nu*dim3Derivative2Neumann);
+                MatrixXd::Identity(N3, N3)-0.5*h[k]*nu*dim3Derivative2Neumann);
         }
 
         // we solve each vetical line separately, so N1*N2 total solves
@@ -80,57 +79,11 @@ public:
 
     void TimeStep()
     {
-        // see (19) in CB15
+        // see Numerical Renaissance
         for (int k=0; k<s; k++)
         {
-            if (k==0)
-            {
-                y1 = u1;
-                y2 = u2;
-                y3 = u3;
-            }
-            else
-            {
-                double c_IM = deltaT * (a_IM[k][k-1] - b_IM[k-1]);
-                double c_EX = deltaT * (a_EX[k][k-1] - b_EX[k-1]);
-
-                y1 *= c_EX;
-                y2 *= c_EX;
-                y3 *= c_EX;
-
-                y1 += c_IM*z1;
-                y2 += c_IM*z2;
-                y3 += c_IM*z3;
-
-                y1 += u1;
-                y2 += u2;
-                y3 += u3;
-            }
-
-            ImplicitUpdate(k);
             ExplicitUpdate(k);
-
-            double C_IM = deltaT * b_IM[k];
-            double C_EX = deltaT * b_EX[k];
-
-            u1 += C_IM*z1;
-            u2 += C_IM*z2;
-            u3 += C_IM*z3;
-
-            u1 += C_EX*y1;
-            u2 += C_EX*y2;
-            u3 += C_EX*y3;
-
-            //////// PRESSURE TERMS ////////
-            p.Dim1MatMul(dim1Derivative, neumannTemp);
-            u1 += (-1.0)*C_IM*neumannTemp;
-
-            p.Dim2MatMul(dim2Derivative, neumannTemp);
-            u2 += (-1.0)*C_IM*neumannTemp;
-
-            p.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
-            u3 += (-1.0)*C_IM*dirichletTemp;
-
+            ImplicitUpdate(k);
             RemoveDivergence(k);
         }
     }
@@ -158,96 +111,112 @@ public:
 private:
     void ImplicitUpdate(int k)
     {
-        // vertical viscous terms
-
-        // z = (I-a A)^-1 A y
-        y1.Dim3MatMul(dim3Derivative2Neumann, v1);
-        v1 *= nu;
-        v1.Dim3Solve(implicitSolveNeumann[k], z1);
-        y2.Dim3MatMul(dim3Derivative2Neumann, v2);
-        v2 *= nu;
-        v2.Dim3Solve(implicitSolveNeumann[k], z2);
-        y3.Dim3MatMul(dim3Derivative2Dirichlet, v3);
-        v3 *= nu;
-        v3.Dim3Solve(implicitSolveDirichlet[k], z3);
+        R1.Dim3Solve(implicitSolveNeumann[k], u1);
+        R2.Dim3Solve(implicitSolveNeumann[k], u2);
+        R3.Dim3Solve(implicitSolveDirichlet[k], u3);
     }
 
     void ExplicitUpdate(int k)
     {
-        // explicit terms will be calculated from y + a Δt z as per CB15
-        // this value is stored in v
-        v1 = y1;
-        v2 = y2;
-        v3 = y3;
-
-        double c = a_IM[k][k]*deltaT;
-        v1 += c*z1;
-        v2 += c*z2;
-        v3 += c*z3;
-
         // calculate rhs terms and accumulate in y
-        y1.Zero();
-        y2.Zero();
-        y3.Zero();
+        R1 = u1;
+        R2 = u2;
+        R3 = u3;
+
+        // add term from last rk step
+        R1 += (h[k]*zeta[k])*r1;
+        R2 += (h[k]*zeta[k])*r2;
+        R3 += (h[k]*zeta[k])*r3;
+
+        // explicit part of CN
+        u1.Dim3MatMul(dim3Derivative2Neumann, neumannTemp);
+        neumannTemp *= nu;
+        R1 += 0.5*h[k]*neumannTemp;
+        u2.Dim3MatMul(dim3Derivative2Neumann, neumannTemp);
+        neumannTemp *= nu;
+        R2 += 0.5*h[k]*neumannTemp;
+        u3.Dim3MatMul(dim3Derivative2Dirichlet, dirichletTemp);
+        dirichletTemp *= nu;
+        R3 += 0.5*h[k]*dirichletTemp;
+
+        // now construct explicit terms
+        r1.Zero();
+        r2.Zero();
+        r3.Zero();
 
         //////// EXPLICIT VISCOUS TERMS ////////
-        v1.Dim1MatMul(dim1Derivative2, neumannTemp);
-        y1 += nu*neumannTemp;
-        v1.Dim2MatMul(dim2Derivative2, neumannTemp);
-        y1 += nu*neumannTemp;
+        u1.Dim1MatMul(dim1Derivative2, neumannTemp);
+        r1 += nu*neumannTemp;
+        u1.Dim2MatMul(dim2Derivative2, neumannTemp);
+        r1 += nu*neumannTemp;
 
-        v2.Dim1MatMul(dim1Derivative2, neumannTemp);
-        y2 += nu*neumannTemp;
-        v2.Dim2MatMul(dim2Derivative2, neumannTemp);
-        y2 += nu*neumannTemp;
+        u2.Dim1MatMul(dim1Derivative2, neumannTemp);
+        r2 += nu*neumannTemp;
+        u2.Dim2MatMul(dim2Derivative2, neumannTemp);
+        r2 += nu*neumannTemp;
 
-        v3.Dim1MatMul(dim1Derivative2, dirichletTemp);
-        y3 += nu*dirichletTemp;
-        v3.Dim2MatMul(dim2Derivative2, dirichletTemp);
-        y3 += nu*dirichletTemp;
+        u3.Dim1MatMul(dim1Derivative2, dirichletTemp);
+        r3 += nu*dirichletTemp;
+        u3.Dim2MatMul(dim2Derivative2, dirichletTemp);
+        r3 += nu*dirichletTemp;
 
         //////// NONLINEAR TERMS ////////
 
         // calculate products at nodes in physical space
-        v1.ToNodal(U1);
-        v2.ToNodal(U2);
-        v3.ToNodal(U3);
+        u1.ToNodal(U1);
+        u2.ToNodal(U2);
+        u3.ToNodal(U3);
 
         NodalProduct(U1, U1, nnProduct);
         nnProduct.ToModal(mnProduct);
         mnProduct.Dim1MatMul(dim1Derivative, neumannTemp);
-        y1 += (-1.0)*neumannTemp;
+        r1 += (-1.0)*neumannTemp;
 
         NodalProduct(U1, U2, nnProduct);
         nnProduct.ToModal(mnProduct);
         mnProduct.Dim1MatMul(dim1Derivative, neumannTemp);
-        y2 += (-1.0)*neumannTemp;
+        r2 += (-1.0)*neumannTemp;
         mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
-        y1 += (-1.0)*neumannTemp;
+        r1 += (-1.0)*neumannTemp;
 
         NodalProduct(U1, U3, ndProduct);
         ndProduct.ToModal(mdProduct);
         mdProduct.Dim1MatMul(dim1Derivative, dirichletTemp);
-        y3 += (-1.0)*dirichletTemp;
+        r3 += (-1.0)*dirichletTemp;
         mdProduct.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
-        y1 += (-1.0)*neumannTemp;
+        r1 += (-1.0)*neumannTemp;
 
         NodalProduct(U2, U2, nnProduct);
         nnProduct.ToModal(mnProduct);
         mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
-        y2 += (-1.0)*neumannTemp;
+        r2 += (-1.0)*neumannTemp;
 
         NodalProduct(U2, U3, ndProduct);
         ndProduct.ToModal(mdProduct);
         mdProduct.Dim2MatMul(dim2Derivative, dirichletTemp);
-        y3 += (-1.0)*dirichletTemp;
+        r3 += (-1.0)*dirichletTemp;
         mdProduct.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
-        y2 += (-1.0)*neumannTemp;
+        r2 += (-1.0)*neumannTemp;
 
         NodalProduct(U3, U3, ndProduct);
         ndProduct.ToModal(mdProduct);
         mdProduct.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
-        y3 += (-1.0)*dirichletTemp;
+        r3 += (-1.0)*dirichletTemp;
+
+        // now add on explicit terms
+        R1 += (h[k]*beta[k])*r1;
+        R2 += (h[k]*beta[k])*r2;
+        R3 += (h[k]*beta[k])*r3;
+
+        // now add on pressure term
+        p.Dim1MatMul(dim1Derivative, neumannTemp);
+        R1 += (-h[k])*neumannTemp;
+
+        p.Dim2MatMul(dim2Derivative, neumannTemp);
+        R2 += (-h[k])*neumannTemp;
+
+        p.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
+        R3 += (-h[k])*dirichletTemp;
     }
 
     void RemoveDivergence(int k)
@@ -262,6 +231,8 @@ private:
         u3.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
         divergence += neumannTemp;
 
+        divergence *= 1/h[k];
+
         // solve Δq = ∇·u as linear system Aq = divergence
         q.Zero(); // probably not necessary
         for (int j1=0; j1<N1; j1++)
@@ -274,16 +245,16 @@ private:
 
         // subtract the gradient of this from the velocity
         q.Dim1MatMul(dim1Derivative, neumannTemp);
-        u1 += (-1.0)*neumannTemp;
+        u1 += (-h[k])*neumannTemp;
         q.Dim2MatMul(dim2Derivative, neumannTemp);
-        u2 += (-1.0)*neumannTemp;
+        u2 += (-h[k])*neumannTemp;
         q.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
-        u3 += (-1.0)*dirichletTemp;
+        u3 += (-h[k])*dirichletTemp;
 
         // also add it on to p for the next step
         // this is scaled to match the p that was added before
         // effectively we have forward euler
-        p += (1/(deltaT * b_IM[k]))*q;
+        p += q;
     }
 
 private:
@@ -292,25 +263,14 @@ private:
     MField p;
 
     // parameters for the scheme
-    const int s = 4;
-    const double a_IM[4][4] = {{0,      0,      0,      0},
-                               {4/15.0, 4/15.0, 0,      0},
-                               {4/15.0, 1/3.0,  1/15.0, 0},
-                               {4/15.0, 1/3.0,  7/30.0, 1/6.0}
-                              };
-    const double b_IM[4]    = {4/15.0, 1/3.0, 7/30.0, 1/6.0};
-
-    const double a_EX[4][4] = {{0,      0,      0,     0},
-                               {8/15.0, 0,      0,     0},
-                               {1/4.0,  5/12.0, 0,     0},
-                               {1/4.0,  0,      3/4.0, 0}
-                              };
-    const double b_EX[4]    = {1/4.0, 0, 3/4.0, 0};
+    const int s = 3;
+    const double h[3] = {deltaT*8.0/15.0, deltaT*2.0/15.0, deltaT*5.0/15.0};
+    const double beta[3] = {1.0, 25.0/8.0, 9.0/4.0};
+    const double zeta[3] = {0, -17.0/8.0, -5.0/4.0};
 
     // these are intermediate variables used in the computation, preallocated for efficiency
-    MField y1, y2, y3;
-    MField z1, z2, z3;
-    MField v1, v2, v3;
+    MField R1, R2, R3;
+    MField r1, r2, r3;
     NField U1, U2, U3;
     NField ndProduct, nnProduct;
     MField mdProduct, mnProduct;
