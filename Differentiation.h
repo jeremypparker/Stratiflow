@@ -4,6 +4,8 @@
 
 #include "Constants.h"
 
+using namespace Eigen;
+
 MatrixXd ChebSecondDerivativeMatrix(BoundaryCondition bc, double L, int N);
 MatrixXd ChebDerivativeMatrix(BoundaryCondition originalBC, double L, int N);
 

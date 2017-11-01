@@ -2,9 +2,9 @@
 
 ArrayXd ChebPoints(unsigned int N, double L)
 {
-    assert(N%2 == 0);
-    auto points = L*(1 - cos(ArrayXd::LinSpaced(N/2, pi/(2*N), pi/2-pi/(2*N))));
+    assert(N%2 == 1);
+    auto points = L*(1 - cos(ArrayXd::LinSpaced(N/2+1, 0, pi/2)));
     ArrayXd ret(N);
-    ret << -points.reverse(), points;
+    ret << -points.reverse(), points.tail(N/2);
     return ret;
 }

@@ -10,3 +10,5 @@ enum class BoundaryCondition
     Dirichlet,
     Neumann
 };
+
+using complex = std::complex<double>;

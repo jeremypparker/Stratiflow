@@ -2,60 +2,117 @@
 
 MatrixXd ChebSecondDerivativeMatrix(BoundaryCondition bc, double L, int N)
 {
-    assert(N%2 == 0);
-    MatrixXd D(N, N);
-    D.setZero();
+    MatrixXd neumann = ChebDerivativeMatrix(BoundaryCondition::Neumann, L, N);
+    MatrixXd dirichlet = ChebDerivativeMatrix(BoundaryCondition::Dirichlet, L, N);
 
-    for (int k=0; k<N/2; k++)
+    if (bc==BoundaryCondition::Neumann)
     {
-        for(int j=1; j<= N/2-1-k; j++)
-        {
-            double mult;
-            if (bc == BoundaryCondition::Neumann)
-            {
-                mult = (k==0?4:8)*j*(2*k+j)*(k+j);
-            }
-            else
-            {
-                mult = 4*j*(2*k+j+1)*(2*k+2*j+1);
-            }
+        return dirichlet*neumann;
+    }
+    else
+    {
+        return neumann*dirichlet;
+    }
+}
 
-            D(N/2-1-k, N/2-1-k-j) = mult;
-            D(N/2+k, N/2+k+j) += mult;
+MatrixXd SymmetriseMatrix(const MatrixXd& in, BoundaryCondition bc)
+{
+    assert(in.rows() == in.cols());
+    assert(in.rows()%2 == 1);
+    int N = in.rows()-1;
+
+    MatrixXd bigMatrix(2*N+1, 2*N+1); // this is the full spectral element system without symmetry
+
+    bigMatrix.setZero();
+
+    bigMatrix.block(0, 0, N+1, N+1) += in;
+    bigMatrix.block(N, N, N+1, N+1) += in;
+
+    // take into account weights
+    bigMatrix.row(N) *= 0.5;
+
+    // now use symmetry to get reduced matrix
+    MatrixXd out(2*N+1, N+1);
+    out.setZero();
+
+    // these points are not imaged
+    out.col(0) = bigMatrix.col(N/2);
+    out.col(N) = bigMatrix.col(3*N/2);
+
+    for (int k=1; k<=N/2; k++)
+    {
+        if(bc == BoundaryCondition::Neumann)
+        {
+            out.col(k).head(N+1) += bigMatrix.col(N/2+k).head(N+1)  // normal contribution
+                                  + bigMatrix.col(N/2-k).head(N+1); // contribution from image
+
+            out.col(N-k).tail(N+1) += bigMatrix.col(3*N/2-k).tail(N+1)
+                                    + bigMatrix.col(3*N/2+k).tail(N+1);
+        }
+        else
+        {
+            out.col(k).head(N+1) += bigMatrix.col(N/2+k).head(N+1)
+                                  - bigMatrix.col(N/2-k).head(N+1);
+
+            out.col(N-k).tail(N+1) += bigMatrix.col(3*N/2-k).tail(N+1)
+                                    - bigMatrix.col(3*N/2+k).tail(N+1);
         }
     }
-    D /= (L*L); // because we use T(1-x/L)
+
+    return out.block(N/2, 0, N+1, N+1); // discard initial and final rows as these are not used
+}
+
+ArrayXd ChebyshevGaussLobattoNodes(int N)
+{
+    ArrayXd x(N);
+
+    x = -cos(ArrayXd::LinSpaced(N+1, 0, pi));
+
+    return x;
+}
+
+ArrayXd ChebyshevBarycentricWeights(int N)
+{
+    // note it doesn't matter if these are scaled
+    ArrayXd w(N+1);
+    for (int i=0; i<=N; i++)
+    {
+        w(i) = pow(-1, i);
+    }
+    w(0) *= 0.5;
+    w(N) *= 0.5;
+
+    return w;
+}
+
+MatrixXd ChebyshevDerivativeMatrix(int N)
+{
+    ArrayXd x = ChebyshevGaussLobattoNodes(N);
+    ArrayXd w = ChebyshevBarycentricWeights(N);
+
+
+    MatrixXd D(N+1, N+1);
+
+    for (int i=0; i<=N; i++)
+    {
+        D(i,i) = 0;
+        for (int j=0; j<=N; j++)
+        {
+            if(j!=i)
+            {
+                D(i,j) = (w(j)/w(i))*1/((x(i)-x(j)));
+                D(i,i) -= D(i,j);
+            }
+        }
+    }
 
     return D;
 }
 
 MatrixXd ChebDerivativeMatrix(BoundaryCondition originalBC, double L, int N)
 {
-    assert(N%2 == 0);
-    MatrixXd D(N, N);
-    D.setZero();
-
-    for (int k=0; k<N/2; k++)
-    {
-        for(int j=(originalBC == BoundaryCondition::Neumann)?1:0; j<= N/2-1-k; j++)
-        {
-            int mult;
-            if (originalBC == BoundaryCondition::Neumann)
-            {
-                mult = 2*(2*k+2*j);
-            }
-            else
-            {
-                mult = (k==0?1:2)*(2*k+2*j+1);
-            }
-
-            // factor of ±1/L because we use T(1±x/L)
-            D(N/2-1-k, N/2-1-k-j) = mult/L;
-            D(N/2+k, N/2+k+j) = -mult/L;
-        }
-    }
-
-    return D;
+    MatrixXd D = ChebyshevDerivativeMatrix(N-1)/L;
+    return SymmetriseMatrix(D, originalBC);
 }
 
 ArrayXd k(int n)

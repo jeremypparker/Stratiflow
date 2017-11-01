@@ -10,7 +10,7 @@ include_directories(SYSTEM external)
 link_libraries(python2.7)
 link_libraries(fftw3)
 
-add_library(StratiLib Differentiation.cpp Field.cpp Field.cpp)
+add_library(StratiLib Differentiation.cpp Field.cpp Graph.cpp)
 
 add_subdirectory(tests)
 

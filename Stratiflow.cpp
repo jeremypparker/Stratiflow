@@ -1,15 +1,15 @@
 #include "Field.h"
 #include "Differentiation.h"
+#include "Graph.h"
 
 #include <iostream>
-#include <matplotlib-cpp.h>
 
 class IMEXRK
 {
 public:
     static constexpr int N1 = 152;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 20;
+    static constexpr int N3 = 41;
 
     static constexpr double L1 = 14.0; // size of domain streamwise
     static constexpr double L2 = 3.5;  // size of domain spanwise
@@ -71,18 +71,6 @@ public:
                 // add terms for horizontal derivatives
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
-
-                // the laplacian as it is will be singular (with two zero rows)
-                // we impose continuity and continuity of derivative at x3 = 0
-                // to make it non-singular
-
-                // for continuity (RHS = 0)
-                ArrayXd one = ArrayXd::Ones(N3/2);
-                laplacian.row(0) << one.transpose(), -one.transpose();
-
-                //for continuous derivative (RHS = 0)
-                ArrayXd k = ArrayXd::LinSpaced(N3/2, 0, N3/2-1);
-                laplacian.row(N3-1) << (k.reverse()*k.reverse()).transpose(), (k*k).transpose();
 
                 solveLaplacian[j1*N2+j2].compute(laplacian);
             }
@@ -149,35 +137,16 @@ public:
 
     void Quiver(std::string filename, int j2)
     {
-        // plot some arrows
-        unsigned int skip1 = 5;
-        unsigned int skip3 = 1;
-
-        matplotlibcpp::figure();
-
-        // convert to physical space for this
         u1.ToNodal(U1);
         u3.ToNodal(U3);
 
-        auto x = ChebPoints(N3, L3);
+        QuiverPlot(U1, U3, L1, L3, j2, filename);
+    }
 
-        for (unsigned int j1 = 0; j1 < N1; j1+=skip1)
-        {
-            for (unsigned int j3 = 0; j3 < N3; j3+=skip3)
-            {
-                double v1 = 0.2*U1.slice(j3)(j1, j2);
-                double v3 = 0.2*U3.slice(j3)(j1, j2);
-
-                double x1 = j1*L1/static_cast<double>(N1);
-                double x3 = x(j3);
-
-                matplotlibcpp::plot({x1, x1+v1}, {x3, x3+v3}, "b-");
-            }
-        }
-
-        //matplotlibcpp::axis("equal");
-        matplotlibcpp::save(filename);
-        matplotlibcpp::close();
+    void Profile(std::string filename, int j1, int j2)
+    {
+        u1.ToNodal(U1);
+        Interpolate(U1.stack(j1, j2), L3, BoundaryCondition::Neumann, filename);
     }
 
     void SetVelocity(NField velocity1, NField velocity3)
@@ -293,10 +262,6 @@ private:
         u3.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
         divergence += neumannTemp;
 
-        // set the RHS for the boundary condition solve
-        divergence.slice(0).setZero();
-        divergence.slice(N3-1).setZero();
-
         // solve Δq = ∇·u as linear system Aq = divergence
         q.Zero(); // probably not necessary
         for (int j1=0; j1<N1; j1++)
@@ -374,7 +339,7 @@ int main()
     IMEXRK solver;
 
     IMEXRK::NField initialU1(BoundaryCondition::Neumann);
-    IMEXRK::NField initialU3(BoundaryCondition::Neumann);
+    IMEXRK::NField initialU3(BoundaryCondition::Dirichlet);
     auto x3 = ChebPoints(IMEXRK::N3, IMEXRK::L3);
     for (int j=0; j<IMEXRK::N3; j++)
     {
@@ -387,6 +352,7 @@ int main()
     solver.SetVelocity(initialU1, initialU3);
 
     solver.Quiver("initial.png", IMEXRK::N2/2);
+    solver.Profile("profile.png", 0, 0);
 
     for (int step=0; step<10000; step++)
     {
@@ -395,7 +361,8 @@ int main()
 
         if(step%20==0)
         {
-            solver.Quiver(std::to_string(step)+".png", IMEXRK::N2/2);
+            //solver.Quiver(std::to_string(step)+".png", IMEXRK::N2/2);
+            solver.Profile(std::to_string(step)+"profile.png", 0, 0);
         }
     }
 

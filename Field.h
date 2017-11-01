@@ -11,8 +11,6 @@
 
 using namespace Eigen;
 
-using complex = std::complex<double>;
-
 template<typename T, int N1, int N2, int N3>
 class Field
 {
@@ -217,69 +215,19 @@ public:
     {
         assert(other.BC() == this->BC());
 
-        other.Zero();
-
-        // first do DCT in 3rd dimension
-        int dim = N3/2;
-        fftw_r2r_kind kind;
-
-        if (this->BC() == BoundaryCondition::Neumann)
+        // copy the input data into complex numbers
+        std::vector<complex> inputData(N1*N2*N3);
+        for (unsigned int j=0; j<N1*N2*N3; j++)
         {
-            kind = FFTW_REDFT10;
-        }
-        else
-        {
-            kind = FFTW_REDFT11;
+            inputData[j] = this->Raw()[j];
         }
 
-        auto pNegative = fftw_plan_many_r2r(1,
-                                            &dim,
-                                            N1*N2,
-                                            const_cast<double*>(this->Raw()+N1*N2*N3/2-1),
-                                            nullptr,
-                                            -N1*N2,
-                                            -1,
-                                            reinterpret_cast<double*>(other.Raw()+N1*N2*N3/2-1),
-                                            nullptr,
-                                            -N1*N2*2, // the target is meant to hold complex
-                                            -2,      // numbers, so double sizes
-                                            &kind,
-                                            FFTW_ESTIMATE);
-
-        auto pPositive = fftw_plan_many_r2r(1,
-                                            &dim,
-                                            N1*N2,
-                                            const_cast<double*>(this->Raw()+N1*N2*N3/2),
-                                            nullptr,
-                                            N1*N2,
-                                            1,
-                                            reinterpret_cast<double*>(other.Raw()+N1*N2*N3/2),
-                                            nullptr,
-                                            N1*N2*2, // the target is meant to hold complex
-                                            2,       // numbers, so double sizes
-                                            &kind,
-                                            FFTW_ESTIMATE);
-
-        fftw_execute(pNegative);
-        fftw_destroy_plan(pNegative);
-        fftw_execute(pPositive);
-        fftw_destroy_plan(pPositive);
-
-        other *= 2/static_cast<double>(N3);
-
-        if (this->BC() == BoundaryCondition::Neumann)
-        {
-            other.slice(N3/2) /= 2;
-            other.slice(N3/2-1) /= 2;
-        }
-
-
-        // now do FFT in 1st and 2nd dimensions
+        // do FFT in 1st and 2nd dimensions
         int dims[] = {N2, N1};
         auto plan = fftw_plan_many_dft(2,
                                        dims,
                                        N3,
-                                       reinterpret_cast<fftw_complex*>(other.Raw()),
+                                       reinterpret_cast<fftw_complex*>(inputData.data()),
                                        nullptr,
                                        1,
                                        N1*N2,
@@ -313,7 +261,7 @@ public:
         }
         std::vector<complex> outputData(N1*N2*N3);
 
-        // first do IFT in 1st and 2nd dimensions
+        // do IFT in 1st and 2nd dimensions
         int dims[] = {N2, N1};
         auto plan = fftw_plan_many_dft(2,
                                        dims,
@@ -336,57 +284,6 @@ public:
         {
             other.Raw()[j] = outputData[j].real();
         }
-
-        fftw_r2r_kind kind;
-        int dim = N3/2;
-
-        // then do IDCT in 3rd dimension
-
-        other *= 0.5;
-        if (this->BC() == BoundaryCondition::Neumann)
-        {
-            // all but lowest frequency modes must be halved
-            other.slice(N3/2) *= 2;
-            other.slice(N3/2 - 1) *= 2;
-
-            kind = FFTW_REDFT01;
-        }
-        else
-        {
-            kind = FFTW_REDFT11;
-        }
-        auto pNegative = fftw_plan_many_r2r(1,
-                                            &dim,
-                                            N1*N2,
-                                            const_cast<double*>(other.Raw()+N1*N2*N3/2-1),
-                                            nullptr,
-                                            -N1*N2,
-                                            -1,
-                                            (other.Raw()+N1*N2*N3/2-1),
-                                            nullptr,
-                                            -N1*N2,
-                                            -1,
-                                            &kind,
-                                            FFTW_ESTIMATE);
-
-        auto pPositive = fftw_plan_many_r2r(1,
-                                            &dim,
-                                            N1*N2,
-                                            const_cast<double*>(other.Raw()+N1*N2*N3/2),
-                                            nullptr,
-                                            N1*N2,
-                                            1,
-                                            (other.Raw()+N1*N2*N3/2),
-                                            nullptr,
-                                            N1*N2,
-                                            1,
-                                            &kind,
-                                            FFTW_ESTIMATE);
-
-        fftw_execute(pNegative);
-        fftw_destroy_plan(pNegative);
-        fftw_execute(pPositive);
-        fftw_destroy_plan(pPositive);
     }
 };
 
