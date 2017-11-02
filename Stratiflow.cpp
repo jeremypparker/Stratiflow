@@ -7,7 +7,7 @@
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 152;
+    static constexpr int N1 = 160;
     static constexpr int N2 = 1;
     static constexpr int N3 = 41;
 
@@ -52,13 +52,13 @@ public:
         dim3Derivative2Neumann = ChebSecondDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
         dim3Derivative2Dirichlet = ChebSecondDerivativeMatrix(BoundaryCondition::Dirichlet, L3, N3);
 
-        for (int k=0; k<s; k++)
-        {
-            implicitSolveDirichlet[k].compute(
-                MatrixXd::Identity(N3, N3)-0.5*h[k]*nu*dim3Derivative2Dirichlet);
-            implicitSolveNeumann[k].compute(
-                MatrixXd::Identity(N3, N3)-0.5*h[k]*nu*dim3Derivative2Neumann);
-        }
+        // for (int k=0; k<s; k++)
+        // {
+        //     implicitSolveDirichlet[k].compute(
+        //         MatrixXd::Identity(N3, N3)-0.5*h[k]*nu*dim3Derivative2Dirichlet);
+        //     implicitSolveNeumann[k].compute(
+        //         MatrixXd::Identity(N3, N3)-0.5*h[k]*nu*dim3Derivative2Neumann);
+        // }
 
         // we solve each vetical line separately, so N1*N2 total solves
         for (int j1=0; j1<N1; j1++)
@@ -72,6 +72,26 @@ public:
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
 
                 solveLaplacian[j1*N2+j2].compute(laplacian);
+
+
+                // for viscous terms
+                explicitSolveDirichlet[j1*N2+j2] = ChebSecondDerivativeMatrix(BoundaryCondition::Dirichlet, L3, N3);
+                explicitSolveDirichlet[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
+                explicitSolveDirichlet[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
+                explicitSolveDirichlet[j1*N2+j2] *= nu;
+
+                explicitSolveNeumann[j1*N2+j2] = ChebSecondDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
+                explicitSolveNeumann[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
+                explicitSolveNeumann[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
+                explicitSolveNeumann[j1*N2+j2] *= nu;
+
+                for (int k=0; k<s; k++)
+                {
+                    implicitSolveDirichlet[s*(j1*N2+j2) + k].compute(
+                        MatrixXd::Identity(N3, N3)-0.5*h[k]*explicitSolveDirichlet[j1*N2+j2]);
+                    implicitSolveNeumann[s*(j1*N2+j2) + k].compute(
+                        MatrixXd::Identity(N3, N3)-0.5*h[k]*explicitSolveNeumann[j1*N2+j2]);
+                }
             }
         }
     }
@@ -111,9 +131,15 @@ public:
 private:
     void ImplicitUpdate(int k)
     {
-        R1.Dim3Solve(implicitSolveNeumann[k], u1);
-        R2.Dim3Solve(implicitSolveNeumann[k], u2);
-        R3.Dim3Solve(implicitSolveDirichlet[k], u3);
+        for (int j1=0; j1<N1; j1++)
+        {
+            for (int j2=0; j2<N2; j2++)
+            {
+                R1.Dim3Solve(implicitSolveNeumann[s*(j1*N2+j2) + k], j1, j2, u1);
+                R2.Dim3Solve(implicitSolveNeumann[s*(j1*N2+j2) + k], j1, j2, u2);
+                R3.Dim3Solve(implicitSolveDirichlet[s*(j1*N2+j2) + k], j1, j2, u3);
+            }
+        }
     }
 
     void ExplicitUpdate(int k)
@@ -129,14 +155,31 @@ private:
         R3 += (h[k]*zeta[k])*r3;
 
         // explicit part of CN
-        u1.Dim3MatMul(dim3Derivative2Neumann, neumannTemp);
-        neumannTemp *= nu;
+        for (int j1=0; j1<N1; j1++)
+        {
+            for (int j2=0; j2<N2; j2++)
+            {
+                u1.Dim3MatMul(explicitSolveNeumann[j1*N2+j2], j1, j2, neumannTemp);
+            }
+        }
         R1 += 0.5*h[k]*neumannTemp;
-        u2.Dim3MatMul(dim3Derivative2Neumann, neumannTemp);
-        neumannTemp *= nu;
+
+        for (int j1=0; j1<N1; j1++)
+        {
+            for (int j2=0; j2<N2; j2++)
+            {
+                u2.Dim3MatMul(explicitSolveNeumann[j1*N2+j2], j1, j2, neumannTemp);
+            }
+        }
         R2 += 0.5*h[k]*neumannTemp;
-        u3.Dim3MatMul(dim3Derivative2Dirichlet, dirichletTemp);
-        dirichletTemp *= nu;
+
+        for (int j1=0; j1<N1; j1++)
+        {
+            for (int j2=0; j2<N2; j2++)
+            {
+                u3.Dim3MatMul(explicitSolveDirichlet[j1*N2+j2], j1, j2, dirichletTemp);
+            }
+        }
         R3 += 0.5*h[k]*dirichletTemp;
 
         // now construct explicit terms
@@ -145,20 +188,20 @@ private:
         r3.Zero();
 
         //////// EXPLICIT VISCOUS TERMS ////////
-        u1.Dim1MatMul(dim1Derivative2, neumannTemp);
-        r1 += nu*neumannTemp;
-        u1.Dim2MatMul(dim2Derivative2, neumannTemp);
-        r1 += nu*neumannTemp;
+        // u1.Dim1MatMul(dim1Derivative2, neumannTemp);
+        // r1 += nu*neumannTemp;
+        // u1.Dim2MatMul(dim2Derivative2, neumannTemp);
+        // r1 += nu*neumannTemp;
 
-        u2.Dim1MatMul(dim1Derivative2, neumannTemp);
-        r2 += nu*neumannTemp;
-        u2.Dim2MatMul(dim2Derivative2, neumannTemp);
-        r2 += nu*neumannTemp;
+        // u2.Dim1MatMul(dim1Derivative2, neumannTemp);
+        // r2 += nu*neumannTemp;
+        // u2.Dim2MatMul(dim2Derivative2, neumannTemp);
+        // r2 += nu*neumannTemp;
 
-        u3.Dim1MatMul(dim1Derivative2, dirichletTemp);
-        r3 += nu*dirichletTemp;
-        u3.Dim2MatMul(dim2Derivative2, dirichletTemp);
-        r3 += nu*dirichletTemp;
+        // u3.Dim1MatMul(dim1Derivative2, dirichletTemp);
+        // r3 += nu*dirichletTemp;
+        // u3.Dim2MatMul(dim2Derivative2, dirichletTemp);
+        // r3 += nu*dirichletTemp;
 
         //////// NONLINEAR TERMS ////////
 
@@ -289,8 +332,10 @@ private:
     MatrixXd dim3Derivative2Neumann;
     MatrixXd dim3Derivative2Dirichlet;
 
-    std::array<ColPivHouseholderQR<MatrixXcd>, 4> implicitSolveDirichlet;
-    std::array<ColPivHouseholderQR<MatrixXcd>, 4> implicitSolveNeumann;
+    std::array<MatrixXcd, N1*N2> explicitSolveDirichlet;
+    std::array<MatrixXcd, N1*N2> explicitSolveNeumann;
+    std::array<ColPivHouseholderQR<MatrixXcd>, 3*N1*N2> implicitSolveDirichlet;
+    std::array<ColPivHouseholderQR<MatrixXcd>, 3*N1*N2> implicitSolveNeumann;
     std::array<ColPivHouseholderQR<MatrixXcd>, N1*N2> solveLaplacian;
 };
 
@@ -303,7 +348,7 @@ int main()
     auto x3 = ChebPoints(IMEXRK::N3, IMEXRK::L3);
     for (int j=0; j<IMEXRK::N3; j++)
     {
-        initialU1.slice(j).setConstant(tanh(x3(j)));
+        initialU1.slice(j).setConstant(tanh(x3(j)+2));
         //initialU1.slice(j) = exp(-x3(j)*x3(j));
 
         if (j!=0 && j!=IMEXRK::N3-1 && j!= IMEXRK::N3/2)
@@ -317,7 +362,7 @@ int main()
     solver.Quiver("initial.png", IMEXRK::N2/2);
     solver.Profile("profile.png", 0, 0);
 
-    for (int step=0; step<20000; step++)
+    for (int step=0; step<50000; step++)
     {
         std::cout << "Step " << step << std::endl;
         solver.TimeStep();
