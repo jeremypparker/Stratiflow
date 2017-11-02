@@ -148,7 +148,8 @@ public:
         }
     }
 
-    void Dim3MatMul(const MatrixXcd& matrix, Field<T, N1, N2, N3>& result) const
+    template<typename T2>
+    void Dim3MatMul(const Matrix<T2, -1, -1>& matrix, Field<T, N1, N2, N3>& result) const
     {
         assert(matrix.rows() == N3 && matrix.cols() == N3);
         for (int j1=0; j1<N1; j1++)
@@ -160,7 +161,8 @@ public:
         }
     }
 
-    void Dim3MatMul(const MatrixXcd& matrix, int j1, int j2, Field<T, N1, N2, N3>& result) const
+    template<typename T2>
+    void Dim3MatMul(const Matrix<T2, -1, -1>& matrix, int j1, int j2, Field<T, N1, N2, N3>& result) const
     {
         result.stack(j1, j2) = matrix * stack(j1, j2).matrix();
     }

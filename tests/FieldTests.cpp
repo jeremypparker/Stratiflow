@@ -59,7 +59,9 @@ TEST_CASE("Stackwise Matmul")
     NodalField<5, 6, 8> f1(BoundaryCondition::Dirichlet);
     NodalField<5, 6, 8> f2(BoundaryCondition::Dirichlet);
 
-    f1.Dim3MatMul(VectorXd::Constant(8, 5.0).asDiagonal(), f2);
+    MatrixXd mat = VectorXd::Constant(8, 5.0).asDiagonal();
+
+    f1.Dim3MatMul(mat, f2);
 
     f1 *= 5.0;
     REQUIRE(f2 == f1);
