@@ -1,10 +1,11 @@
 #include "Field.h"
+#include "Differentiation.h"
 
 ArrayXd ChebPoints(unsigned int N, double L)
 {
     assert(N%2 == 1);
-    auto points = L*(1 - cos(ArrayXd::LinSpaced(N/2+1, 0, pi/2)));
+    auto points = ChebyshevGaussLobattoNodes(N);
     ArrayXd ret(N);
-    ret << -points.reverse(), points.tail(N/2);
-    return ret;
+    ret << points.tail(N/2) - 1, points.head(N/2 + 1) + 1;
+    return ret * L;
 }

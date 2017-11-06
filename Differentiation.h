@@ -6,6 +6,10 @@
 
 using namespace Eigen;
 
+ArrayXd ChebyshevGaussLobattoNodes(int N);
+
+MatrixXd ChebyshevDerivativeMatrix(int N);
+
 MatrixXd ChebSecondDerivativeMatrix(BoundaryCondition bc, double L, int N);
 MatrixXd ChebDerivativeMatrix(BoundaryCondition originalBC, double L, int N);
 

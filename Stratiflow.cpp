@@ -15,8 +15,8 @@ public:
     static constexpr double L2 = 3.5;  // size of domain spanwise
     static constexpr double L3 = 15.0; // half size of domain vertically
 
-    const double deltaT = 0.0005;
-    const double nu = 0.001;
+    const double deltaT = 0.001;
+    const double nu = 0.0005;
 
     using NField = NodalField<N1,N2,N3>;
     using MField = ModalField<N1,N2,N3>;
@@ -35,8 +35,8 @@ public:
     , U3(BoundaryCondition::Dirichlet)
     , dirichletTemp(BoundaryCondition::Dirichlet)
     , neumannTemp(BoundaryCondition::Neumann)
-    , ndProduct(BoundaryCondition::Dirichlet)
-    , nnProduct(BoundaryCondition::Neumann)
+    , ndTemp(BoundaryCondition::Dirichlet)
+    , nnTemp(BoundaryCondition::Neumann)
     , mdProduct(BoundaryCondition::Dirichlet)
     , mnProduct(BoundaryCondition::Neumann)
     , divergence(mnProduct)
@@ -210,39 +210,39 @@ private:
         u2.ToNodal(U2);
         u3.ToNodal(U3);
 
-        NodalProduct(U1, U1, nnProduct);
-        nnProduct.ToModal(mnProduct);
+        NodalProduct(U1, U1, nnTemp);
+        nnTemp.ToModal(mnProduct);
         mnProduct.Dim1MatMul(dim1Derivative, neumannTemp);
         r1 += (-1.0)*neumannTemp;
 
-        NodalProduct(U1, U2, nnProduct);
-        nnProduct.ToModal(mnProduct);
+        NodalProduct(U1, U2, nnTemp);
+        nnTemp.ToModal(mnProduct);
         mnProduct.Dim1MatMul(dim1Derivative, neumannTemp);
         r2 += (-1.0)*neumannTemp;
         mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
         r1 += (-1.0)*neumannTemp;
 
-        NodalProduct(U1, U3, ndProduct);
-        ndProduct.ToModal(mdProduct);
+        NodalProduct(U1, U3, ndTemp);
+        ndTemp.ToModal(mdProduct);
         mdProduct.Dim1MatMul(dim1Derivative, dirichletTemp);
         r3 += (-1.0)*dirichletTemp;
         mdProduct.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
         r1 += (-1.0)*neumannTemp;
 
-        NodalProduct(U2, U2, nnProduct);
-        nnProduct.ToModal(mnProduct);
+        NodalProduct(U2, U2, nnTemp);
+        nnTemp.ToModal(mnProduct);
         mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
         r2 += (-1.0)*neumannTemp;
 
-        NodalProduct(U2, U3, ndProduct);
-        ndProduct.ToModal(mdProduct);
+        NodalProduct(U2, U3, ndTemp);
+        ndTemp.ToModal(mdProduct);
         mdProduct.Dim2MatMul(dim2Derivative, dirichletTemp);
         r3 += (-1.0)*dirichletTemp;
         mdProduct.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
         r2 += (-1.0)*neumannTemp;
 
-        NodalProduct(U3, U3, ndProduct);
-        ndProduct.ToModal(mdProduct);
+        NodalProduct(U3, U3, ndTemp);
+        ndTemp.ToModal(mdProduct);
         mdProduct.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
         r3 += (-1.0)*dirichletTemp;
 
@@ -315,7 +315,7 @@ private:
     MField R1, R2, R3;
     MField r1, r2, r3;
     NField U1, U2, U3;
-    NField ndProduct, nnProduct;
+    NField ndTemp, nnTemp;
     MField mdProduct, mnProduct;
     MField dirichletTemp, neumannTemp;
     MField& divergence; // reference to share memory
@@ -359,8 +359,8 @@ int main()
     }
     solver.SetVelocity(initialU1, initialU3);
 
-    solver.Quiver("initial.png", IMEXRK::N2/2);
-    solver.Profile("profile.png", 0, 0);
+    solver.Quiver("images/initial.png", IMEXRK::N2/2);
+    solver.Profile("images/profile.png", 0, 0);
 
     for (int step=0; step<50000; step++)
     {
@@ -369,8 +369,8 @@ int main()
 
         if(step%200==0)
         {
-            solver.Quiver(std::to_string(step)+".png", IMEXRK::N2/2);
-            solver.Profile(std::to_string(step)+"profile.png", 0, 0);
+            solver.Quiver("images/"+std::to_string(step)+".png", IMEXRK::N2/2);
+            solver.Profile("images/"+std::to_string(step)+"profile.png", 0, 0);
         }
     }
 

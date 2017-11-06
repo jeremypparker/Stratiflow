@@ -1,20 +1,5 @@
 #include "Differentiation.h"
 
-MatrixXd ChebSecondDerivativeMatrix(BoundaryCondition bc, double L, int N)
-{
-    MatrixXd neumann = ChebDerivativeMatrix(BoundaryCondition::Neumann, L, N);
-    MatrixXd dirichlet = ChebDerivativeMatrix(BoundaryCondition::Dirichlet, L, N);
-
-    if (bc==BoundaryCondition::Neumann)
-    {
-        return dirichlet*neumann;
-    }
-    else
-    {
-        return neumann*dirichlet;
-    }
-}
-
 MatrixXd SymmetriseMatrix(const MatrixXd& in, BoundaryCondition bc)
 {
     assert(in.rows() == in.cols());
@@ -31,6 +16,8 @@ MatrixXd SymmetriseMatrix(const MatrixXd& in, BoundaryCondition bc)
     // take into account weights
     bigMatrix.row(N) *= 0.5;
 
+    //return bigMatrix;
+
     // now use symmetry to get reduced matrix
     MatrixXd out(2*N+1, N+1);
     out.setZero();
@@ -38,6 +25,9 @@ MatrixXd SymmetriseMatrix(const MatrixXd& in, BoundaryCondition bc)
     // these points are not imaged
     out.col(0) = bigMatrix.col(N/2);
     out.col(N) = bigMatrix.col(3*N/2);
+
+    // to avoid double counting
+    bigMatrix(N, N) *= 0.5;
 
     for (int k=1; k<=N/2; k++)
     {
@@ -71,26 +61,29 @@ ArrayXd ChebyshevGaussLobattoNodes(int N)
     return x;
 }
 
-ArrayXd ChebyshevBarycentricWeights(int N)
+ArrayXd BarycentricWeights(const ArrayXd& x)
 {
     // note it doesn't matter if these are scaled
-    ArrayXd w(N+1);
-    for (int i=0; i<=N; i++)
-    {
-        w(i) = pow(-1, i);
-    }
-    w(0) *= 0.5;
-    w(N) *= 0.5;
+    int N = x.rows() - 1;
+    ArrayXd w = ArrayXd::Ones(N+1);
 
-    return w;
+    for (int j=0; j<=N; j++)
+    {
+        for (int k=0; k<=N; k++)
+        {
+            if (k==j) continue;
+
+            w(j) *= (x(j)-x(k)) * 2.0;
+        }
+    }
+
+    return 1/w;
+
 }
 
-MatrixXd ChebyshevDerivativeMatrix(int N)
+MatrixXd PolynomialDerivativeMatrix(const ArrayXd& x)
 {
-    ArrayXd x = ChebyshevGaussLobattoNodes(N);
-    ArrayXd w = ChebyshevBarycentricWeights(N);
-
-
+    ArrayXd w = BarycentricWeights(x);
     MatrixXd D(N+1, N+1);
 
     for (int i=0; i<=N; i++)
@@ -111,8 +104,24 @@ MatrixXd ChebyshevDerivativeMatrix(int N)
 
 MatrixXd ChebDerivativeMatrix(BoundaryCondition originalBC, double L, int N)
 {
-    MatrixXd D = ChebyshevDerivativeMatrix(N-1)/L;
+    MatrixXd D = PolynomialDerivativeMatrix(ChebyshevGaussLobattoNodes(N-1))/L;
     return SymmetriseMatrix(D, originalBC);
+}
+
+MatrixXd ChebSecondDerivativeMatrix(BoundaryCondition bc, double L, int N)
+{
+    //return SymmetriseMatrix(ChebyshevDerivativeMatrix(N-1)*ChebyshevDerivativeMatrix(N-1)/L/L, bc);
+    MatrixXd neumann = ChebDerivativeMatrix(BoundaryCondition::Neumann, L, N);
+    MatrixXd dirichlet = ChebDerivativeMatrix(BoundaryCondition::Dirichlet, L, N);
+
+    if (bc==BoundaryCondition::Neumann)
+    {
+        return dirichlet*neumann;
+    }
+    else
+    {
+        return neumann*dirichlet;
+    }
 }
 
 ArrayXd k(int n)

@@ -151,7 +151,6 @@ public:
     template<typename T2>
     void Dim3MatMul(const Matrix<T2, -1, -1>& matrix, Field<T, N1, N2, N3>& result) const
     {
-        assert(matrix.rows() == N3 && matrix.cols() == N3);
         for (int j1=0; j1<N1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
@@ -164,7 +163,24 @@ public:
     template<typename T2>
     void Dim3MatMul(const Matrix<T2, -1, -1>& matrix, int j1, int j2, Field<T, N1, N2, N3>& result) const
     {
-        result.stack(j1, j2) = matrix * stack(j1, j2).matrix();
+        assert(matrix.rows() == matrix.cols());
+
+        if (matrix.rows() == N3)
+        {
+            result.stack(j1, j2) = matrix * stack(j1, j2).matrix();
+        }
+        else if(matrix.rows() == 2*N3-1)
+        {
+            // todo: don't allocate!
+            Matrix<T, -1, 1> temp(2*N3-1);
+            temp << stack(j1,j2).segment(1, (N3-1)/2).reverse(), stack(j1, j2), stack(j1,j2).segment((N3+1)/2, (N3-1)/2).reverse();
+
+            result.stack(j1, j2) = (matrix * temp).segment((N3-1)/2, N3);
+        }
+        else
+        {
+            assert(0);
+        }
     }
 
     void Dim1MatMul(const DiagonalMatrix<T, -1>& matrix, Field<T, N1, N2, N3>& result) const
@@ -200,7 +216,23 @@ public:
     template<typename Solver>
     void Dim3Solve(Solver& solver, int j1, int j2, Field<T, N1, N2, N3>& result) const
     {
-        result.stack(j1, j2) = solver.solve(stack(j1, j2).matrix());
+        if (solver.rows() == N3)
+        {
+            result.stack(j1, j2) = solver.solve(stack(j1, j2).matrix());
+        }
+        else if(solver.rows() == 2*N3-1)
+        {
+            // todo: don't allocate!
+            Matrix<T, -1, 1> temp(2*N3-1);
+            temp << stack(j1,j2).segment(1, (N3-1)/2).reverse(), stack(j1, j2), stack(j1,j2).segment((N3+1)/2, (N3-1)/2).reverse();
+
+            result.stack(j1, j2) = solver.solve(temp.matrix()).segment((N3-1)/2, N3);
+        }
+        else
+        {
+            assert(0);
+        }
+
     }
 
 private:
