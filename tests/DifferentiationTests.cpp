@@ -247,9 +247,9 @@ TEST_CASE("Dim 2 fourier derivatives")
 
 TEST_CASE("Inverse Laplacian")
 {
-    constexpr int N1 = 152;
-    constexpr int N2 = 38;
-    constexpr int N3 = 41;
+    constexpr int N1 = 1;
+    constexpr int N2 = 1;
+    constexpr int N3 = 21;
 
     constexpr double L1 = 14.0;
     constexpr double L2 = 3.5;
@@ -271,6 +271,8 @@ TEST_CASE("Inverse Laplacian")
             laplacian += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
             laplacian += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
 
+            std::cout << laplacian << std::endl << std::endl;
+
             solveLaplacian[j1*N2+j2].compute(laplacian);
         }
     }
@@ -282,8 +284,8 @@ TEST_CASE("Inverse Laplacian")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            physicalRHS.stack(j1, j2) = (4*x*x - 2 -4.0*pi*pi/L1/L1)*
-                                        exp(-x*x)*sin(2*pi*j1/static_cast<double>(N1));
+            physicalRHS.stack(j1, j2) = (4*x*x - 2/* -4.0*pi*pi/L1/L1*/)*
+                                        exp(-x*x);//*sin(2*pi*j1/static_cast<double>(N1));
         }
     }
 
@@ -291,10 +293,6 @@ TEST_CASE("Inverse Laplacian")
 
     ModalField<N1, N2, N3> rhs(BoundaryCondition::Neumann);
     physicalRHS.ToModal(rhs);
-
-    // set the RHS for the boundary condition solve
-    rhs.slice(0).setZero();
-    rhs.slice(N3-1).setZero();
 
     for (int j1=0; j1<N1; j1++)
     {
@@ -312,9 +310,13 @@ TEST_CASE("Inverse Laplacian")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            expectedSolution.stack(j1, j2)= exp(-x*x)*sin(2*pi*j1/static_cast<double>(N1));
+            expectedSolution.stack(j1, j2)= exp(-x*x);//*sin(2*pi*j1/static_cast<double>(N1));
         }
     }
+
+    std::cout << expectedSolution.stack(0,0) << std::endl << std::endl;
+
+    std::cout << physicalRHS.stack(0,0) << std::endl << std::endl;
 
     REQUIRE(physicalSolution == expectedSolution);
 }
