@@ -144,123 +144,123 @@ void QuiverPlot(const NodalField<N1, N2, N3>& u,
 
 namespace
 {
-    ArrayXd BarycentricWeights(const ArrayXd& x)
-    {
-        int N = x.rows()-1;
-        ArrayXd w(N+1);
+    // ArrayXd BarycentricWeights(const ArrayXd& x)
+    // {
+    //     int N = x.rows()-1;
+    //     ArrayXd w(N+1);
 
-        w.setOnes();
+    //     w.setOnes();
 
-        for (int j=0; j<=N; j++)
-        {
-            for (int k=0; k<=N; k++)
-            {
-                if (j!=k)
-                {
-                    w(j) *= x(j)-x(k);
-                }
-            }
-        }
-        w = 1/w;
-        return w;
-    }
-    ArrayXd ChebyshevGaussLobattoNodes(int N)
-    {
-        ArrayXd x(N);
+    //     for (int j=0; j<=N; j++)
+    //     {
+    //         for (int k=0; k<=N; k++)
+    //         {
+    //             if (j!=k)
+    //             {
+    //                 w(j) *= x(j)-x(k);
+    //             }
+    //         }
+    //     }
+    //     w = 1/w;
+    //     return w;
+    // }
+    // ArrayXd ChebyshevGaussLobattoNodes(int N)
+    // {
+    //     ArrayXd x(N);
 
-        x = -cos(ArrayXd::LinSpaced(N+1, 0, pi));
+    //     x = -cos(ArrayXd::LinSpaced(N+1, 0, pi));
 
-        return x;
-    }
+    //     return x;
+    // }
 
-    ArrayXd FullSymmetrisedNodes(int N, double L)
-    {
-        ArrayXd x = ChebyshevGaussLobattoNodes(N);
+    // ArrayXd FullSymmetrisedNodes(int N, double L)
+    // {
+    //     ArrayXd x = ChebyshevGaussLobattoNodes(N);
 
-        ArrayXd out(2*N+1);
-        out << L*(x-1), L*(x.segment(1, N)+1);
+    //     ArrayXd out(2*N+1);
+    //     out << L*(x-1), L*(x.segment(1, N)+1);
 
-        return out;
-    }
+    //     return out;
+    // }
 
-    ArrayXd ApplyBC(const ArrayXd& f, BoundaryCondition bc)
-    {
-        int N = f.rows()-1;
+    // ArrayXd ApplyBC(const ArrayXd& f, BoundaryCondition bc)
+    // {
+    //     int N = f.rows()-1;
 
-        ArrayXd out(2*N+1);
+    //     ArrayXd out(2*N+1);
 
-        if(bc == BoundaryCondition::Neumann)
-        {
-            out << f.segment(1, N/2).reverse(), f, f.segment(N/2, N/2).reverse();
-        }
-        else
-        {
-            out << -f.segment(1, N/2).reverse(), f, -f.segment(N/2, N/2).reverse();
-        }
+    //     if(bc == BoundaryCondition::Neumann)
+    //     {
+    //         out << f.segment(1, N/2).reverse(), f, f.segment(N/2, N/2).reverse();
+    //     }
+    //     else
+    //     {
+    //         out << -f.segment(1, N/2).reverse(), f, -f.segment(N/2, N/2).reverse();
+    //     }
 
-        return out;
-    }
+    //     return out;
+    // }
 
 
-    std::vector<double> ToVector(const ArrayXd& arr)
-    {
-        return std::vector<double>(arr.data(), arr.data() + arr.rows());
-    }
+    // std::vector<double> ToVector(const ArrayXd& arr)
+    // {
+    //     return std::vector<double>(arr.data(), arr.data() + arr.rows());
+    // }
 
-    void Plot(const ArrayXd& x, const ArrayXd& y, std::string format="b-o")
-    {
-        matplotlibcpp::plot(ToVector(x), ToVector(y), format);
-    }
+    // void Plot(const ArrayXd& x, const ArrayXd& y, std::string format="b-o")
+    // {
+    //     matplotlibcpp::plot(ToVector(x), ToVector(y), format);
+    // }
 
-    ArrayXd BarycentricEval(ArrayXd& f, ArrayXd& at, double L)
-    {
-        int N = f.rows()-1;
-        ArrayXd x = FullSymmetrisedNodes(N, L);
-        ArrayXd w1 = BarycentricWeights(x.head(N+1));
-        ArrayXd w2 = BarycentricWeights(x.tail(N+1));
-        ArrayXd ffull = ApplyBC(f, BoundaryCondition::Neumann);
+    // ArrayXd BarycentricEval(ArrayXd& f, ArrayXd& at, double L)
+    // {
+    //     int N = f.rows()-1;
+    //     ArrayXd x = FullSymmetrisedNodes(N, L);
+    //     ArrayXd w1 = BarycentricWeights(x.head(N+1));
+    //     ArrayXd w2 = BarycentricWeights(x.tail(N+1));
+    //     ArrayXd ffull = ApplyBC(f, BoundaryCondition::Neumann);
 
-        ArrayXd result(at.rows());
-        result.setZero();
+    //     ArrayXd result(at.rows());
+    //     result.setZero();
 
-        ArrayXd denom(at.rows());
-        denom.setZero();
+    //     ArrayXd denom(at.rows());
+    //     denom.setZero();
 
-        for (int j=0; j<at.rows(); j++)
-        {
-            ArrayXd w(N+1);
-            int start;
-            int end;
-            if (at(j)<0)
-            {
-                start = 0;
-                end = N;
-                w = w1;
-            }
-            else
-            {
-                start =N;
-                end = 2*N;
-                w = w2;
-            }
-            for (int i=start; i<=end; i++)
-            {
-                result(j) += ffull(i)*w(i-start)/(at(j)-x(i));
-                denom(j) += w(i-start)/(at(j)-x(i));
-            }
-        }
+    //     for (int j=0; j<at.rows(); j++)
+    //     {
+    //         ArrayXd w(N+1);
+    //         int start;
+    //         int end;
+    //         if (at(j)<0)
+    //         {
+    //             start = 0;
+    //             end = N;
+    //             w = w1;
+    //         }
+    //         else
+    //         {
+    //             start =N;
+    //             end = 2*N;
+    //             w = w2;
+    //         }
+    //         for (int i=start; i<=end; i++)
+    //         {
+    //             result(j) += ffull(i)*w(i-start)/(at(j)-x(i));
+    //             denom(j) += w(i-start)/(at(j)-x(i));
+    //         }
+    //     }
 
-        result /= denom;
+    //     result /= denom;
 
-        return result;
-    }
+    //     return result;
+    // }
 
 }
 
 inline void Interpolate(ArrayXd y, double L3, BoundaryCondition bc, std::string filename)
 {
-    ArrayXd xGrid = ArrayXd::LinSpaced(1000, -L3, L3);
-    Plot(xGrid, BarycentricEval(y, xGrid, L3), "r-");
-    matplotlibcpp::save(filename);
-    matplotlibcpp::close();
+    // ArrayXd xGrid = ArrayXd::LinSpaced(1000, -L3, L3);
+    // Plot(xGrid, BarycentricEval(y, xGrid, L3), "r-");
+    // matplotlibcpp::save(filename);
+    // matplotlibcpp::close();
 }

@@ -281,6 +281,22 @@ public:
 
         other *= 1/static_cast<double>(N1*N2);
     }
+
+    double Max() const
+    {
+        double max = 0;
+
+        for (int j3=0; j3<N3; j3++)
+        {
+            double norm = this->slice(j3).matrix().template lpNorm<Infinity>();
+            if (norm > max)
+            {
+                max = norm;
+            }
+        }
+
+        return max;
+    }
 };
 
 template<int N1, int N2, int N3>

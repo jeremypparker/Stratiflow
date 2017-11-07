@@ -133,7 +133,7 @@ ArrayXd GaussLobattoWeights(const ArrayXd& x)
     for (int j=0; j<N; j++)
     {
         qAndL ql = qAndLEvaluation(N, x(j));
-        w(j) = 2.0/(N*(N+1)*q.L*q.L);
+        w(j) = 2.0/(N*(N+1)*ql.L*ql.L);
     }
 
     return w;
@@ -189,19 +189,19 @@ MatrixXd ChebDerivativeMatrix(BoundaryCondition originalBC, double L, int N)
 
 MatrixXd ChebSecondDerivativeMatrix(BoundaryCondition bc, double L, int N)
 {
-    ArrayXd x = ChebyshevGaussLobattoNodes(N-1);
-    return SymmetriseMatrix(PolynomialDerivativeMatrix(x)*PolynomialDerivativeMatrix(x)/L/L, bc);
-    // MatrixXd neumann = ChebDerivativeMatrix(BoundaryCondition::Neumann, L, N);
-    // MatrixXd dirichlet = ChebDerivativeMatrix(BoundaryCondition::Dirichlet, L, N);
+    // ArrayXd x = ChebyshevGaussLobattoNodes(N-1);
+    // return SymmetriseMatrix(PolynomialDerivativeMatrix(x)*PolynomialDerivativeMatrix(x)/L/L, bc);
+    MatrixXd neumann = ChebDerivativeMatrix(BoundaryCondition::Neumann, L, N);
+    MatrixXd dirichlet = ChebDerivativeMatrix(BoundaryCondition::Dirichlet, L, N);
 
-    // if (bc==BoundaryCondition::Neumann)
-    // {
-    //     return dirichlet*neumann;
-    // }
-    // else
-    // {
-    //     return neumann*dirichlet;
-    // }
+    if (bc==BoundaryCondition::Neumann)
+    {
+        return dirichlet*neumann;
+    }
+    else
+    {
+        return neumann*dirichlet;
+    }
 }
 
 ArrayXd k(int n)

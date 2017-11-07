@@ -120,3 +120,17 @@ TEST_CASE("Neumann Modal/Nodal")
 
     REQUIRE(f1 == f3);
 }
+
+TEST_CASE("Max")
+{
+    NodalField<3,4,2> f1(BoundaryCondition::Neumann);
+
+    f1.slice(0) << 3, 5, -1, 8,
+                   2, 4, 2, 0,
+                   2, 5, 3, 2;
+    f1.slice(1) << 0, 5, -1, 8,
+                   2, 4, 0, 0,
+                   2, 5, 3, -10;
+
+    REQUIRE(f1.Max() == 10);
+}

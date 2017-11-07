@@ -15,7 +15,7 @@ public:
     static constexpr double L2 = 3.5;  // size of domain spanwise
     static constexpr double L3 = 15.0; // half size of domain vertically
 
-    const double deltaT = 0.001;
+    const double deltaT = 0.00001;
     const double nu = 0.0005;
 
     using NField = NodalField<N1,N2,N3>;
@@ -126,6 +126,25 @@ public:
     {
         velocity1.ToModal(u1);
         velocity3.ToModal(u3);
+    }
+
+    // gives an upper bound on cfl number
+    double CFL()
+    {
+        ArrayXd x = ChebyshevGaussLobattoNodes(N3);
+
+        u1.ToNodal(U1);
+        u2.ToNodal(U2);
+        u3.ToNodal(U3);
+
+        double delta1 = L1/N1;
+        double delta2 = L2/N2;
+        double delta3 = x(1)-x(0); // minimal delta
+
+        double cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
+        cfl *= deltaT;
+
+        return cfl;
     }
 
 private:
@@ -362,15 +381,17 @@ int main()
     solver.Quiver("images/initial.png", IMEXRK::N2/2);
     solver.Profile("images/profile.png", 0, 0);
 
-    for (int step=0; step<50000; step++)
+    for (int step=0; step<500000; step++)
     {
-        std::cout << "Step " << step << std::endl;
         solver.TimeStep();
 
         if(step%200==0)
         {
             solver.Quiver("images/"+std::to_string(step)+".png", IMEXRK::N2/2);
             solver.Profile("images/"+std::to_string(step)+"profile.png", 0, 0);
+
+            std::cout << "Step " << step << std::endl;
+            std::cout << "CFL number: " << solver.CFL() << std::endl;
         }
     }
 
