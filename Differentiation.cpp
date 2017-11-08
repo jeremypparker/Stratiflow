@@ -1,5 +1,7 @@
 #include "Differentiation.h"
 
+#include <Eigen/Dense>
+
 MatrixXd SymmetriseMatrix(const MatrixXd& in, BoundaryCondition bc)
 {
     assert(in.rows() == in.cols());
@@ -52,6 +54,8 @@ MatrixXd SymmetriseMatrix(const MatrixXd& in, BoundaryCondition bc)
     return out.block(N/2, 0, N+1, N+1); // discard initial and final rows as these are not used
 }
 
+namespace
+{
 struct qAndL
 {
     double q;
@@ -88,8 +92,9 @@ qAndL qAndLEvaluation(int N, double x)
 
     return ret;
 }
+}
 
-ArrayXd ChebyshevGaussLobattoNodes(int N)
+ArrayXd GaussLobattoNodes(int N)
 {
     // ArrayXd x(N);
 
@@ -183,25 +188,28 @@ MatrixXd PolynomialDerivativeMatrix(const ArrayXd& x)
 
 MatrixXd ChebDerivativeMatrix(BoundaryCondition originalBC, double L, int N)
 {
-    MatrixXd D = PolynomialDerivativeMatrix(ChebyshevGaussLobattoNodes(N-1))/L;
+    MatrixXd D = PolynomialDerivativeMatrix(GaussLobattoNodes(N-1))/L;
     return SymmetriseMatrix(D, originalBC);
 }
 
 MatrixXd ChebSecondDerivativeMatrix(BoundaryCondition bc, double L, int N)
 {
-    // ArrayXd x = ChebyshevGaussLobattoNodes(N-1);
-    // return SymmetriseMatrix(PolynomialDerivativeMatrix(x)*PolynomialDerivativeMatrix(x)/L/L, bc);
-    MatrixXd neumann = ChebDerivativeMatrix(BoundaryCondition::Neumann, L, N);
-    MatrixXd dirichlet = ChebDerivativeMatrix(BoundaryCondition::Dirichlet, L, N);
+    ArrayXd x = GaussLobattoNodes(N-1);
+    MatrixXd D = PolynomialDerivativeMatrix(x);
+    MatrixXd W = GaussLobattoWeights(x).matrix().asDiagonal();
 
-    if (bc==BoundaryCondition::Neumann)
-    {
-        return dirichlet*neumann;
-    }
-    else
-    {
-        return neumann*dirichlet;
-    }
+    return SymmetriseMatrix(-W.inverse()*D.transpose()*W*D/L/L, bc);
+    // MatrixXd neumann = ChebDerivativeMatrix(BoundaryCondition::Neumann, L, N);
+    // MatrixXd dirichlet = ChebDerivativeMatrix(BoundaryCondition::Dirichlet, L, N);
+
+    // if (bc==BoundaryCondition::Neumann)
+    // {
+    //     return dirichlet*neumann;
+    // }
+    // else
+    // {
+    //     return neumann*dirichlet;
+    // }
 }
 
 ArrayXd k(int n)

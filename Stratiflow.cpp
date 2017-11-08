@@ -15,7 +15,7 @@ public:
     static constexpr double L2 = 3.5;  // size of domain spanwise
     static constexpr double L3 = 15.0; // half size of domain vertically
 
-    const double deltaT = 0.00001;
+    const double deltaT = 0.0005;
     const double nu = 0.0005;
 
     using NField = NodalField<N1,N2,N3>;
@@ -70,6 +70,15 @@ public:
                 // add terms for horizontal derivatives
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
+
+                // despite the fact we want neumann boundary conditions,
+                // we need to impose a boundary value for non-singularity
+
+                // do it at both ends for symmetry
+                laplacian.row(0).setZero();
+                laplacian.row(N3-1).setZero();
+                laplacian(0,0) = 1;
+                laplacian(N3-1, N3-1) = 1;
 
                 solveLaplacian[j1*N2+j2].compute(laplacian);
 
@@ -131,7 +140,7 @@ public:
     // gives an upper bound on cfl number
     double CFL()
     {
-        ArrayXd x = ChebyshevGaussLobattoNodes(N3);
+        ArrayXd x = GaussLobattoNodes(N3);
 
         u1.ToNodal(U1);
         u2.ToNodal(U2);
@@ -295,6 +304,10 @@ private:
 
         divergence *= 1/h[k];
 
+        // boundary values
+        divergence.slice(0).setZero();
+        divergence.slice(N3-1).setZero();
+
         // solve Δq = ∇·u as linear system Aq = divergence
         q.Zero(); // probably not necessary
         for (int j1=0; j1<N1; j1++)
@@ -367,7 +380,7 @@ int main()
     auto x3 = ChebPoints(IMEXRK::N3, IMEXRK::L3);
     for (int j=0; j<IMEXRK::N3; j++)
     {
-        initialU1.slice(j).setConstant(tanh(x3(j)+2));
+        initialU1.slice(j).setConstant(tanh(x3(j)));
         //initialU1.slice(j) = exp(-x3(j)*x3(j));
 
         if (j!=0 && j!=IMEXRK::N3-1 && j!= IMEXRK::N3/2)
@@ -390,8 +403,8 @@ int main()
             solver.Quiver("images/"+std::to_string(step)+".png", IMEXRK::N2/2);
             solver.Profile("images/"+std::to_string(step)+"profile.png", 0, 0);
 
-            std::cout << "Step " << step << std::endl;
-            std::cout << "CFL number: " << solver.CFL() << std::endl;
+            std::cout << "Step " << step << ", time " << step*solver.deltaT
+                      << ", CFL number: " << solver.CFL() << std::endl;
         }
     }
 

@@ -271,6 +271,15 @@ TEST_CASE("Inverse Laplacian")
             laplacian += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
             laplacian += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
 
+            // despite the fact we want neumann boundary conditions,
+            // we need to impose a boundary value for non-singularity
+
+            // do it at both ends for symmetry
+            laplacian.row(0).setZero();
+            laplacian.row(N3-1).setZero();
+            laplacian(0,0) = 1;
+            laplacian(N3-1, N3-1) = 1;
+
             std::cout << laplacian << std::endl << std::endl;
 
             solveLaplacian[j1*N2+j2].compute(laplacian);
@@ -294,6 +303,9 @@ TEST_CASE("Inverse Laplacian")
     ModalField<N1, N2, N3> rhs(BoundaryCondition::Neumann);
     physicalRHS.ToModal(rhs);
 
+    rhs.slice(0).setZero();
+    rhs.slice(N3-1).setZero();
+
     for (int j1=0; j1<N1; j1++)
     {
         for (int j2=0; j2<N2; j2++)
@@ -316,7 +328,40 @@ TEST_CASE("Inverse Laplacian")
 
     std::cout << expectedSolution.stack(0,0) << std::endl << std::endl;
 
-    std::cout << physicalRHS.stack(0,0) << std::endl << std::endl;
+    std::cout << physicalSolution.stack(0,0) << std::endl << std::endl;
 
     REQUIRE(physicalSolution == expectedSolution);
+}
+
+TEST_CASE("GuassLobatto nodes and weights")
+{
+    {
+        ArrayXd x = GaussLobattoNodes(2);
+        ArrayXd w = GaussLobattoWeights(x);
+
+        REQUIRE(x(0) == Approx(-1));
+        REQUIRE(x(1) == Approx(0));
+        REQUIRE(x(2) == Approx(1));
+
+        REQUIRE(w(0) == Approx(1.0/3));
+        REQUIRE(w(1) == Approx(4.0/3));
+        REQUIRE(w(2) == Approx(1.0/3));
+    }
+
+    {
+        ArrayXd x = GaussLobattoNodes(4);
+        ArrayXd w = GaussLobattoWeights(x);
+
+        REQUIRE(x(0) == Approx(-1));
+        REQUIRE(x(1) == Approx(-sqrt(21)/7));
+        REQUIRE(x(2) == Approx(0));
+        REQUIRE(x(3) == Approx(sqrt(21)/7));
+        REQUIRE(x(4) == Approx(1));
+
+        REQUIRE(w(0) == Approx(0.1));
+        REQUIRE(w(1) == Approx(0.5444444444444444444));
+        REQUIRE(w(2) == Approx(0.7111111111111111111));
+        REQUIRE(w(3) == Approx(0.5444444444444444444));
+        REQUIRE(w(4) == Approx(0.1));
+    }
 }

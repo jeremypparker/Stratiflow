@@ -164,7 +164,7 @@ namespace
     //     w = 1/w;
     //     return w;
     // }
-    // ArrayXd ChebyshevGaussLobattoNodes(int N)
+    // ArrayXd GaussLobattoNodes(int N)
     // {
     //     ArrayXd x(N);
 
@@ -175,7 +175,7 @@ namespace
 
     // ArrayXd FullSymmetrisedNodes(int N, double L)
     // {
-    //     ArrayXd x = ChebyshevGaussLobattoNodes(N);
+    //     ArrayXd x = GaussLobattoNodes(N);
 
     //     ArrayXd out(2*N+1);
     //     out << L*(x-1), L*(x.segment(1, N)+1);

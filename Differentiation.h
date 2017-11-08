@@ -6,7 +6,8 @@
 
 using namespace Eigen;
 
-ArrayXd ChebyshevGaussLobattoNodes(int N);
+ArrayXd GaussLobattoNodes(int N);
+ArrayXd GaussLobattoWeights(const ArrayXd& x);
 
 MatrixXd ChebyshevDerivativeMatrix(int N);
 
