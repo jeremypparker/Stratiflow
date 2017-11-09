@@ -37,6 +37,8 @@ namespace matplotlibcpp {
 			PyObject *s_python_function_figure;
 			PyObject *s_python_function_close;
 			PyObject *s_python_function_plot;
+			PyObject *s_python_function_imshow;
+			PyObject *s_python_function_colorbar;
 			PyObject *s_python_function_fill_between;
 			PyObject *s_python_function_hist;
 			PyObject *s_python_function_subplot;
@@ -113,6 +115,8 @@ namespace matplotlibcpp {
 				s_python_function_figure = PyObject_GetAttrString(pymod, "figure");
 				s_python_function_close = PyObject_GetAttrString(pymod, "close");
 				s_python_function_plot = PyObject_GetAttrString(pymod, "plot");
+				s_python_function_imshow = PyObject_GetAttrString(pymod, "imshow");
+				s_python_function_colorbar = PyObject_GetAttrString(pymod, "colorbar");
 				s_python_function_fill_between = PyObject_GetAttrString(pymod, "fill_between");
 				s_python_function_hist = PyObject_GetAttrString(pymod,"hist");
 				s_python_function_subplot = PyObject_GetAttrString(pymod, "subplot");
@@ -136,6 +140,8 @@ namespace matplotlibcpp {
 					|| !s_python_function_figure
 					|| !s_python_function_close
 					|| !s_python_function_plot
+					|| !s_python_function_imshow
+					|| !s_python_function_colorbar
 					|| !s_python_function_fill_between
 					|| !s_python_function_subplot
 				   	|| !s_python_function_legend
@@ -160,6 +166,8 @@ namespace matplotlibcpp {
 					|| !PyFunction_Check(s_python_function_figure)
 					|| !PyFunction_Check(s_python_function_close)
 					|| !PyFunction_Check(s_python_function_plot)
+					|| !PyFunction_Check(s_python_function_imshow)
+					|| !PyFunction_Check(s_python_function_colorbar)
 					|| !PyFunction_Check(s_python_function_fill_between)
 					|| !PyFunction_Check(s_python_function_subplot)
 					|| !PyFunction_Check(s_python_function_legend)
@@ -250,6 +258,15 @@ namespace matplotlibcpp {
 		return varray;
 	}
 
+	PyObject* get_array(const std::vector<double>& v, int N1, int N2)
+	{
+		assert(N1*N2 == v.size());
+		detail::_interpreter::get();
+		npy_intp vsize[2] = {N1, N2};
+		PyObject* varray = PyArray_SimpleNewFromData(2, vsize, NPY_DOUBLE, (void*)(v.data()));
+		return varray;
+	}
+
 #else // fallback if we don't have numpy: copy every element of the given vector
 
 	template<typename Numeric>
@@ -289,6 +306,35 @@ namespace matplotlibcpp {
 
 		Py_DECREF(args);
 		Py_DECREF(kwargs);
+		if(res) Py_DECREF(res);
+
+		return res;
+	}
+
+	bool imshow(const std::vector<double> &x, int N1, int N2)
+	{
+		assert(x.size() == N1*N2);
+
+		// using numpy arrays
+		PyObject* xarray = get_array(x, N1, N2);
+
+		// construct positional args
+		PyObject* args = PyTuple_New(1);
+		PyTuple_SetItem(args, 0, xarray);
+
+		// construct named args
+		PyObject* kwargs = PyDict_New();
+
+		PyDict_SetItemString(kwargs, "cmap", PyString_FromString("gray"));
+		PyObject* res = PyObject_Call(detail::_interpreter::get().s_python_function_imshow, args, kwargs);
+
+		Py_DECREF(kwargs);
+		Py_DECREF(args);
+		if(res) Py_DECREF(res);
+
+		PyObject* args2 = PyTuple_New(0);
+		res = PyObject_Call(detail::_interpreter::get().s_python_function_colorbar, args2, nullptr);
+		Py_DECREF(args2);
 		if(res) Py_DECREF(res);
 
 		return res;
