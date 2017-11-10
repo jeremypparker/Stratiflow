@@ -536,11 +536,23 @@ namespace matplotlibcpp {
 		return plot(x,y,format);
 	}
 
-	inline void figure()
+	inline void figure(long width = 10, long height = 10)
 	{
-		PyObject* res = PyObject_CallObject(detail::_interpreter::get().s_python_function_figure, detail::_interpreter::get().s_python_empty_tuple);
+		PyObject* kwargs = PyDict_New();
+
+		PyObject* figsize = PyTuple_New(2);
+		PyTuple_SetItem(figsize, 0, PyLong_FromLong(width));
+		PyTuple_SetItem(figsize, 1, PyLong_FromLong(height));
+		PyDict_SetItemString(kwargs, "figsize", figsize);
+
+		PyObject* args = PyTuple_New(0);
+
+		PyObject* res = PyObject_Call(detail::_interpreter::get().s_python_function_figure, args, kwargs);
 		if(!res) throw std::runtime_error("Call to figure() failed.");
 
+		Py_DECREF(figsize);
+		Py_DECREF(kwargs);
+		Py_DECREF(args);
 		Py_DECREF(res);
 	}
 

@@ -2,56 +2,106 @@
 
 #include <Eigen/Dense>
 
+MatrixXd SymmetriseMatrixDouble(const MatrixXd& in, BoundaryCondition bc)
+{
+    assert(in.rows() == in.cols());
+    assert(in.rows()%2 == 1);
+    int N = in.rows()-1;
+
+    // matrices for each element (with imaged points)
+    MatrixXd D21(N+1, N/2+1);
+    MatrixXd D22(N+1, N/2+1);
+
+    // unimaged points
+    D21.col(0)   = in.col(N/2);
+    D22.col(N/2) = in.col(N/2);
+
+    for (int p=1; p<=N/2; p++)
+    {
+        if (bc == BoundaryCondition::Neumann)
+        {
+            D21.col(p)     = (in.col(N/2+p) + in.col(N/2-p));
+            D22.col(N/2-p) = (in.col(N/2+p) + in.col(N/2-p));
+        }
+        else
+        {
+            D21.col(p)     = (in.col(N/2+p) - in.col(N/2-p));
+            D22.col(N/2-p) = (-in.col(N/2+p) + in.col(N/2-p));
+        }
+    }
+
+    MatrixXd out(N+1, N+1);
+    out.setZero();
+
+    out.row(0).head(N/2+1) += D21.row(N/2);
+    out.row(N).tail(N/2+1) += D22.row(N/2);
+    for (int p=1; p<=N/2; p++)
+    {
+        if (bc == BoundaryCondition::Neumann)
+        {
+            out.row(p).head(N/2+1) += D21.row(N/2+p) + D21.row(N/2-p);
+            out.row(N-p).tail(N/2+1) += D22.row(N/2+p) + D22.row(N/2-p);
+        }
+        else
+        {
+            out.row(p).head(N/2+1) += D21.row(N/2+p) - D21.row(N/2-p);
+            out.row(N-p).tail(N/2+1) += -D22.row(N/2+p) + D22.row(N/2-p);
+        }
+    }
+
+    out.row(N/2) /= 4;
+
+    for (int p=1; p<N/2; p++)
+    {
+        out.row(p) /= 2;
+        out.row(N-p) /= 2;
+    }
+
+    return out;
+}
+
 MatrixXd SymmetriseMatrix(const MatrixXd& in, BoundaryCondition bc)
 {
     assert(in.rows() == in.cols());
     assert(in.rows()%2 == 1);
     int N = in.rows()-1;
 
-    MatrixXd bigMatrix(2*N+1, 2*N+1); // this is the full spectral element system without symmetry
+    // matrices for each element (with imaged points)
+    MatrixXd D21(N+1, N/2+1);
+    MatrixXd D22(N+1, N/2+1);
 
-    bigMatrix.setZero();
+    // unimaged points
+    D21.col(0)   = in.col(N/2);
+    D22.col(N/2) = in.col(N/2);
 
-    bigMatrix.block(0, 0, N+1, N+1) += in;
-    bigMatrix.block(N, N, N+1, N+1) += in;
-
-    // take into account weights
-    bigMatrix.row(N) *= 0.5;
-
-    //return bigMatrix;
-
-    // now use symmetry to get reduced matrix
-    MatrixXd out(2*N+1, N+1);
-    out.setZero();
-
-    // these points are not imaged
-    out.col(0) = bigMatrix.col(N/2);
-    out.col(N) = bigMatrix.col(3*N/2);
-
-    // to avoid double counting
-    bigMatrix(N, N) *= 0.5;
-
-    for (int k=1; k<=N/2; k++)
+    for (int p=1; p<=N/2; p++)
     {
-        if(bc == BoundaryCondition::Neumann)
+        if (bc == BoundaryCondition::Neumann)
         {
-            out.col(k).head(N+1) += bigMatrix.col(N/2+k).head(N+1)  // normal contribution
-                                  + bigMatrix.col(N/2-k).head(N+1); // contribution from image
-
-            out.col(N-k).tail(N+1) += bigMatrix.col(3*N/2-k).tail(N+1)
-                                    + bigMatrix.col(3*N/2+k).tail(N+1);
+            D21.col(p)     = (in.col(N/2+p) + in.col(N/2-p));
+            D22.col(N/2-p) = (in.col(N/2+p) + in.col(N/2-p));
         }
         else
         {
-            out.col(k).head(N+1) += bigMatrix.col(N/2+k).head(N+1)
-                                  - bigMatrix.col(N/2-k).head(N+1);
-
-            out.col(N-k).tail(N+1) += bigMatrix.col(3*N/2-k).tail(N+1)
-                                    - bigMatrix.col(3*N/2+k).tail(N+1);
+            D21.col(p)     = (in.col(N/2+p) - in.col(N/2-p));
+            D22.col(N/2-p) = (-in.col(N/2+p) + in.col(N/2-p));
         }
     }
 
-    return out.block(N/2, 0, N+1, N+1); // discard initial and final rows as these are not used
+    MatrixXd out(N+1, N+1);
+    out.setZero();
+
+    out.row(0).head(N/2+1) += D21.row(N/2);
+    out.row(N).tail(N/2+1) += D22.row(N/2);
+    for (int p=1; p<=N/2; p++)
+    {
+        out.row(p).head(N/2+1) += D21.row(N/2+p);
+        out.row(N-p).tail(N/2+1) += D22.row(N/2-p);
+    }
+
+    out.row(N/2) /= 2;
+
+    return out;
 }
 
 namespace
@@ -198,7 +248,7 @@ MatrixXd ChebSecondDerivativeMatrix(BoundaryCondition bc, double L, int N)
     MatrixXd D = PolynomialDerivativeMatrix(x);
     MatrixXd W = GaussLobattoWeights(x).matrix().asDiagonal();
 
-    return SymmetriseMatrix(-W.inverse()*D.transpose()*W*D/L/L, bc);
+    return SymmetriseMatrixDouble(-W.inverse()*D.transpose()*W*D/L/L, bc);
     // MatrixXd neumann = ChebDerivativeMatrix(BoundaryCondition::Neumann, L, N);
     // MatrixXd dirichlet = ChebDerivativeMatrix(BoundaryCondition::Dirichlet, L, N);
 

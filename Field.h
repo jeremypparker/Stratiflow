@@ -102,6 +102,16 @@ public:
 
         return *this;
     }
+    const Field<T, N1, N2, N3>& operator-=(const Field<T, N1, N2, N3>& other)
+    {
+        assert(other.BC()==BC());
+        for (int j=0; j<N3; j++)
+        {
+            slice(j) -= other.slice(j);
+        }
+
+        return *this;
+    }
 
     using Slice = Map<Array<T, -1, -1>, Unaligned>;
     using Stack = Map<Array<T, N3, 1>, Unaligned, Stride<1, N2*N1>>;

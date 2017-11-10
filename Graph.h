@@ -108,13 +108,13 @@ namespace
     //     matplotlibcpp::plot(ToVector(x), ToVector(y), format);
     // }
 
-    ArrayXd BarycentricEval(ArrayXd& f, ArrayXd& at, double L)
+    ArrayXd BarycentricEval(ArrayXd& f, ArrayXd& at, double L, BoundaryCondition bc)
     {
         int N = f.rows()-1;
         ArrayXd x = FullSymmetrisedNodes(N, L);
         ArrayXd w1 = BarycentricWeights(x.head(N+1));
         ArrayXd w2 = BarycentricWeights(x.tail(N+1));
-        ArrayXd ffull = ApplyBC(f, BoundaryCondition::Neumann);
+        ArrayXd ffull = ApplyBC(f, bc);
 
         ArrayXd result(at.rows());
         result.setZero();
@@ -165,16 +165,18 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &u, double L1, double L3, int 
 {
     matplotlibcpp::figure();
 
+    double crop = 0.5;
+
     int cols = N1;
-    int rows = static_cast<int>(0.25*N1*2*L3/L1);
+    int rows = static_cast<int>(crop*N1*2*L3/L1);
 
     std::vector<double> imdata(rows*cols);
 
     for (int col=0; col<cols; col++)
     {
-        ArrayXd x = ArrayXd::LinSpaced(rows, -0.25*L3, 0.25*L3);
+        ArrayXd x = ArrayXd::LinSpaced(rows, -crop*L3, crop*L3);
         ArrayXd coeffs = u.stack(col, j2);
-        ArrayXd y = BarycentricEval(coeffs, x, L3);
+        ArrayXd y = BarycentricEval(coeffs, x, L3, u.BC());
 
         for (int row=0; row<rows; row++)
         {
