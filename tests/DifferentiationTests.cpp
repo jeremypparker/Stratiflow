@@ -9,15 +9,13 @@
 
 TEST_CASE("Chebyshev derivative matrices")
 {
-    // expected failures: not actually numerically true using this method
+    REQUIRE(MatrixXd(VerticalSecondDerivativeMatrix(1, 7)).isApprox(
+        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Neumann, 1, 7))*
+        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, 1, 7))));
 
-    // REQUIRE(ChebSecondDerivativeMatrix(BoundaryCondition::Dirichlet, 1, 7).isApprox(
-    //     ChebDerivativeMatrix(BoundaryCondition::Neumann, 1, 7)*
-    //     ChebDerivativeMatrix(BoundaryCondition::Dirichlet, 1, 7)));
-
-    // REQUIRE(ChebSecondDerivativeMatrix(BoundaryCondition::Neumann, 3.14, 11).isApprox(
-    //     ChebDerivativeMatrix(BoundaryCondition::Dirichlet, 3.14, 11)*
-    //     ChebDerivativeMatrix(BoundaryCondition::Neumann, 3.14, 11)));
+    REQUIRE(MatrixXd(VerticalSecondDerivativeMatrix(3.14, 11)).isApprox(
+        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, 3.14, 11))*
+        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Neumann, 3.14, 11))));
 }
 
 TEST_CASE("Fourier derivative matrices")
@@ -30,18 +28,18 @@ TEST_CASE("Simple derivatives Neumann")
 {
     double L = 16.0;
 
-    constexpr int N1 = 15;
-    constexpr int N2 = 20;
-    constexpr int N3 = 41;
+    constexpr int N1 = 1;
+    constexpr int N2 = 1;
+    constexpr int N3 = 1000;
 
-    auto x = ChebPoints(N3, L);
+    auto x = VerticalPoints(L, N3);
 
     NodalField<N1,N2,N3> f1(BoundaryCondition::Neumann);
     for (int j1=0; j1<N1; j1++)
     {
         for (int j2=0; j2<N2; j2++)
         {
-            f1.stack(j1, j2) = tanh(x+1);
+            f1.stack(j1, j2) = exp(-(x-0.5)*(x-0.5));
         }
     }
 
@@ -49,7 +47,7 @@ TEST_CASE("Simple derivatives Neumann")
     ModalField<N1,N2,N3> f2(BoundaryCondition::Neumann);
     f1.ToModal(f2);
     ModalField<N1,N2,N3> f3(BoundaryCondition::Dirichlet);
-    f2.Dim3MatMul(ChebDerivativeMatrix(BoundaryCondition::Neumann, L, N3), f3);
+    f2.Dim3MatMul(VerticalDerivativeMatrix(BoundaryCondition::Neumann, L, N3), f3);
     NodalField<N1,N2,N3> f4(BoundaryCondition::Dirichlet);
     f3.ToNodal(f4);
 
@@ -58,7 +56,7 @@ TEST_CASE("Simple derivatives Neumann")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            expected.stack(j1, j2) = 1/(cosh(x+1)*cosh(x+1));
+            expected.stack(j1, j2) = -2*(x-0.5)*exp(-(x-0.5)*(x-0.5));
         }
     }
 
@@ -66,7 +64,7 @@ TEST_CASE("Simple derivatives Neumann")
 
     // also do second derviative
     ModalField<N1,N2,N3> f5(BoundaryCondition::Neumann);
-    f2.Dim3MatMul(ChebSecondDerivativeMatrix(BoundaryCondition::Neumann, L, N3), f5);
+    f2.Dim3MatMul(VerticalSecondDerivativeMatrix(L, N3), f5);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Neumann);
     f5.ToNodal(f6);
@@ -76,7 +74,7 @@ TEST_CASE("Simple derivatives Neumann")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            expected2.stack(j1, j2) = -2*tanh(x+1)/(cosh(x+1)*cosh(x+1));
+            expected2.stack(j1, j2) = (4*(x-0.5)*(x-0.5)-2)*exp(-(x-0.5)*(x-0.5));
         }
     }
 
@@ -87,10 +85,10 @@ TEST_CASE("Simple derivatives Dirichlet")
 {
     constexpr int N1 = 2;
     constexpr int N2 = 2;
-    constexpr int N3 = 31;
+    constexpr int N3 = 60;
     double L = 14.0;
 
-    auto x = ChebPoints(N3, L);
+    auto x = VerticalPoints(L, N3);
 
     NodalField<N1,N2,N3> f1(BoundaryCondition::Dirichlet);
     for (int j1=0; j1<N1; j1++)
@@ -105,7 +103,7 @@ TEST_CASE("Simple derivatives Dirichlet")
     ModalField<N1,N2,N3> f2(BoundaryCondition::Dirichlet);
     f1.ToModal(f2);
     ModalField<N1,N2,N3> f3(BoundaryCondition::Neumann);
-    f2.Dim3MatMul(ChebDerivativeMatrix(BoundaryCondition::Dirichlet, L, N3), f3);
+    f2.Dim3MatMul(VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L, N3), f3);
     NodalField<N1,N2,N3> f4(BoundaryCondition::Neumann);
     f3.ToNodal(f4);
 
@@ -122,7 +120,7 @@ TEST_CASE("Simple derivatives Dirichlet")
 
     // also do second derviative
     ModalField<N1,N2,N3> f5(BoundaryCondition::Dirichlet);
-    f2.Dim3MatMul(ChebSecondDerivativeMatrix(BoundaryCondition::Dirichlet, L, N3), f5);
+    f2.Dim3MatMul(VerticalSecondDerivativeMatrix(L, N3), f5);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Dirichlet);
     f5.ToNodal(f6);
@@ -146,7 +144,7 @@ TEST_CASE("Dim 1 fourier derivatives")
     constexpr int N3 = 5;
     double L = 14.0;
 
-    NodalField<N1,N2,N3> f1(BoundaryCondition::Dirichlet);
+    NodalField<N1,N2,N3> f1(BoundaryCondition::Neumann);
     for (int j1=0; j1<N1; j1++)
     {
         for (int j2=0; j2<N2; j2++)
@@ -155,16 +153,16 @@ TEST_CASE("Dim 1 fourier derivatives")
         }
     }
 
-    ModalField<N1,N2,N3> f2(BoundaryCondition::Dirichlet);
+    ModalField<N1,N2,N3> f2(BoundaryCondition::Neumann);
     f1.ToModal(f2);
 
-    ModalField<N1,N2,N3> f3(BoundaryCondition::Dirichlet);
+    ModalField<N1,N2,N3> f3(BoundaryCondition::Neumann);
     f2.Dim1MatMul(FourierDerivativeMatrix(L, N1), f3);
 
-    NodalField<N1,N2,N3> f4(BoundaryCondition::Dirichlet);
+    NodalField<N1,N2,N3> f4(BoundaryCondition::Neumann);
     f3.ToNodal(f4);
 
-    NodalField<N1,N2,N3> expected(BoundaryCondition::Dirichlet);
+    NodalField<N1,N2,N3> expected(BoundaryCondition::Neumann);
     for (int j1=0; j1<N1; j1++)
     {
         for (int j2=0; j2<N2; j2++)
@@ -175,13 +173,13 @@ TEST_CASE("Dim 1 fourier derivatives")
 
     REQUIRE(f4 == expected);
 
-    ModalField<N1,N2,N3> f5(BoundaryCondition::Dirichlet);
+    ModalField<N1,N2,N3> f5(BoundaryCondition::Neumann);
     f2.Dim1MatMul(FourierSecondDerivativeMatrix(L, N1), f5);
 
-    NodalField<N1,N2,N3> f6(BoundaryCondition::Dirichlet);
+    NodalField<N1,N2,N3> f6(BoundaryCondition::Neumann);
     f5.ToNodal(f6);
 
-    NodalField<N1,N2,N3> expected2(BoundaryCondition::Dirichlet);
+    NodalField<N1,N2,N3> expected2(BoundaryCondition::Neumann);
     for (int j1=0; j1<N1; j1++)
     {
         for (int j2=0; j2<N2; j2++)
@@ -200,7 +198,7 @@ TEST_CASE("Dim 2 fourier derivatives")
     constexpr int N3 = 5;
     double L = 14.0;
 
-    NodalField<N1,N2,N3> f1(BoundaryCondition::Dirichlet);
+    NodalField<N1,N2,N3> f1(BoundaryCondition::Neumann);
     for (int j1=0; j1<N1; j1++)
     {
         for (int j2=0; j2<N2; j2++)
@@ -209,16 +207,16 @@ TEST_CASE("Dim 2 fourier derivatives")
         }
     }
 
-    ModalField<N1,N2,N3> f2(BoundaryCondition::Dirichlet);
+    ModalField<N1,N2,N3> f2(BoundaryCondition::Neumann);
     f1.ToModal(f2);
 
-    ModalField<N1,N2,N3> f3(BoundaryCondition::Dirichlet);
+    ModalField<N1,N2,N3> f3(BoundaryCondition::Neumann);
     f2.Dim2MatMul(FourierDerivativeMatrix(L, N2), f3);
 
-    NodalField<N1,N2,N3> f4(BoundaryCondition::Dirichlet);
+    NodalField<N1,N2,N3> f4(BoundaryCondition::Neumann);
     f3.ToNodal(f4);
 
-    NodalField<N1,N2,N3> expected(BoundaryCondition::Dirichlet);
+    NodalField<N1,N2,N3> expected(BoundaryCondition::Neumann);
     for (int j1=0; j1<N1; j1++)
     {
         for (int j2=0; j2<N2; j2++)
@@ -229,13 +227,13 @@ TEST_CASE("Dim 2 fourier derivatives")
 
     REQUIRE(f4 == expected);
 
-    ModalField<N1,N2,N3> f5(BoundaryCondition::Dirichlet);
+    ModalField<N1,N2,N3> f5(BoundaryCondition::Neumann);
     f2.Dim2MatMul(FourierSecondDerivativeMatrix(L, N2), f5);
 
-    NodalField<N1,N2,N3> f6(BoundaryCondition::Dirichlet);
+    NodalField<N1,N2,N3> f6(BoundaryCondition::Neumann);
     f5.ToNodal(f6);
 
-    NodalField<N1,N2,N3> expected2(BoundaryCondition::Dirichlet);
+    NodalField<N1,N2,N3> expected2(BoundaryCondition::Neumann);
     for (int j1=0; j1<N1; j1++)
     {
         for (int j2=0; j2<N2; j2++)
@@ -250,8 +248,8 @@ TEST_CASE("Dim 2 fourier derivatives")
 TEST_CASE("Inverse Laplacian")
 {
     constexpr int N1 = 20;
-    constexpr int N2 = 1;
-    constexpr int N3 = 41;
+    constexpr int N2 = 22;
+    constexpr int N3 = 40;
 
     constexpr double L1 = 14.0;
     constexpr double L2 = 3.5;
@@ -267,16 +265,20 @@ TEST_CASE("Inverse Laplacian")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            MatrixXd laplacian = ChebSecondDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
+            MatrixXd laplacian = VerticalSecondDerivativeMatrix(L3, N3);
 
             // add terms for horizontal derivatives
             laplacian += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
             laplacian += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
 
-            // despite the fact we want neumann boundary conditions,
-            // we need to impose a boundary value for non-singularity
-            laplacian.row(0).setZero();
-            laplacian(0,0) = 1;
+            if (j1==0 && j2==0)
+            {
+                // despite the fact we want neumann boundary conditions,
+                // we need to impose a boundary value for non-singularity
+                laplacian.row(0).setConstant(2);
+                laplacian(0,0) = 1; // the form of DCT we are using has end coefficients different
+                laplacian(0,N3-1) = 1;
+            }
 
             solveLaplacian[j1*N2+j2].compute(laplacian);
         }
@@ -284,7 +286,7 @@ TEST_CASE("Inverse Laplacian")
 
     // create field in physical space
     NodalField<N1, N2, N3> physicalRHS(BoundaryCondition::Neumann);
-    auto x = ChebPoints(N3, L3);
+    auto x = VerticalPoints(L3, N3);
     for (int j1=0; j1<N1; j1++)
     {
         for (int j2=0; j2<N2; j2++)
@@ -300,7 +302,7 @@ TEST_CASE("Inverse Laplacian")
     physicalRHS.ToModal(rhs);
 
     // for BC
-    rhs.slice(0).setZero();
+    rhs(0,0,0) = 0;
 
     for (int j1=0; j1<N1; j1++)
     {
@@ -323,37 +325,4 @@ TEST_CASE("Inverse Laplacian")
     }
 
     REQUIRE(physicalSolution == expectedSolution);
-}
-
-TEST_CASE("GuassLobatto nodes and weights")
-{
-    {
-        ArrayXd x = GaussLobattoNodes(2);
-        ArrayXd w = GaussLobattoWeights(x);
-
-        REQUIRE(x(0) == Approx(-1));
-        REQUIRE(x(1) == Approx(0));
-        REQUIRE(x(2) == Approx(1));
-
-        REQUIRE(w(0) == Approx(1.0/3));
-        REQUIRE(w(1) == Approx(4.0/3));
-        REQUIRE(w(2) == Approx(1.0/3));
-    }
-
-    {
-        ArrayXd x = GaussLobattoNodes(4);
-        ArrayXd w = GaussLobattoWeights(x);
-
-        REQUIRE(x(0) == Approx(-1));
-        REQUIRE(x(1) == Approx(-sqrt(21)/7));
-        REQUIRE(x(2) == Approx(0));
-        REQUIRE(x(3) == Approx(sqrt(21)/7));
-        REQUIRE(x(4) == Approx(1));
-
-        REQUIRE(w(0) == Approx(0.1));
-        REQUIRE(w(1) == Approx(0.5444444444444444444));
-        REQUIRE(w(2) == Approx(0.7111111111111111111));
-        REQUIRE(w(3) == Approx(0.5444444444444444444));
-        REQUIRE(w(4) == Approx(0.1));
-    }
 }

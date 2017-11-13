@@ -120,20 +120,31 @@ public:
 
     Slice slice(int n3)
     {
+        assert(n3>=0 && n3<N3);
         return Slice(&Raw()[N1*N2*n3], N1, N2);
     }
     ConstSlice slice(int n3) const
     {
+        assert(n3>=0 && n3<N3);
         return ConstSlice(&Raw()[N1*N2*n3], N1, N2);
     }
 
     Stack stack(int n1, int n2)
     {
+        assert(n1>=0 && n1<N1);
+        assert(n2>=0 && n2<N2);
         return Stack(&Raw()[N1*n2 + n1]);
     }
     ConstStack stack(int n1, int n2) const
     {
+        assert(n1>=0 && n1<N1);
+        assert(n2>=0 && n2<N2);
         return ConstStack(&Raw()[N1*n2 + n1]);
+    }
+
+    T& operator()(int n1, int n2, int n3)
+    {
+        return Raw()[N1*N2*n3 + N1*n2 + n1];
     }
 
     T* Raw()
@@ -158,8 +169,8 @@ public:
         }
     }
 
-    template<typename T2>
-    void Dim3MatMul(const Matrix<T2, -1, -1>& matrix, Field<T, N1, N2, N3>& result) const
+    template<typename M>
+    void Dim3MatMul(const M& matrix, Field<T, N1, N2, N3>& result) const
     {
         for (int j1=0; j1<N1; j1++)
         {
@@ -169,27 +180,15 @@ public:
             }
         }
     }
-
-    template<typename T2>
-    void Dim3MatMul(const Matrix<T2, -1, -1>& matrix, int j1, int j2, Field<T, N1, N2, N3>& result) const
+    template<typename M>
+    void Dim3MatMul(const M& matrix, int j1, int j2, Field<T, N1, N2, N3>& result) const
     {
         assert(matrix.rows() == matrix.cols());
+        assert(matrix.rows() == N3);
 
         if (matrix.rows() == N3)
         {
             result.stack(j1, j2) = matrix * stack(j1, j2).matrix();
-        }
-        else if(matrix.rows() == 2*N3-1)
-        {
-            // todo: don't allocate!
-            Matrix<T, -1, 1> temp(2*N3-1);
-            temp << stack(j1,j2).segment(1, (N3-1)/2).reverse(), stack(j1, j2), stack(j1,j2).segment((N3+1)/2, (N3-1)/2).reverse();
-
-            result.stack(j1, j2) = (matrix * temp).segment((N3-1)/2, N3);
-        }
-        else
-        {
-            assert(0);
         }
     }
 
@@ -230,14 +229,6 @@ public:
         {
             result.stack(j1, j2) = solver.solve(stack(j1, j2).matrix());
         }
-        else if(solver.rows() == 2*N3-1)
-        {
-            // todo: don't allocate!
-            Matrix<T, -1, 1> temp(2*N3-1);
-            temp << stack(j1,j2).segment(1, (N3-1)/2).reverse(), stack(j1, j2), stack(j1,j2).segment((N3+1)/2, (N3-1)/2).reverse();
-
-            result.stack(j1, j2) = solver.solve(temp.matrix()).segment((N3-1)/2, N3);
-        }
         else
         {
             assert(0);
@@ -264,19 +255,52 @@ public:
     {
         assert(other.BC() == this->BC());
 
-        // copy the input data into complex numbers
-        std::vector<complex> inputData(N1*N2*N3);
-        for (unsigned int j=0; j<N1*N2*N3; j++)
+        std::vector<complex> intermediateData(N1*N2*N3, 0); // todo: don't allocate
+
+        // first do (co)sine transform in 3rd dimension
         {
-            inputData[j] = this->Raw()[j];
+            int dims;
+            fftw_r2r_kind kind;
+
+            double* in = const_cast<double*>(this->Raw());
+            double* out = reinterpret_cast<double*>(intermediateData.data());
+
+            if (this->BC() == BoundaryCondition::Neumann)
+            {
+                kind = FFTW_REDFT00;
+                dims = N3;
+            }
+            else
+            {
+                kind = FFTW_RODFT00;
+                in += N1*N2;
+                out += 2*N1*N2;
+                dims = N3-2;
+            }
+            auto plan = fftw_plan_many_r2r(1,
+                                           &dims,
+                                           N1*N2,
+                                           in,
+                                           nullptr,
+                                           N1*N2,
+                                           1,
+                                           out,
+                                           nullptr,
+                                           N1*N2*2,
+                                           2,
+                                           &kind,
+                                           FFTW_ESTIMATE);
+
+            fftw_execute(plan);
+            fftw_destroy_plan(plan);
         }
 
-        // do FFT in 1st and 2nd dimensions
+        // then do FFT in 1st and 2nd dimensions
         int dims[] = {N2, N1};
         auto plan = fftw_plan_many_dft(2,
                                        dims,
                                        N3,
-                                       reinterpret_cast<fftw_complex*>(inputData.data()),
+                                       reinterpret_cast<fftw_complex*>(intermediateData.data()),
                                        nullptr,
                                        1,
                                        N1*N2,
@@ -289,7 +313,7 @@ public:
         fftw_execute(plan);
         fftw_destroy_plan(plan);
 
-        other *= 1/static_cast<double>(N1*N2);
+        other *= 1/static_cast<double>(N1*N2*2*(N3-1));
     }
 
     double Max() const
@@ -319,40 +343,82 @@ public:
         assert(other.BC() == this->BC());
 
         // make a copy of the input data as it is modified by the transform
-        std::vector<complex> inputData(N1*N2*N3);
+        std::vector<complex> inputData(N1*N2*N3); // todo: don't allocate
         for (unsigned int j=0; j<N1*N2*N3; j++)
         {
             inputData[j] = this->Raw()[j];
         }
-        std::vector<complex> outputData(N1*N2*N3);
+        std::vector<complex> outputData(N1*N2*N3); // todo: don't allocate
 
         // do IFT in 1st and 2nd dimensions
-        int dims[] = {N2, N1};
-        auto plan = fftw_plan_many_dft(2,
-                                       dims,
-                                       N3,
-                                       reinterpret_cast<fftw_complex*>(inputData.data()),
-                                       nullptr,
-                                       1,
-                                       N1*N2,
-                                       reinterpret_cast<fftw_complex*>(outputData.data()),
-                                       nullptr,
-                                       1,
-                                       N1*N2,
-                                       FFTW_BACKWARD,
-                                       FFTW_ESTIMATE);
-        fftw_execute(plan);
-        fftw_destroy_plan(plan);
+        {
+            int dims[] = {N2, N1};
+            auto plan = fftw_plan_many_dft(2,
+                                        dims,
+                                        N3,
+                                        reinterpret_cast<fftw_complex*>(inputData.data()),
+                                        nullptr,
+                                        1,
+                                        N1*N2,
+                                        reinterpret_cast<fftw_complex*>(outputData.data()),
+                                        nullptr,
+                                        1,
+                                        N1*N2,
+                                        FFTW_BACKWARD,
+                                        FFTW_ESTIMATE);
+            fftw_execute(plan);
+            fftw_destroy_plan(plan);
+        }
 
+        // todo: remove
         // copy back complex output into real buffer
         for (unsigned int j=0; j<N1*N2*N3; j++)
         {
             other.Raw()[j] = outputData[j].real();
         }
+
+        // then do (co)sine transform in 3rd dimension
+        {
+            int dims;
+            fftw_r2r_kind kind;
+            double* in = other.Raw();
+            double* out = other.Raw();
+
+            if (this->BC() == BoundaryCondition::Neumann)
+            {
+                kind = FFTW_REDFT00;
+                dims = N3;
+            }
+            else
+            {
+                kind = FFTW_RODFT00;
+                in += N1*N2;
+                out += N1*N2;
+                dims = N3-2;
+            }
+            auto plan = fftw_plan_many_r2r(1,
+                                           &dims,
+                                           N1*N2,
+                                           in,
+                                           nullptr,
+                                           N1*N2,
+                                           1,
+                                           out,
+                                           nullptr,
+                                           N1*N2,
+                                           1,
+                                           &kind,
+                                           FFTW_ESTIMATE);
+
+            fftw_execute(plan);
+            fftw_destroy_plan(plan);
+        }
+
     }
 };
 
-ArrayXd ChebPoints(unsigned int N, double L);
+ArrayXd VerticalPoints(double L, int N);
+ArrayXd FourierPoints(double L, int N);
 
 template<int N1, int N2, int N3>
 std::pair<const Field<complex, N1, N2, N3>*, complex> operator*(complex scalar,

@@ -52,6 +52,9 @@ TEST_CASE("Slice and stack")
     const auto& f2 = f1;
     actual = f2.stack(0,1); // this time returns ConstStack
     REQUIRE(actual.isApprox(expected));
+
+    REQUIRE(f1(1,0,1) == 4);
+    REQUIRE(f1(0,1,1) == 3);
 }
 
 TEST_CASE("Stackwise Matmul")
@@ -59,7 +62,7 @@ TEST_CASE("Stackwise Matmul")
     NodalField<5, 6, 8> f1(BoundaryCondition::Dirichlet);
     NodalField<5, 6, 8> f2(BoundaryCondition::Dirichlet);
 
-    MatrixXd mat = VectorXd::Constant(8, 5.0).asDiagonal();
+    DiagonalMatrix<double,-1> mat = VectorXd::Constant(8, 5.0).asDiagonal();
 
     f1.Dim3MatMul(mat, f2);
 
@@ -86,19 +89,26 @@ TEST_CASE("Multiply Add")
 
 TEST_CASE("Dirichlet Modal/Nodal")
 {
-    NodalField<4, 12, 32> f1(BoundaryCondition::Dirichlet);
-    for (int j1=0; j1<4; j1++)
+    constexpr int N1 = 2;
+    constexpr int N2 = 1;
+    constexpr int N3 = 32;
+    NodalField<N1, N2, N3> f1(BoundaryCondition::Dirichlet);
+    for (int j1=0; j1<N1; j1++)
     {
-        for (int j2=0; j2<12; j2++)
+        for (int j2=0; j2<N2; j2++)
         {
             f1.stack(j1, j2).setRandom();
         }
     }
 
-    ModalField<4, 12, 32> f2(BoundaryCondition::Dirichlet);
+    // because it's homogenous dirichlet
+    f1.slice(0).setZero();
+    f1.slice(N3-1).setZero();
+
+    ModalField<N1, N2, N3> f2(BoundaryCondition::Dirichlet);
     f1.ToModal(f2);
 
-    NodalField<4, 12, 32> f3(BoundaryCondition::Dirichlet);
+    NodalField<N1, N2, N3> f3(BoundaryCondition::Dirichlet);
     f2.ToNodal(f3);
 
     REQUIRE(f1 == f3);

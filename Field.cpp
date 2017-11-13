@@ -1,11 +1,11 @@
 #include "Field.h"
-#include "Differentiation.h"
 
-ArrayXd ChebPoints(unsigned int N, double L)
+ArrayXd VerticalPoints(double L, int N)
 {
-    assert(N%2 == 1);
-    auto points = GaussLobattoNodes(N-1);
-    ArrayXd ret(N);
-    ret << points.segment(N/2, N/2) - 1, points.head(N/2 + 1) + 1;
-    return ret * L;
+    return ArrayXd::LinSpaced(N, -L, L);
+}
+
+ArrayXd FourierPoints(double L, int N)
+{
+    return ArrayXd::LinSpaced(N, 0, L - L/static_cast<double>(N));
 }
