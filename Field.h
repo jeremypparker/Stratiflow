@@ -415,6 +415,32 @@ public:
         }
 
     }
+
+    void Filter()
+    {
+        for (int j3=2*N3/3; j3<N3; j3++)
+        {
+            this->slice(j3).setZero();
+        }
+
+        for (int j1=N1/3; j1<=2*N1/3; j1++)
+        {
+            for (int j2=0; j2<N2; j2++)
+            {
+                this->stack(j1, j2).setZero();
+            }
+        }
+
+        // todo
+        // for (int j2=N2/3; j2<=2*N2/3; j2++)
+        // {
+        //     for (int j1=0; j1<N1; j1++)
+        //     {
+        //         this->stack(j1, j2).setZero();
+        //     }
+        // }
+    }
+
 };
 
 ArrayXd VerticalPoints(double L, int N);

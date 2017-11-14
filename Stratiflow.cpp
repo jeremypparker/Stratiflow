@@ -7,15 +7,15 @@
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 140;
+    static constexpr int N1 = 28;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 300;
+    static constexpr int N3 = 60;
 
     static constexpr double L1 = 14.0; // size of domain streamwise
     static constexpr double L2 = 3.5;  // size of domain spanwise
     static constexpr double L3 = 15.0; // half size of domain vertically
 
-    const double deltaT = 0.001;
+    const double deltaT = 0.01;
     const double Re = 2000;
     const double Pe = 1000;
 
@@ -67,11 +67,14 @@ public:
 
                 if (j1==0 && j2==0)
                 {
-                    // despite the fact we want neumann boundary conditions,
-                    // we need to impose a boundary value for non-singularity
-                    laplacian.row(0).setConstant(2);
-                    laplacian(0,0) = 1; // the form of DCT we are using has end coefficients different
-                    laplacian(0,N3-1) = 1;
+                    // // despite the fact we want neumann boundary conditions,
+                    // // we need to impose a boundary value for non-singularity
+                    // laplacian.row(0).setConstant(2);
+                    // laplacian(0,0) = 1; // the form of DCT we are using has end coefficients different
+                    // laplacian(0,N3-1) = 1;
+
+                    // stop matrix being singular
+                    laplacian(0,0) = 0.0001;
                 }
 
 
@@ -79,9 +82,10 @@ public:
 
 
                 // for viscous terms
-                explicitSolveVelocity[j1*N2+j2] = dim3Derivative2;
-                explicitSolveVelocity[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
-                explicitSolveVelocity[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
+                explicitSolveVelocity[j1*N2+j2] = dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
+                //explicitSolveVelocity[j1*N2+j2] = dim3Derivative2;
+                //explicitSolveVelocity[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
+                //explicitSolveVelocity[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
                 explicitSolveBuoyancy[j1*N2+j2] = explicitSolveVelocity[j1*N2+j2];
                 explicitSolveVelocity[j1*N2+j2] /= Re;
                 explicitSolveBuoyancy[j1*N2+j2] /= Pe;
@@ -196,10 +200,9 @@ public:
         //HeatPlot(B, L1, L3, 0, "images/divergence.png");
 
         // boundary value
-        divergence(0,0,0) = 0;
+        //divergence(0,0,0) = 0;
 
         // solve Δq = ∇·u as linear system Aq = divergence
-        q.Zero(); // probably not necessary
         for (int j1=0; j1<N1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
@@ -228,6 +231,13 @@ public:
         p += pressureMultiplier*q;
     }
 
+    void FilterVariables()
+    {
+        u1.Filter();
+        u2.Filter();
+        u3.Filter();
+        b.Filter();
+    }
 
 private:
     void ImplicitUpdate(int k)
@@ -441,12 +451,12 @@ int main()
             initialB.slice(j).setConstant(1);
         }
 
-        // band to see fluid velocity
-        initialB.slice(j)(0, IMEXRK::N2/2) = 0;
-        initialB.slice(j)(1, IMEXRK::N2/2) = 0;
-        initialB.slice(j)(2, IMEXRK::N2/2) = 0;
-        initialB.slice(j)(3, IMEXRK::N2/2) = 0;
-        initialB.slice(j)(4, IMEXRK::N2/2) = 0;
+        // // band to see fluid velocity
+        // initialB.slice(j)(0, IMEXRK::N2/2) = 0;
+        // initialB.slice(j)(1, IMEXRK::N2/2) = 0;
+        // initialB.slice(j)(2, IMEXRK::N2/2) = 0;
+        // initialB.slice(j)(3, IMEXRK::N2/2) = 0;
+        // initialB.slice(j)(4, IMEXRK::N2/2) = 0;
 
         if (j!=0 && j!=IMEXRK::N3-1)// && j!= IMEXRK::N3/2)// (j==5 || j == IMEXRK::N3-5)//
         {
@@ -457,6 +467,8 @@ int main()
         }
     }
     solver.SetVariables(initialU1, initialU3, initialB);
+    //solver.FilterVariables();
+
     solver.RemoveDivergence(0.0);
     //solver.PlotPressure("images/initialpressure.png", IMEXRK::N2/2);
 
@@ -465,6 +477,7 @@ int main()
 
     for (int step=0; step<10000; step++)
     {
+        solver.FilterVariables();
         solver.TimeStep();
 
         if(step%200==0)
@@ -476,8 +489,9 @@ int main()
             solver.PlotVerticalVelocity("images/u3/"+std::to_string(step)+".png", IMEXRK::N2/2);
             solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(step)+".png", IMEXRK::N2/2);
 
+            double cfl = solver.CFL();
             std::cout << "Step " << step << ", time " << step*solver.deltaT
-                      << ", CFL number: " << solver.CFL() << std::endl;
+                      << ", CFL number: " << cfl << std::endl;
         }
     }
 

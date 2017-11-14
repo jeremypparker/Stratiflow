@@ -326,6 +326,8 @@ namespace matplotlibcpp {
 		PyObject* kwargs = PyDict_New();
 
 		PyDict_SetItemString(kwargs, "cmap", PyString_FromString("gray"));
+		PyDict_SetItemString(kwargs, "interpolation", PyString_FromString("nearest"));
+
 		PyObject* res = PyObject_Call(detail::_interpreter::get().s_python_function_imshow, args, kwargs);
 
 		Py_DECREF(kwargs);
