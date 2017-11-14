@@ -291,8 +291,8 @@ TEST_CASE("Inverse Laplacian")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            physicalRHS.stack(j1, j2) = (4*x*x - 2 -4.0*pi*pi/L1/L1)*
-                                        exp(-x*x)*sin(2*pi*j1/static_cast<double>(N1));
+            physicalRHS.stack(j1, j2) = (4*(x+2)*(x+2) - 2 -4.0*pi*pi/L1/L1)*
+                                        exp(-(x+2)*(x+2))*sin(2*pi*j1/static_cast<double>(N1));
         }
     }
 
@@ -320,7 +320,7 @@ TEST_CASE("Inverse Laplacian")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            expectedSolution.stack(j1, j2)= exp(-x*x)*sin(2*pi*j1/static_cast<double>(N1));
+            expectedSolution.stack(j1, j2)= exp(-(x+2)*(x+2))*sin(2*pi*j1/static_cast<double>(N1));
         }
     }
 

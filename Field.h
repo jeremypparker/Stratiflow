@@ -314,6 +314,12 @@ public:
         fftw_destroy_plan(plan);
 
         other *= 1/static_cast<double>(N1*N2*2*(N3-1));
+
+        if (this->BC() == BoundaryCondition::Dirichlet)
+        {
+            other.slice(0).setZero();
+            other.slice(N3-1).setZero();
+        }
     }
 
     double Max() const
@@ -414,6 +420,11 @@ public:
             fftw_destroy_plan(plan);
         }
 
+        if (this->BC() == BoundaryCondition::Dirichlet)
+        {
+            other.slice(0).setZero();
+            other.slice(N3-1).setZero();
+        }
     }
 
     void Filter()

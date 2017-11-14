@@ -7,16 +7,16 @@
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 28;
+    static constexpr int N1 = 128;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 60;
+    static constexpr int N3 = 201;
 
-    static constexpr double L1 = 14.0; // size of domain streamwise
-    static constexpr double L2 = 3.5;  // size of domain spanwise
+    static constexpr double L1 = 9.44; // size of domain streamwise
+    static constexpr double L2 = 15.0;  // size of domain spanwise
     static constexpr double L3 = 15.0; // half size of domain vertically
 
-    const double deltaT = 0.01;
-    const double Re = 2000;
+    const double deltaT = 0.001;
+    const double Re = 1000;
     const double Pe = 1000;
 
     using NField = NodalField<N1,N2,N3>;
@@ -82,10 +82,9 @@ public:
 
 
                 // for viscous terms
-                explicitSolveVelocity[j1*N2+j2] = dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
-                //explicitSolveVelocity[j1*N2+j2] = dim3Derivative2;
-                //explicitSolveVelocity[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
-                //explicitSolveVelocity[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
+                explicitSolveVelocity[j1*N2+j2] = dim3Derivative2;
+                explicitSolveVelocity[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
+                explicitSolveVelocity[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
                 explicitSolveBuoyancy[j1*N2+j2] = explicitSolveVelocity[j1*N2+j2];
                 explicitSolveVelocity[j1*N2+j2] /= Re;
                 explicitSolveBuoyancy[j1*N2+j2] /= Pe;
@@ -116,6 +115,8 @@ public:
             //PlotPressure("images/pressurebefore_"+std::to_string(k)+".png", 0);
 
             RemoveDivergence(1/h[k]);
+
+            //SolveForPressure();
 
             //PlotVerticalVelocity("images/u3after_"+std::to_string(k)+".png", 0);
             //PlotPressure("images/pressureafter_"+std::to_string(k)+".png", 0);
@@ -160,25 +161,33 @@ public:
         HeatPlot(U1, L1, L3, j2, filename);
     }
 
-    void SetVariables(NField velocity1, NField velocity3, NField buoyancy)
+    void AddVariables(NField velocity1, NField velocity3, NField buoyancy)
     {
-        velocity1.ToModal(u1);
-        velocity3.ToModal(u3);
-        buoyancy.ToModal(b);
+        u1.ToNodal(U1);
+        u3.ToNodal(U3);
+        b.ToNodal(B);
+
+        U1 += velocity1;
+        U3 += velocity3;
+        B += buoyancy;
+
+        U1.ToModal(u1);
+        U3.ToModal(u3);
+        B.ToModal(b);
     }
 
     // gives an upper bound on cfl number
     double CFL()
     {
         u1.ToNodal(U1);
-        u2.ToNodal(U2);
+        //u2.ToNodal(U2);
         u3.ToNodal(U3);
 
         double delta1 = L1/N1;
         double delta2 = L2/N2;
         double delta3 = 2*L3/(N3-1);
 
-        double cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
+        double cfl = U1.Max()/delta1 /*+ U2.Max()/delta2*/ + U3.Max()/delta3;
         cfl *= deltaT;
 
         return cfl;
@@ -191,8 +200,8 @@ public:
 
         u1.Dim1MatMul(dim1Derivative, neumannTemp);
         divergence += neumannTemp;
-        u2.Dim2MatMul(dim2Derivative, neumannTemp);
-        divergence += neumannTemp;
+        //u2.Dim2MatMul(dim2Derivative, neumannTemp);
+        //divergence += neumannTemp;
         u3.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
         divergence += neumannTemp;
 
@@ -219,8 +228,8 @@ public:
         // subtract the gradient of this from the velocity
         q.Dim1MatMul(dim1Derivative, neumannTemp);
         u1 -= neumannTemp;
-        q.Dim2MatMul(dim2Derivative, neumannTemp);
-        u2 -= neumannTemp;
+        //q.Dim2MatMul(dim2Derivative, neumannTemp);
+        //u2 -= neumannTemp;
         q.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
         u3 -= dirichletTemp;
         //std::cout << dirichletTemp.stack(5, 0) << std::endl << std::endl;
@@ -234,10 +243,49 @@ public:
     void FilterVariables()
     {
         u1.Filter();
-        u2.Filter();
+        //u2.Filter();
         u3.Filter();
         b.Filter();
     }
+
+    void SolveForPressure()
+    {
+        // solve Δp = -∇u∇u
+        // (store rhs in divergence)
+        divergence.Zero();
+
+
+        // todo: cleanup use of temp variables
+        u1.Dim1MatMul(dim1Derivative, neumannTemp);
+        neumannTemp.ToNodal(U1);
+        NodalProduct(U1, U1, nnTemp);
+        nnTemp.ToModal(mnProduct);
+        divergence -= mnProduct;
+
+        u3.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
+        neumannTemp.ToNodal(U2);
+        NodalProduct(U2, U2, nnTemp);
+        nnTemp.ToModal(mnProduct);
+        divergence -= mnProduct;
+
+        u1.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
+        dirichletTemp.ToNodal(ndTemp);
+        u3.Dim1MatMul(dim1Derivative, dirichletTemp);
+        dirichletTemp.ToNodal(U3);
+        NodalProduct(ndTemp, U3, nnTemp);
+        nnTemp.ToModal(mnProduct);
+        divergence += (-2)*mnProduct;
+
+
+        for (int j1=0; j1<N1; j1++)
+        {
+            for (int j2=0; j2<N2; j2++)
+            {
+                divergence.Dim3Solve(solveLaplacian[j1*N2+j2], j1, j2, p);
+            }
+        }
+    }
+
 
 private:
     void ImplicitUpdate(int k)
@@ -247,7 +295,7 @@ private:
             for (int j2=0; j2<N2; j2++)
             {
                 R1.Dim3Solve(implicitSolveVelocity[s*(j1*N2+j2) + k], j1, j2, u1);
-                R2.Dim3Solve(implicitSolveVelocity[s*(j1*N2+j2) + k], j1, j2, u2);
+                //R2.Dim3Solve(implicitSolveVelocity[s*(j1*N2+j2) + k], j1, j2, u2);
                 R3.Dim3Solve(implicitSolveVelocity[s*(j1*N2+j2) + k], j1, j2, u3);
                 RB.Dim3Solve(implicitSolveBuoyancy[s*(j1*N2+j2) + k], j1, j2, b);
             }
@@ -258,13 +306,13 @@ private:
     {
         // calculate rhs terms and accumulate in y
         R1 = u1;
-        R2 = u2;
+        //R2 = u2;
         R3 = u3;
         RB = b;
 
         // add term from last rk step
         R1 += (h[k]*zeta[k])*r1;
-        R2 += (h[k]*zeta[k])*r2;
+        //R2 += (h[k]*zeta[k])*r2;
         R3 += (h[k]*zeta[k])*r3;
         RB += (h[k]*zeta[k])*rB;
 
@@ -278,14 +326,14 @@ private:
         }
         R1 += 0.5*h[k]*neumannTemp;
 
-        for (int j1=0; j1<N1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                u2.Dim3MatMul(explicitSolveVelocity[j1*N2+j2], j1, j2, neumannTemp);
-            }
-        }
-        R2 += 0.5*h[k]*neumannTemp;
+        // for (int j1=0; j1<N1; j1++)
+        // {
+        //     for (int j2=0; j2<N2; j2++)
+        //     {
+        //         u2.Dim3MatMul(explicitSolveVelocity[j1*N2+j2], j1, j2, neumannTemp);
+        //     }
+        // }
+        // R2 += 0.5*h[k]*neumannTemp;
 
         for (int j1=0; j1<N1; j1++)
         {
@@ -307,7 +355,7 @@ private:
 
         // now construct explicit terms
         r1.Zero();
-        r2.Zero();
+        //r2.Zero();
         r3.Zero();
         rB.Zero();
 
@@ -315,7 +363,7 @@ private:
 
         // calculate products at nodes in physical space
         u1.ToNodal(U1);
-        u2.ToNodal(U2);
+        //u2.ToNodal(U2);
         u3.ToNodal(U3);
         b.ToNodal(B);
 
@@ -324,12 +372,12 @@ private:
         mnProduct.Dim1MatMul(dim1Derivative, neumannTemp);
         r1 -= neumannTemp;
 
-        NodalProduct(U1, U2, nnTemp);
-        nnTemp.ToModal(mnProduct);
-        mnProduct.Dim1MatMul(dim1Derivative, neumannTemp);
-        r2 -= neumannTemp;
-        mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
-        r1 -= neumannTemp;
+        // NodalProduct(U1, U2, nnTemp);
+        // nnTemp.ToModal(mnProduct);
+        // mnProduct.Dim1MatMul(dim1Derivative, neumannTemp);
+        // r2 -= neumannTemp;
+        // mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
+        // r1 -= neumannTemp;
 
         NodalProduct(U1, U3, ndTemp);
         ndTemp.ToModal(mdProduct);
@@ -338,21 +386,21 @@ private:
         mdProduct.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
         r1 -= neumannTemp;
 
-        NodalProduct(U2, U2, nnTemp);
+        // NodalProduct(U2, U2, nnTemp);
+        // nnTemp.ToModal(mnProduct);
+        // mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
+        // r2 -= neumannTemp;
+
+        // NodalProduct(U2, U3, ndTemp);
+        // ndTemp.ToModal(mdProduct);
+        // mdProduct.Dim2MatMul(dim2Derivative, dirichletTemp);
+        // r3 -= dirichletTemp;
+        // mdProduct.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
+        // r2 -= neumannTemp;
+
+        NodalProduct(U3, U3, nnTemp);
         nnTemp.ToModal(mnProduct);
-        mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
-        r2 -= neumannTemp;
-
-        NodalProduct(U2, U3, ndTemp);
-        ndTemp.ToModal(mdProduct);
-        mdProduct.Dim2MatMul(dim2Derivative, dirichletTemp);
-        r3 -= dirichletTemp;
-        mdProduct.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
-        r2 -= neumannTemp;
-
-        NodalProduct(U3, U3, ndTemp);
-        ndTemp.ToModal(mdProduct);
-        mdProduct.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
+        mnProduct.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
         r3 -= dirichletTemp;
 
         // buoyancy nonlinear terms
@@ -361,10 +409,10 @@ private:
         mnProduct.Dim1MatMul(dim1Derivative, neumannTemp);
         rB -= neumannTemp;
 
-        NodalProduct(U2, B, nnTemp);
-        nnTemp.ToModal(mnProduct);
-        mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
-        rB -= neumannTemp;
+        // NodalProduct(U2, B, nnTemp);
+        // nnTemp.ToModal(mnProduct);
+        // mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
+        // rB -= neumannTemp;
 
         NodalProduct(U3, B, ndTemp);
         ndTemp.ToModal(mdProduct);
@@ -373,7 +421,7 @@ private:
 
         // now add on explicit terms
         R1 += (h[k]*beta[k])*r1;
-        R2 += (h[k]*beta[k])*r2;
+        // R2 += (h[k]*beta[k])*r2;
         R3 += (h[k]*beta[k])*r3;
         RB += (h[k]*beta[k])*rB;
 
@@ -381,8 +429,8 @@ private:
         p.Dim1MatMul(dim1Derivative, neumannTemp);
         R1 += (-h[k])*neumannTemp;
 
-        p.Dim2MatMul(dim2Derivative, neumannTemp);
-        R2 += (-h[k])*neumannTemp;
+        // p.Dim2MatMul(dim2Derivative, neumannTemp);
+        // R2 += (-h[k])*neumannTemp;
 
         p.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
         R3 += (-h[k])*dirichletTemp;
@@ -439,25 +487,6 @@ int main()
 
     for (int j=0; j<IMEXRK::N3; j++)
     {
-        initialU1.slice(j).setConstant(tanh(x3(j)-interfaceoffset));
-        //initialU1.slice(j) = exp(-x3(j)*x3(j));
-
-        if (x3(j)-interfaceoffset>0)
-        {
-            initialB.slice(j).setConstant(-1);
-        }
-        if (x3(j)-interfaceoffset<0)
-        {
-            initialB.slice(j).setConstant(1);
-        }
-
-        // // band to see fluid velocity
-        // initialB.slice(j)(0, IMEXRK::N2/2) = 0;
-        // initialB.slice(j)(1, IMEXRK::N2/2) = 0;
-        // initialB.slice(j)(2, IMEXRK::N2/2) = 0;
-        // initialB.slice(j)(3, IMEXRK::N2/2) = 0;
-        // initialB.slice(j)(4, IMEXRK::N2/2) = 0;
-
         if (j!=0 && j!=IMEXRK::N3-1)// && j!= IMEXRK::N3/2)// (j==5 || j == IMEXRK::N3-5)//
         {
             initialU1.slice(j) += 0.1*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
@@ -466,18 +495,45 @@ int main()
             //initialU1.slice(j) += 0.1*x3(j)*x3(j)*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2)/(IMEXRK::L3*IMEXRK::L3);
         }
     }
-    solver.SetVariables(initialU1, initialU3, initialB);
+    solver.AddVariables(initialU1, initialU3, initialB);
     //solver.FilterVariables();
 
-    solver.RemoveDivergence(0.0);
-    //solver.PlotPressure("images/initialpressure.png", IMEXRK::N2/2);
+    // add background flow
+    initialU1.Zero();
+    initialU3.Zero();
+    initialB.Zero();
+    for (int j=0; j<IMEXRK::N3; j++)
+    {
+        initialU1.slice(j).setConstant(tanh(x3(j)-interfaceoffset));
+        initialB.slice(j).setConstant(tanh(x3(j)-interfaceoffset));
 
-    //solver.Quiver("images/initial.png", IMEXRK::N2/2);
-    //solver.Profile("images/profile.png", 0, 0);
+        // if (x3(j)-interfaceoffset>0)
+        // {
+        //     initialB.slice(j).setConstant(-1);
+        // }
+        // if (x3(j)-interfaceoffset<0)
+        // {
+        //     initialB.slice(j).setConstant(1);
+        // }
+
+        // band to see fluid velocity
+        initialB.slice(j)(0, IMEXRK::N2/2) = 0;
+        initialB.slice(j)(1, IMEXRK::N2/2) = 0;
+        initialB.slice(j)(2, IMEXRK::N2/2) = 0;
+        initialB.slice(j)(3, IMEXRK::N2/2) = 0;
+        initialB.slice(j)(4, IMEXRK::N2/2) = 0;
+    }
+
+    solver.AddVariables(initialU1, initialU3, initialB);
+
+    solver.RemoveDivergence(0.0);
+    solver.SolveForPressure();
+
+    solver.PlotPressure("images/pressure/initial.png", IMEXRK::N2/2);
 
     for (int step=0; step<10000; step++)
     {
-        solver.FilterVariables();
+        //solver.FilterVariables();
         solver.TimeStep();
 
         if(step%200==0)
