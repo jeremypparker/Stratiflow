@@ -9,13 +9,13 @@
 
 TEST_CASE("Chebyshev derivative matrices")
 {
-    REQUIRE(MatrixXd(VerticalSecondDerivativeMatrix(1, 7)).isApprox(
-        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Neumann, 1, 7))*
-        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, 1, 7))));
+    REQUIRE(MatrixXd(VerticalSecondDerivativeMatrix(BoundaryCondition::Neumann, 1, 7)).isApprox(
+        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, 1, 7))*
+        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Neumann, 1, 7))));
 
-    REQUIRE(MatrixXd(VerticalSecondDerivativeMatrix(3.14, 11)).isApprox(
-        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, 3.14, 11))*
-        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Neumann, 3.14, 11))));
+    REQUIRE(MatrixXd(VerticalSecondDerivativeMatrix(BoundaryCondition::Dirichlet, 3.14, 11)).isApprox(
+        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Neumann, 3.14, 11))*
+        MatrixXd(VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, 3.14, 11))));
 }
 
 TEST_CASE("Fourier derivative matrices")
@@ -26,11 +26,11 @@ TEST_CASE("Fourier derivative matrices")
 
 TEST_CASE("Simple derivatives Neumann")
 {
-    double L = 16.0;
+    double L = 5.0;
 
     constexpr int N1 = 1;
     constexpr int N2 = 1;
-    constexpr int N3 = 1000;
+    constexpr int N3 = 61;
 
     auto x = VerticalPoints(L, N3);
 
@@ -39,7 +39,7 @@ TEST_CASE("Simple derivatives Neumann")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            f1.stack(j1, j2) = exp(-(x-0.5)*(x-0.5));
+            f1.stack(j1, j2) = tanh(x);
         }
     }
 
@@ -56,7 +56,7 @@ TEST_CASE("Simple derivatives Neumann")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            expected.stack(j1, j2) = -2*(x-0.5)*exp(-(x-0.5)*(x-0.5));
+            expected.stack(j1, j2) = 1/(cosh(x)*cosh(x));
         }
     }
 
@@ -64,7 +64,7 @@ TEST_CASE("Simple derivatives Neumann")
 
     // also do second derviative
     ModalField<N1,N2,N3> f5(BoundaryCondition::Neumann);
-    f2.Dim3MatMul(VerticalSecondDerivativeMatrix(L, N3), f5);
+    f2.Dim3MatMul(VerticalSecondDerivativeMatrix(BoundaryCondition::Neumann, L, N3), f5);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Neumann);
     f5.ToNodal(f6);
@@ -74,7 +74,7 @@ TEST_CASE("Simple derivatives Neumann")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            expected2.stack(j1, j2) = (4*(x-0.5)*(x-0.5)-2)*exp(-(x-0.5)*(x-0.5));
+            expected2.stack(j1, j2) = -2*tanh(x)/(cosh(x)*cosh(x));
         }
     }
 
@@ -85,8 +85,8 @@ TEST_CASE("Simple derivatives Dirichlet")
 {
     constexpr int N1 = 2;
     constexpr int N2 = 2;
-    constexpr int N3 = 60;
-    double L = 14.0;
+    constexpr int N3 = 61;
+    double L = 5.0;
 
     auto x = VerticalPoints(L, N3);
 
@@ -120,7 +120,7 @@ TEST_CASE("Simple derivatives Dirichlet")
 
     // also do second derviative
     ModalField<N1,N2,N3> f5(BoundaryCondition::Dirichlet);
-    f2.Dim3MatMul(VerticalSecondDerivativeMatrix(L, N3), f5);
+    f2.Dim3MatMul(VerticalSecondDerivativeMatrix(BoundaryCondition::Dirichlet, L, N3), f5);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Dirichlet);
     f5.ToNodal(f6);
@@ -249,11 +249,11 @@ TEST_CASE("Inverse Laplacian")
 {
     constexpr int N1 = 20;
     constexpr int N2 = 22;
-    constexpr int N3 = 40;
+    constexpr int N3 = 41;
 
     constexpr double L1 = 14.0;
     constexpr double L2 = 3.5;
-    constexpr double L3 = 15.0;
+    constexpr double L3 = 3.0;
 
     auto dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1);
     auto dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2);
@@ -265,20 +265,12 @@ TEST_CASE("Inverse Laplacian")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            MatrixXd laplacian = VerticalSecondDerivativeMatrix(L3, N3);
+            MatrixXd laplacian = VerticalSecondDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
 
             // add terms for horizontal derivatives
             laplacian += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
             laplacian += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
 
-            if (j1==0 && j2==0)
-            {
-                // despite the fact we want neumann boundary conditions,
-                // we need to impose a boundary value for non-singularity
-                laplacian.row(0).setConstant(2);
-                laplacian(0,0) = 1; // the form of DCT we are using has end coefficients different
-                laplacian(0,N3-1) = 1;
-            }
 
             solveLaplacian[j1*N2+j2].compute(laplacian);
         }
@@ -301,8 +293,6 @@ TEST_CASE("Inverse Laplacian")
     ModalField<N1, N2, N3> rhs(BoundaryCondition::Neumann);
     physicalRHS.ToModal(rhs);
 
-    // for BC
-    rhs(0,0,0) = 0;
 
     for (int j1=0; j1<N1; j1++)
     {

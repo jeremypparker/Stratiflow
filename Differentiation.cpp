@@ -2,30 +2,67 @@
 
 #include <Eigen/Dense>
 
-DiagonalMatrix<double, -1> VerticalDerivativeMatrix(BoundaryCondition originalBC, double L, int N)
+MatrixXd VerticalDerivativeMatrix(BoundaryCondition originalBC, double L, int N)
 {
-    ArrayXd k = ArrayXd::LinSpaced(N, 0, N-1);
-    VectorXd coeffs = pi*k/(2*L);
+    MatrixXd D = MatrixXd::Zero(N,N);
 
-    //coeffs(N-1) = 0; // check this
-
-    if (originalBC==BoundaryCondition::Neumann)
+    for (int j=0; j<N; j++)
     {
-        coeffs = -coeffs;
+        if(j==0)
+        {
+            D(j,j+2) = j+2;
+        }
+        else if(j==1)
+        {
+            if (originalBC==BoundaryCondition::Neumann)
+            {
+                D(j, j) = -3*j;
+            }
+            else
+            {
+                D(j, j) = -1*j;
+            }
+            D(j, j+2) = j+2;
+        }
+        else
+        {
+            D(j, j-2) = j-2;
+            D(j,j) = -2*j;
+
+            if(j+2 < N) // we have lost some terms here
+            {
+                D(j,j+2) = j+2;
+            }
+        }
     }
 
-    return coeffs.asDiagonal();
+    D /= (4*L);
+    if (originalBC==BoundaryCondition::Neumann)
+    {
+        D = -D;
+    }
+
+    D.row(0) *= 2;
+    D.col(0) /= 2;
+    D.row(N-1) *= 2;
+    D.col(N-1) /= 2;
+
+    return D;
 }
 
 
-DiagonalMatrix<double, -1> VerticalSecondDerivativeMatrix(double L, int N)
+MatrixXd VerticalSecondDerivativeMatrix(BoundaryCondition bc, double L, int N)
 {
-    ArrayXd k = ArrayXd::LinSpaced(N, 0, N-1);
-    VectorXd coeffs = -pi*pi*k*k/(4*L*L);
-
-    //coeffs(N-1) = 0; // check
-
-    return coeffs.asDiagonal();
+    if (bc == BoundaryCondition::Neumann)
+    {
+        return VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L, N)
+                * VerticalDerivativeMatrix(BoundaryCondition::Neumann, L, N);
+    }
+    else
+    {
+        return VerticalDerivativeMatrix(BoundaryCondition::Neumann, L, N)
+                * VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L, N);
+    }
 }
 
 
