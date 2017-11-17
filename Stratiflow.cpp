@@ -3,6 +3,7 @@
 #include "Graph.h"
 
 #include <iostream>
+#include <chrono>
 
 class IMEXRK
 {
@@ -21,6 +22,10 @@ public:
 
     using NField = NodalField<N1,N2,N3>;
     using MField = ModalField<N1,N2,N3>;
+
+    long totalExplicit = 0;
+    long totalImplicit = 0;
+    long totalDivergence = 0;
 
 public:
     IMEXRK()
@@ -85,11 +90,11 @@ public:
 
                 for (int k=0; k<s; k++)
                 {
-                    implicitSolveDirichlet[s*(j1*N2+j2) + k].compute(
+                    implicitSolveDirichlet[k][j1*N2+j2].compute(
                         MatrixXd::Identity(N3, N3)-0.5*h[k]*explicitSolveDirichlet[j1*N2+j2]);
-                    implicitSolveNeumann[s*(j1*N2+j2) + k].compute(
+                    implicitSolveNeumann[k][j1*N2+j2].compute(
                         MatrixXd::Identity(N3, N3)-0.5*h[k]*explicitSolveNeumann[j1*N2+j2]);
-                    implicitSolveBuoyancy[s*(j1*N2+j2) + k].compute(
+                    implicitSolveBuoyancy[k][j1*N2+j2].compute(
                         MatrixXd::Identity(N3, N3)-0.5*h[k]*explicitSolveBuoyancy[j1*N2+j2]);
                 }
             }
@@ -102,20 +107,23 @@ public:
         // see Numerical Renaissance
         for (int k=0; k<s; k++)
         {
-            //PlotVerticalVelocity("images/u3initial_"+std::to_string(k)+".png", 0);
+            auto t0 = std::chrono::high_resolution_clock::now();
 
             ExplicitUpdate(k);
+
+            auto t1 = std::chrono::high_resolution_clock::now();
+
             ImplicitUpdate(k);
 
-            //PlotVerticalVelocity("images/u3before_"+std::to_string(k)+".png", 0);
-            //PlotPressure("images/pressurebefore_"+std::to_string(k)+".png", 0);
+            auto t2 = std::chrono::high_resolution_clock::now();
 
             RemoveDivergence(1/h[k]);
 
-            //SolveForPressure();
+            auto t3 = std::chrono::high_resolution_clock::now();
 
-            //PlotVerticalVelocity("images/u3after_"+std::to_string(k)+".png", 0);
-            //PlotPressure("images/pressureafter_"+std::to_string(k)+".png", 0);
+            totalExplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
+            totalImplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
+            totalDivergence += std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count();
         }
     }
 
@@ -212,13 +220,7 @@ public:
         //divergence(0,0,0) = 0;
 
         // solve Δq = ∇·u as linear system Aq = divergence
-        for (int j1=0; j1<N1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                divergence.Dim3Solve(solveLaplacian[j1*N2+j2], j1, j2, q);
-            }
-        }
+        divergence.Dim3Solve(solveLaplacian, q);
 
         //q.ToNodal(B);
         //HeatPlot(B, L1, L3, 0, "images/pressureupdate.png");
@@ -277,29 +279,17 @@ public:
         divergence += (-2)*mnProduct;
 
 
-        for (int j1=0; j1<N1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                divergence.Dim3Solve(solveLaplacian[j1*N2+j2], j1, j2, p);
-            }
-        }
+        divergence.Dim3Solve(solveLaplacian, p);
     }
 
 
 private:
     void ImplicitUpdate(int k)
     {
-        for (int j1=0; j1<N1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                R1.Dim3Solve(implicitSolveNeumann[s*(j1*N2+j2) + k], j1, j2, u1);
-                //R2.Dim3Solve(implicitSolveNeumann[s*(j1*N2+j2) + k], j1, j2, u2);
-                R3.Dim3Solve(implicitSolveDirichlet[s*(j1*N2+j2) + k], j1, j2, u3);
-                RB.Dim3Solve(implicitSolveBuoyancy[s*(j1*N2+j2) + k], j1, j2, b);
-            }
-        }
+        R1.Dim3Solve(implicitSolveNeumann[k], u1);
+        //R2.Dim3Solve(implicitSolveNeumann[k], u2);
+        R3.Dim3Solve(implicitSolveDirichlet[k], u3);
+        RB.Dim3Solve(implicitSolveBuoyancy[k], b);
     }
 
     void ExplicitUpdate(int k)
@@ -317,40 +307,17 @@ private:
         RB += (h[k]*zeta[k])*rB;
 
         // explicit part of CN
-        for (int j1=0; j1<N1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                u1.Dim3MatMul(explicitSolveNeumann[j1*N2+j2], j1, j2, neumannTemp);
-            }
-        }
+
+        u1.Dim3MatMul(explicitSolveNeumann, neumannTemp);
         R1 += 0.5*h[k]*neumannTemp;
 
-        // for (int j1=0; j1<N1; j1++)
-        // {
-        //     for (int j2=0; j2<N2; j2++)
-        //     {
-        //         u2.Dim3MatMul(explicitSolveNeumann[j1*N2+j2], j1, j2, neumannTemp);
-        //     }
-        // }
+        //  u2.Dim3MatMul(explicitSolveNeumann, neumannTemp);
         // R2 += 0.5*h[k]*neumannTemp;
 
-        for (int j1=0; j1<N1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                u3.Dim3MatMul(explicitSolveDirichlet[j1*N2+j2], j1, j2, dirichletTemp);
-            }
-        }
+        u3.Dim3MatMul(explicitSolveDirichlet, dirichletTemp);
         R3 += 0.5*h[k]*dirichletTemp;
 
-        for (int j1=0; j1<N1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                b.Dim3MatMul(explicitSolveBuoyancy[j1*N2+j2], j1, j2, neumannTemp);
-            }
-        }
+        b.Dim3MatMul(explicitSolveBuoyancy, neumannTemp);
         RB += 0.5*h[k]*neumannTemp;
 
         // now construct explicit terms
@@ -366,6 +333,12 @@ private:
         //u2.ToNodal(U2);
         u3.ToNodal(U3);
         b.ToNodal(B);
+
+        // ThreadPool::Get().ExecuteAsync([this](){u1.ToNodal(U1);});
+        // //ThreadPool::Get().ExecuteAsync([](){u2.ToNodal(U2);});
+        // ThreadPool::Get().ExecuteAsync([this](){u3.ToNodal(U3);});
+        // ThreadPool::Get().ExecuteAsync([this](){b.ToNodal(B);});
+        // ThreadPool::Get().WaitAll();
 
         NodalProduct(U1, U1, nnTemp);
         nnTemp.ToModal(mnProduct);
@@ -471,9 +444,9 @@ private:
     std::array<MatrixXcd, N1*N2> explicitSolveDirichlet;
     std::array<MatrixXcd, N1*N2> explicitSolveNeumann;
     std::array<MatrixXcd, N1*N2> explicitSolveBuoyancy;
-    std::array<ColPivHouseholderQR<MatrixXcd>, 3*N1*N2> implicitSolveDirichlet;
-    std::array<ColPivHouseholderQR<MatrixXcd>, 3*N1*N2> implicitSolveNeumann;
-    std::array<ColPivHouseholderQR<MatrixXcd>, 3*N1*N2> implicitSolveBuoyancy;
+    std::array<ColPivHouseholderQR<MatrixXcd>, N1*N2> implicitSolveNeumann[3];
+    std::array<ColPivHouseholderQR<MatrixXcd>, N1*N2> implicitSolveDirichlet[3];
+    std::array<ColPivHouseholderQR<MatrixXcd>, N1*N2> implicitSolveBuoyancy[3];
     std::array<ColPivHouseholderQR<MatrixXcd>, N1*N2> solveLaplacian;
 };
 
@@ -509,13 +482,6 @@ int main()
     {
         initialU1.slice(j).setConstant(tanh(x3(j)-interfaceoffset));
         initialB.slice(j).setConstant(tanh(3*(x3(j)-interfaceoffset)));
-
-        // // band to see fluid velocity
-        // initialB.slice(j)(0, IMEXRK::N2/2) = 0;
-        // initialB.slice(j)(1, IMEXRK::N2/2) = 0;
-        // initialB.slice(j)(2, IMEXRK::N2/2) = 0;
-        // initialB.slice(j)(3, IMEXRK::N2/2) = 0;
-        // initialB.slice(j)(4, IMEXRK::N2/2) = 0;
     }
 
     solver.AddVariables(initialU1, initialU3, initialB);
@@ -542,6 +508,11 @@ int main()
             double cfl = solver.CFL();
             std::cout << "Step " << step << ", time " << step*solver.deltaT
                       << ", CFL number: " << cfl << std::endl;
+
+            std::cout << "Average timings: " << solver.totalExplicit / (step+1)
+                      << ", " << solver.totalImplicit / (step+1)
+                      << ", " << solver.totalDivergence / (step+1)
+                      << std::endl;
         }
     }
 

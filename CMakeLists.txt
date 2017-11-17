@@ -4,6 +4,8 @@ cmake_minimum_required(VERSION 3.1.3)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_STANDARD 11)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+
 include_directories(SYSTEM /home/jpp39/installs/include/eigen3/)
 include_directories(SYSTEM /usr/include/python2.7)
 include_directories(SYSTEM external)

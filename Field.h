@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Constants.h"
+#include "ThreadPool.h"
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -172,71 +173,151 @@ public:
     template<typename M>
     void Dim3MatMul(const M& matrix, Field<T, N1, N2, N3>& result) const
     {
+        int each = N1/3;
+        for (int first=0; first<N1; first+=each)
+        {
+            int last = first+each;
+            if(last>N1)
+            {
+                last = N1;
+            }
+
+            ThreadPool::Get().ExecuteAsync(
+                [&matrix,&result,first,last,this]()
+                {
+                    for (int j1=first; j1<last; j1++)
+                    {
+                        for (int j2=0; j2<N2; j2++)
+                        {
+                            Dim3MatMul(matrix, j1, j2, result);
+                        }
+                    }
+                });
+        }
+
+        ThreadPool::Get().WaitAll();
+    }
+    template<typename M>
+    void Dim3MatMul(const std::array<M, N1*N2>& matrices, Field<T, N1, N2, N3>& result) const
+    {
+        assert(matrices.size() == N1*N2);
+
         for (int j1=0; j1<N1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
             {
-                Dim3MatMul(matrix, j1, j2, result);
+                ThreadPool::Get().ExecuteAsync(
+                    [&matrices,&result,j1,j2,this]()
+                    {
+                        Dim3MatMul(matrices[j1*N2+j2], j1, j2, result);
+                    });
             }
         }
+
+        ThreadPool::Get().WaitAll();
     }
+
+    void Dim1MatMul(const DiagonalMatrix<T, -1>& matrix, Field<T, N1, N2, N3>& result) const
+    {
+        assert(matrix.rows() == N1);
+
+        int each = N3/3;
+        for (int first=0; first<N3; first+=each)
+        {
+            int last = first+each;
+            if(last>N3)
+            {
+                last = N3;
+            }
+
+            ThreadPool::Get().ExecuteAsync(
+                [&matrix,&result,first,last,this]()
+                {
+                    for (int j3=first; j3<last; j3++)
+                    {
+                        result.slice(j3) = matrix * slice(j3).matrix();
+                    }
+                });
+        }
+
+        ThreadPool::Get().WaitAll();
+    }
+
+    void Dim2MatMul(const DiagonalMatrix<T, -1>& matrix, Field<T, N1, N2, N3>& result) const
+    {
+        assert(matrix.rows() == N2);
+
+        int each = N3/3;
+        for (int first=0; first<N3; first+=each)
+        {
+            int last = first+each;
+            if(last>N3)
+            {
+                last = N3;
+            }
+
+            ThreadPool::Get().ExecuteAsync(
+                [&matrix,&result,first,last,this]()
+                {
+                    for (int j3=first; j3<last; j3++)
+                    {
+                        result.slice(j3) = slice(j3).matrix() * matrix;
+                    }
+                });
+        }
+
+        ThreadPool::Get().WaitAll();
+    }
+
+    // template<typename Solver>
+    // void Dim3Solve(Solver& solver, Field<T, N1, N2, N3>& result) const
+    // {
+    //     for (int j1=0; j1<N1; j1++)
+    //     {
+    //         for (int j2=0; j2<N2; j2++)
+    //         {
+    //             Dim3Solve(solver, j1, j2, result);
+    //         }
+    //     }
+    // }
+
+    template<typename Solver>
+    void Dim3Solve(std::array<Solver, N1*N2>& solvers, Field<T, N1, N2, N3>& result) const
+    {
+        for (int j1=0; j1<N1; j1++)
+        {
+            for (int j2=0; j2<N2; j2++)
+            {
+                ThreadPool::Get().ExecuteAsync(
+                    [&solvers,&result,j1,j2,this]()
+                    {
+                        Dim3Solve(solvers[j1*N2+j2], j1, j2, result);
+                    });
+            }
+        }
+
+        ThreadPool::Get().WaitAll();
+    }
+
+private:
     template<typename M>
     void Dim3MatMul(const M& matrix, int j1, int j2, Field<T, N1, N2, N3>& result) const
     {
         assert(matrix.rows() == matrix.cols());
         assert(matrix.rows() == N3);
 
-        if (matrix.rows() == N3)
-        {
-            result.stack(j1, j2) = matrix * stack(j1, j2).matrix();
-        }
-    }
-
-    void Dim1MatMul(const DiagonalMatrix<T, -1>& matrix, Field<T, N1, N2, N3>& result) const
-    {
-        assert(matrix.rows() == N1);
-        for (int j=0; j<N3; j++)
-        {
-            result.slice(j) = matrix*slice(j).matrix();
-        }
-    }
-
-    void Dim2MatMul(const DiagonalMatrix<T, -1>& matrix, Field<T, N1, N2, N3>& result) const
-    {
-        assert(matrix.rows() == N2);
-        for (int j=0; j<N3; j++)
-        {
-            result.slice(j) = slice(j).matrix() * matrix;
-        }
-    }
-
-    template<typename Solver>
-    void Dim3Solve(Solver& solver, Field<T, N1, N2, N3>& result) const
-    {
-        for (int j1=0; j1<N1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                Dim3Solve(solver, j1, j2, result);
-            }
-        }
+        result.stack(j1, j2) = matrix * stack(j1, j2).matrix();
     }
 
     template<typename Solver>
     void Dim3Solve(Solver& solver, int j1, int j2, Field<T, N1, N2, N3>& result) const
     {
-        if (solver.rows() == N3)
-        {
-            result.stack(j1, j2) = solver.solve(stack(j1, j2).matrix());
-        }
-        else
-        {
-            assert(0);
-        }
+        assert(solver.rows() == N3);
 
+        result.stack(j1, j2) = solver.solve(stack(j1, j2).matrix());
     }
 
-private:
+
     // stored in column-major ordering of size (N1, N2, N3)
     std::vector<T> _data;
 
@@ -469,8 +550,24 @@ void NodalProduct(const NodalField<N1, N2, N3>& f1,
              const NodalField<N1, N2, N3>& f2,
              NodalField<N1, N2, N3>& result)
 {
-    for (int j=0; j<N3; j++)
+    int each = N3/3;
+    for (int first=0; first<N3; first+=each)
     {
-        result.slice(j) = f1.slice(j)*f2.slice(j);
+        int last = first+each;
+        if(last>N3)
+        {
+            last = N3;
+        }
+
+        ThreadPool::Get().ExecuteAsync(
+            [&f1,&f2,&result,first,last]()
+            {
+                for (int j3=first; j3<last; j3++)
+                {
+                    result.slice(j3) = f1.slice(j3)*f2.slice(j3);
+                }
+            });
     }
+
+    ThreadPool::Get().WaitAll();
 }
