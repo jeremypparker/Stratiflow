@@ -173,7 +173,7 @@ public:
     template<typename M>
     void Dim3MatMul(const M& matrix, Field<T, N1, N2, N3>& result) const
     {
-        int each = N1/3;
+        int each = N1/maxthreads + 1;
         for (int first=0; first<N1; first+=each)
         {
             int last = first+each;
@@ -221,7 +221,7 @@ public:
     {
         assert(matrix.rows() == N1);
 
-        int each = N3/3;
+        int each = N3/maxthreads + 1;
         for (int first=0; first<N3; first+=each)
         {
             int last = first+each;
@@ -247,7 +247,7 @@ public:
     {
         assert(matrix.rows() == N2);
 
-        int each = N3/3;
+        int each = N3/maxthreads + 1;
         for (int first=0; first<N3; first+=each)
         {
             int last = first+each;
@@ -425,10 +425,8 @@ class ModalField : public Field<complex, N1, N2, N3>
 {
     using Field<complex, N1, N2, N3>::Field;
 public:
-    void ToNodal(NodalField<N1, N2, N3>& other)
+    void ToNodalHorizontal(NodalField<N1, N2, N3>& other) const
     {
-        Filter();
-
         assert(other.BC() == this->BC());
 
         // make a copy of the input data as it is modified by the transform
@@ -465,6 +463,13 @@ public:
         {
             other.Raw()[j] = outputData[j].real();
         }
+    }
+
+    void ToNodal(NodalField<N1, N2, N3>& other)
+    {
+        Filter();
+
+        ToNodalHorizontal(other);
 
         // then do (co)sine transform in 3rd dimension
         {
@@ -554,7 +559,7 @@ void NodalProduct(const NodalField<N1, N2, N3>& f1,
              const NodalField<N1, N2, N3>& f2,
              NodalField<N1, N2, N3>& result)
 {
-    int each = N3/3;
+    int each = N3/maxthreads + 1;
     for (int first=0; first<N3; first+=each)
     {
         int last = first+each;

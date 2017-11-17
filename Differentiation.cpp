@@ -14,6 +14,7 @@ MatrixXd VerticalDerivativeMatrix(BoundaryCondition originalBC, double L, int N)
         }
         else if(j==1)
         {
+            // use (anti)symmetry of basis function to replace missing mode
             if (originalBC==BoundaryCondition::Neumann)
             {
                 D(j, j) = -3*j;

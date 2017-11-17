@@ -4,55 +4,77 @@
 
 #include <matplotlib-cpp.h>
 
-template<int N1, int N2, int N3>
-void QuiverPlot(const NodalField<N1, N2, N3>& u,
-                const NodalField<N1, N2, N3>& v,
-                double L1,
-                double L3,
-                int j2,
-                std::string filename)
+ArrayXd Evaluate(const ArrayXd& a, const ArrayXd& x, double L, BoundaryCondition bc)
 {
-    // // plot some arrows
-    // unsigned int skip1 = 5;
-    // unsigned int skip3 = 1;
+    ArrayXd y = ArrayXd::Zero(x.size());
 
-    // matplotlibcpp::figure();
+    ArrayXd theta = atan(L/x);
 
-    // auto x = ChebPoints(N3, L3);
+    for (int j=0; j<theta.size(); j++)
+    {
+        if (theta(j)<0)
+        {
+            theta(j) += pi;
+        }
+    }
 
-    // for (unsigned int j1 = 0; j1 < N1; j1+=skip1)
-    // {
-    //     for (unsigned int j3 = 0; j3 < N3; j3+=skip3)
-    //     {
-    //         double v1 = 0.2*u.slice(j3)(j1, j2);
-    //         double v3 = 0.2*v.slice(j3)(j1, j2);
 
-    //         double x1 = j1*L1/static_cast<double>(N1);
-    //         double x3 = x(j3);
+    for (int k=0; k<a.size(); k++)
+    {
+        double c = 2;
+        if (k==0 || k==a.size()-1)
+        {
+            if (bc==BoundaryCondition::Neumann)
+            {
+                c = 1;
+            }
+            else
+            {
+                c = 0;
+            }
+        }
 
-    //         matplotlibcpp::plot({x1, x1+v1}, {x3, x3+v3}, "b-");
-    //     }
-    // }
+        if (bc==BoundaryCondition::Neumann)
+        {
+            y += c*a(k)*cos(k*theta);
+        }
+        else
+        {
+            y += c*a(k)*sin(k*theta);
+        }
+    }
 
-    // matplotlibcpp::save(filename);
-    // matplotlibcpp::close();
+    return y;
 }
 
 template<int N1, int N2, int N3>
-inline void HeatPlot(const NodalField<N1, N2, N3> &u, double L1, double L3, int j2, std::string filename)
+inline void HeatPlot(const ModalField<N1, N2, N3> &u, double L1, double L3, int j2, std::string filename)
 {
+    NodalField<N1, N2, N3> U(u.BC());
+    u.ToNodalHorizontal(U);
+
     matplotlibcpp::figure();
 
-    int cols = N1;
-    int rows = N3;
+
+    int scale = 2;
+
+    int cols = N1*scale;
+    int rows = N1*scale;
+
+    ArrayXd x = ArrayXd::LinSpaced(rows, -0.5*L1*scale, 0.5*L1*scale);
 
     std::vector<double> imdata(rows*cols);
 
-    for (int col=0; col<cols; col++)
+    for (int col=0; col<N1; col++)
     {
+        ArrayXd y = Evaluate(U.stack(col, j2), x, L3, U.BC());
+
         for (int row=0; row<rows; row++)
         {
-            imdata[row*cols + col] = u.slice(row)(col, j2);
+            for (int repeat = 0; repeat < scale; repeat++)
+            {
+                imdata[row*cols + repeat*N1 + col] = y(row);
+            }
         }
     }
 
@@ -60,12 +82,4 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &u, double L1, double L3, int 
 
     matplotlibcpp::save(filename);
     matplotlibcpp::close();
-}
-
-inline void Interpolate(const ArrayXd& y, double L3, BoundaryCondition bc, std::string filename)
-{
-    // ArrayXd xGrid = ArrayXd::LinSpaced(1000, -L3, L3);
-    // Plot(xGrid, BarycentricEval(y, xGrid, L3), "r-");
-    // matplotlibcpp::save(filename);
-    // matplotlibcpp::close();
 }

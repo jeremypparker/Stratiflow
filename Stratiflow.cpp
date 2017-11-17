@@ -71,6 +71,15 @@ public:
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
 
+                // prevent singularity - first row gives average value at infinity
+                if (j1 == 0 && j2 == 0)
+                {
+                    laplacian.row(0).setConstant(1);
+
+                    // because these terms are different in expansion
+                    laplacian(0,0) = 2;
+                    laplacian(0,N3-1) = 2;
+                }
 
                 solveLaplacian[j1*N2+j2].compute(laplacian);
 
@@ -118,6 +127,7 @@ public:
             auto t2 = std::chrono::high_resolution_clock::now();
 
             RemoveDivergence(1/h[k]);
+            //SolveForPressure();
 
             auto t3 = std::chrono::high_resolution_clock::now();
 
@@ -127,42 +137,24 @@ public:
         }
     }
 
-    void Quiver(std::string filename, int j2)
+    void PlotBuoyancy(std::string filename, int j2) const
     {
-        u1.ToNodal(U1);
-        u3.ToNodal(U3);
-
-        QuiverPlot(U1, U3, L1, L3, j2, filename);
+        HeatPlot(b, L1, L3, j2, filename);
     }
 
-    void Profile(std::string filename, int j1, int j2)
+    void PlotPressure(std::string filename, int j2) const
     {
-        u1.ToNodal(U1);
-        Interpolate(U1.stack(j1, j2), L3, BoundaryCondition::Neumann, filename);
+        HeatPlot(p, L1, L3, j2, filename);
     }
 
-    void PlotBuoyancy(std::string filename, int j2)
+    void PlotVerticalVelocity(std::string filename, int j2) const
     {
-        b.ToNodal(B);
-        HeatPlot(B, L1, L3, j2, filename);
+        HeatPlot(u3, L1, L3, j2, filename);
     }
 
-    void PlotPressure(std::string filename, int j2)
+    void PlotStreamwiseVelocity(std::string filename, int j2) const
     {
-        p.ToNodal(B);
-        HeatPlot(B, L1, L3, j2, filename);
-    }
-
-    void PlotVerticalVelocity(std::string filename, int j2)
-    {
-        u3.ToNodal(U3);
-        HeatPlot(U3, L1, L3, j2, filename);
-    }
-
-    void PlotStreamwiseVelocity(std::string filename, int j2)
-    {
-        u1.ToNodal(U1);
-        HeatPlot(U1, L1, L3, j2, filename);
+        HeatPlot(u1, L1, L3, j2, filename);
     }
 
     void AddVariables(NField velocity1, NField velocity3, NField buoyancy)
@@ -216,8 +208,8 @@ public:
         //divergence.ToNodal(B);
         //HeatPlot(B, L1, L3, 0, "images/divergence.png");
 
-        // boundary value
-        //divergence(0,0,0) = 0;
+        // constant term - set value at infinity to zero
+        divergence(0,0,0) = 0;
 
         // solve Δq = ∇·u as linear system Aq = divergence
         divergence.Dim3Solve(solveLaplacian, q);
@@ -240,6 +232,9 @@ public:
         // this is scaled to match the p that was added before
         // effectively we have forward euler
         p += pressureMultiplier*q;
+
+        // pressure never gets filtered unless we do it explicitly
+        p.Filter();
     }
 
     void SolveForPressure()
@@ -270,6 +265,8 @@ public:
         nnTemp.ToModal(mnProduct);
         divergence += (-2)*mnProduct;
 
+        // set value at infinity
+        divergence(0,0,0) = 0;
 
         divergence.Dim3Solve(solveLaplacian, p);
     }
@@ -480,7 +477,7 @@ int main()
     solver.RemoveDivergence(0.0);
     //solver.SolveForPressure();
 
-    solver.PlotPressure("images/pressure/initial.png", IMEXRK::N2/2);
+    //solver.PlotPressure("images/pressure/initial.png", IMEXRK::N2/2);
 
     for (int step=0; step<50000; step++)
     {
