@@ -135,31 +135,31 @@ public:
         QuiverPlot(U1, U3, L1, L3, j2, filename);
     }
 
-    void Profile(std::string filename, int j1, int j2) const
+    void Profile(std::string filename, int j1, int j2)
     {
         u1.ToNodal(U1);
         Interpolate(U1.stack(j1, j2), L3, BoundaryCondition::Neumann, filename);
     }
 
-    void PlotBuoyancy(std::string filename, int j2) const
+    void PlotBuoyancy(std::string filename, int j2)
     {
         b.ToNodal(B);
         HeatPlot(B, L1, L3, j2, filename);
     }
 
-    void PlotPressure(std::string filename, int j2) const
+    void PlotPressure(std::string filename, int j2)
     {
         p.ToNodal(B);
         HeatPlot(B, L1, L3, j2, filename);
     }
 
-    void PlotVerticalVelocity(std::string filename, int j2) const
+    void PlotVerticalVelocity(std::string filename, int j2)
     {
         u3.ToNodal(U3);
         HeatPlot(U3, L1, L3, j2, filename);
     }
 
-    void PlotStreamwiseVelocity(std::string filename, int j2) const
+    void PlotStreamwiseVelocity(std::string filename, int j2)
     {
         u1.ToNodal(U1);
         HeatPlot(U1, L1, L3, j2, filename);
@@ -240,14 +240,6 @@ public:
         // this is scaled to match the p that was added before
         // effectively we have forward euler
         p += pressureMultiplier*q;
-    }
-
-    void FilterVariables()
-    {
-        u1.Filter();
-        //u2.Filter();
-        u3.Filter();
-        b.Filter();
     }
 
     void SolveForPressure()
@@ -472,7 +464,6 @@ int main()
         }
     }
     solver.AddVariables(initialU1, initialU3, initialB);
-    //solver.FilterVariables();
 
     // add background flow
     initialU1.Zero();
@@ -493,7 +484,6 @@ int main()
 
     for (int step=0; step<50000; step++)
     {
-        //solver.FilterVariables();
         solver.TimeStep();
 
         if(step%400==0)

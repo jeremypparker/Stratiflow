@@ -425,8 +425,10 @@ class ModalField : public Field<complex, N1, N2, N3>
 {
     using Field<complex, N1, N2, N3>::Field;
 public:
-    void ToNodal(NodalField<N1, N2, N3>& other) const
+    void ToNodal(NodalField<N1, N2, N3>& other)
     {
+        Filter();
+
         assert(other.BC() == this->BC());
 
         // make a copy of the input data as it is modified by the transform
@@ -523,14 +525,16 @@ public:
             }
         }
 
-        // todo
-        // for (int j2=N2/3; j2<=2*N2/3; j2++)
-        // {
-        //     for (int j1=0; j1<N1; j1++)
-        //     {
-        //         this->stack(j1, j2).setZero();
-        //     }
-        // }
+        if (N2>1)
+        {
+            for (int j2=N2/3; j2<=2*N2/3; j2++)
+            {
+                for (int j1=0; j1<N1; j1++)
+                {
+                    this->stack(j1, j2).setZero();
+                }
+            }
+        }
     }
 
 };
