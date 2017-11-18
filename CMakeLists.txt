@@ -6,11 +6,14 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 
+find_package(Threads)
+
 include_directories(SYSTEM /home/jpp39/installs/include/eigen3/)
 include_directories(SYSTEM /usr/include/python2.7)
 include_directories(SYSTEM external)
 link_libraries(python2.7)
 link_libraries(fftw3)
+link_libraries(${CMAKE_THREAD_LIBS_INIT})
 
 add_library(StratiLib Differentiation.cpp Field.cpp Graph.cpp)
 

@@ -14,11 +14,12 @@ public:
 
     static constexpr double L1 = 9.44; // size of domain streamwise
     static constexpr double L2 = 15.0;  // size of domain spanwise
-    static constexpr double L3 = 2.0; // half size of domain vertically
+    static constexpr double L3 = 2.0; // vertical scaling factor
 
     const double deltaT = 0.001;
     const double Re = 2000;
     const double Pe = 1000;
+    const double Ri = 0.2;
 
     using NField = NodalField<N1,N2,N3>;
     using MField = ModalField<N1,N2,N3>;
@@ -315,6 +316,9 @@ private:
         r3.Zero();
         rB.Zero();
 
+        // add buoyancy force
+        //r3 += Ri*b; // z goes down
+
         //////// NONLINEAR TERMS ////////
 
         // calculate products at nodes in physical space
@@ -481,6 +485,7 @@ int main()
 
     for (int step=0; step<50000; step++)
     {
+        std::cout << "Step " << step << std::endl;
         solver.TimeStep();
 
         if(step%400==0)

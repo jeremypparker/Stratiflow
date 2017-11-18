@@ -4,7 +4,7 @@
 #include <vector>
 #include <functional>
 
-constexpr int maxthreads = 30;
+constexpr int maxthreads = 5;
 
 class ThreadPool
 {
