@@ -9,8 +9,12 @@
 #include <fftw3.h>
 #include <vector>
 #include <utility>
+#include <functional>
 
 using namespace Eigen;
+
+ArrayXd VerticalPoints(double L, int N);
+ArrayXd FourierPoints(double L, int N);
 
 template<typename T, int N1, int N2, int N3>
 class Field
@@ -418,6 +422,33 @@ public:
 
         return max;
     }
+
+    void SetValue(std::function<double(double)> f, double L3)
+    {
+        ArrayXd z = VerticalPoints(L3, N3);
+        for (int j3=0; j3<N3; j3++)
+        {
+            this->slice(j3).setConstant(f(z(j3)));
+        }
+    }
+
+    void SetValue(std::function<double(double,double,double)> f, double L1, double L2, double L3)
+    {
+        ArrayXd x = FourierPoints(L1, N1);
+        ArrayXd y = FourierPoints(L2, N2);
+        ArrayXd z = VerticalPoints(L3, N3);
+
+        for (int j1=0; j1<N1; j1++)
+        {
+            for (int j2=0; j2<N2; j2++)
+            {
+                for (int j3=0; j3<N3; j3++)
+                {
+                    (*this)(j1,j2,j3) = f(x(j1), y(j2), z(j3));
+                }
+            }
+        }
+    }
 };
 
 template<int N1, int N2, int N3>
@@ -465,10 +496,8 @@ public:
         }
     }
 
-    void ToNodal(NodalField<N1, N2, N3>& other)
+    void ToNodalNoFilter(NodalField<N1, N2, N3>& other) const
     {
-        Filter();
-
         ToNodalHorizontal(other);
 
         // then do (co)sine transform in 3rd dimension
@@ -513,24 +542,38 @@ public:
             other.slice(0).setZero();
             other.slice(N3-1).setZero();
         }
+
+    }
+
+    void ToNodal(NodalField<N1, N2, N3>& other)
+    {
+        Filter();
+
+        ToNodalNoFilter(other);
     }
 
     void Filter()
     {
-        for (int j3=2*N3/3; j3<N3; j3++)
+        if (N3>2)
         {
-            this->slice(j3).setZero();
-        }
-
-        for (int j1=N1/3; j1<=2*N1/3; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
+            for (int j3=2*N3/3; j3<N3; j3++)
             {
-                this->stack(j1, j2).setZero();
+                this->slice(j3).setZero();
             }
         }
 
-        if (N2>1)
+        if (N1>2)
+        {
+            for (int j1=N1/3; j1<=2*N1/3; j1++)
+            {
+                for (int j2=0; j2<N2; j2++)
+                {
+                    this->stack(j1, j2).setZero();
+                }
+            }
+        }
+
+        if (N2>2)
         {
             for (int j2=N2/3; j2<=2*N2/3; j2++)
             {
@@ -544,9 +587,6 @@ public:
 
 };
 
-ArrayXd VerticalPoints(double L, int N);
-ArrayXd FourierPoints(double L, int N);
-
 template<int N1, int N2, int N3>
 std::pair<const Field<complex, N1, N2, N3>*, complex> operator*(complex scalar,
                                                                 const ModalField<N1, N2, N3>& field)
@@ -559,6 +599,10 @@ void NodalProduct(const NodalField<N1, N2, N3>& f1,
              const NodalField<N1, N2, N3>& f2,
              NodalField<N1, N2, N3>& result)
 {
+    assert(result.BC() == BoundaryCondition::Neumann
+           || f1.BC() == BoundaryCondition::Dirichlet
+           || f2.BC() == BoundaryCondition::Dirichlet);
+
     int each = N3/maxthreads + 1;
     for (int first=0; first<N3; first+=each)
     {
@@ -574,6 +618,37 @@ void NodalProduct(const NodalField<N1, N2, N3>& f1,
                 for (int j3=first; j3<last; j3++)
                 {
                     result.slice(j3) = f1.slice(j3)*f2.slice(j3);
+                }
+            });
+    }
+
+    ThreadPool::Get().WaitAll();
+}
+
+template<int N1, int N2, int N3>
+void NodalSum(const NodalField<N1, N2, N3>& f1,
+             const NodalField<N1, N2, N3>& f2,
+             NodalField<N1, N2, N3>& result)
+{
+    assert(result.BC() == BoundaryCondition::Neumann
+           || (f1.BC() == BoundaryCondition::Dirichlet
+           && f2.BC() == BoundaryCondition::Dirichlet));
+
+    int each = N3/maxthreads + 1;
+    for (int first=0; first<N3; first+=each)
+    {
+        int last = first+each;
+        if(last>N3)
+        {
+            last = N3;
+        }
+
+        ThreadPool::Get().ExecuteAsync(
+            [&f1,&f2,&result,first,last]()
+            {
+                for (int j3=first; j3<last; j3++)
+                {
+                    result.slice(j3) = f1.slice(j3) + f2.slice(j3);
                 }
             });
     }

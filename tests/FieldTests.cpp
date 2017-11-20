@@ -109,7 +109,7 @@ TEST_CASE("Dirichlet Modal/Nodal")
     f1.ToModal(f2);
 
     NodalField<N1, N2, N3> f3(BoundaryCondition::Dirichlet);
-    f2.ToNodal(f3);
+    f2.ToNodalNoFilter(f3);
 
     REQUIRE(f1 == f3);
 }
@@ -126,7 +126,7 @@ TEST_CASE("Neumann Modal/Nodal")
     f1.ToModal(f2);
 
     NodalField<2, 8, 4> f3(BoundaryCondition::Neumann);
-    f2.ToNodal(f3);
+    f2.ToNodalNoFilter(f3);
 
     REQUIRE(f1 == f3);
 }

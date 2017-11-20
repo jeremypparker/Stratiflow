@@ -32,16 +32,8 @@ TEST_CASE("Simple derivatives Neumann")
     constexpr int N2 = 1;
     constexpr int N3 = 61;
 
-    auto x = VerticalPoints(L, N3);
-
     NodalField<N1,N2,N3> f1(BoundaryCondition::Neumann);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            f1.stack(j1, j2) = tanh(x);
-        }
-    }
+    f1.SetValue([](double z){return tanh(z);}, L);
 
     // convert to modal for differentiation
     ModalField<N1,N2,N3> f2(BoundaryCondition::Neumann);
@@ -52,13 +44,7 @@ TEST_CASE("Simple derivatives Neumann")
     f3.ToNodal(f4);
 
     NodalField<N1,N2,N3> expected(BoundaryCondition::Dirichlet);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            expected.stack(j1, j2) = 1/(cosh(x)*cosh(x));
-        }
-    }
+    expected.SetValue([](double z){return 1/(cosh(z)*cosh(z));}, L);
 
     REQUIRE(f4 == expected);
 
@@ -70,13 +56,7 @@ TEST_CASE("Simple derivatives Neumann")
     f5.ToNodal(f6);
 
     NodalField<N1,N2,N3> expected2(BoundaryCondition::Neumann);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            expected2.stack(j1, j2) = -2*tanh(x)/(cosh(x)*cosh(x));
-        }
-    }
+    expected2.SetValue([](double z){return -2*tanh(z)/(cosh(z)*cosh(z));}, L);
 
     REQUIRE(f6 == expected2);
 }
@@ -91,13 +71,7 @@ TEST_CASE("Simple derivatives Dirichlet")
     auto x = VerticalPoints(L, N3);
 
     NodalField<N1,N2,N3> f1(BoundaryCondition::Dirichlet);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            f1.stack(j1, j2) = exp(-(x-0.5)*(x-0.5));
-        }
-    }
+    f1.SetValue([](double z){return exp(-(z-0.5)*(z-0.5));}, L);
 
     // convert to modal for differentiation
     ModalField<N1,N2,N3> f2(BoundaryCondition::Dirichlet);
@@ -108,13 +82,8 @@ TEST_CASE("Simple derivatives Dirichlet")
     f3.ToNodal(f4);
 
     NodalField<N1,N2,N3> expected(BoundaryCondition::Neumann);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            expected.stack(j1, j2) = -2*(x-0.5)*exp(-(x-0.5)*(x-0.5));
-        }
-    }
+    expected.SetValue([](double z){return -2*(z-0.5)*exp(-(z-0.5)*(z-0.5));}, L);
+
 
     REQUIRE(f4 == expected);
 
@@ -126,13 +95,7 @@ TEST_CASE("Simple derivatives Dirichlet")
     f5.ToNodal(f6);
 
     NodalField<N1,N2,N3> expected2(BoundaryCondition::Dirichlet);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            expected2.stack(j1, j2) = (4*(x-0.5)*(x-0.5)-2)*exp(-(x-0.5)*(x-0.5));
-        }
-    }
+    expected2.SetValue([](double z){return (4*(z-0.5)*(z-0.5)-2)*exp(-(z-0.5)*(z-0.5));}, L);
 
     REQUIRE(f6 == expected2);
 }
@@ -294,13 +257,7 @@ TEST_CASE("Inverse Laplacian")
     physicalRHS.ToModal(rhs);
 
 
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            rhs.Dim3Solve(solveLaplacian[j1*N2+j2], j1, j2, q);
-        }
-    }
+    rhs.Dim3Solve(solveLaplacian, q);
 
     NodalField<N1, N2, N3> physicalSolution(BoundaryCondition::Neumann);
     q.ToNodal(physicalSolution);
