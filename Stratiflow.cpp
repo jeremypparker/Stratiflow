@@ -55,11 +55,6 @@ public:
     , divergence(mnProduct)
     , q(p)
     {
-        dim1Derivative = FourierDerivativeMatrix(L1, N1);
-        dim2Derivative = FourierDerivativeMatrix(L2, N2);
-        dim3DerivativeNeumann = VerticalDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
-        dim3DerivativeDirichlet = VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L3, N3);
-
         dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1);
         dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2);
         dim3Derivative2Neumann = VerticalSecondDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
@@ -144,10 +139,13 @@ public:
 
     void PlotBuoyancy(std::string filename, int j2) const
     {
-        b.ToNodalNoFilter(B);
-        NodalSum(B, B_, nnTemp);
-        nnTemp.ToModal(neumannTemp);
-        HeatPlot(neumannTemp, L1, L3, j2, filename);
+        // b.ToNodalNoFilter(B);
+        // NodalSum(B, B_, nnTemp);
+        // nnTemp.ToModal(neumannTemp);
+        // HeatPlot(neumannTemp, L1, L3, j2, filename);
+
+        //b.Dim1MatMul(dim1Derivative, dirichletTemp);
+        HeatPlot(b, L1, L3, j2, filename);
     }
 
     void PlotPressure(std::string filename, int j2) const
@@ -162,10 +160,11 @@ public:
 
     void PlotStreamwiseVelocity(std::string filename, int j2) const
     {
-        u1.ToNodalNoFilter(U1);
-        U1 += U_;
-        U1.ToModal(neumannTemp);
-        HeatPlot(neumannTemp, L1, L3, j2, filename);
+        // u1.ToNodalNoFilter(U1);
+        // U1 += U_;
+        // U1.ToModal(neumannTemp);
+        // HeatPlot(neumannTemp, L1, L3, j2, filename);
+        HeatPlot(u1, L1, L3, j2, filename);
     }
 
     void SetInitial(NField velocity1, NField velocity3, NField buoyancy)
@@ -175,14 +174,11 @@ public:
         buoyancy.ToModal(b);
     }
 
-    void SetBackground(NField velocity, NField buoyancy)
+    void SetBackground(NField velocity, NField buoyancy, NField buoyancyDerivative)
     {
         U_ = velocity;
         B_ = buoyancy;
-
-        B_.ToModal(neumannTemp);
-        neumannTemp.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
-        dirichletTemp.ToNodal(dB_dz);
+        dB_dz = buoyancyDerivative;
     }
 
     // gives an upper bound on cfl number
@@ -211,12 +207,8 @@ public:
         // construct the diverence of u
         divergence.Zero();
 
-        u1.Dim1MatMul(dim1Derivative, neumannTemp);
-        divergence += neumannTemp;
-        //u2.Dim2MatMul(dim2Derivative, neumannTemp);
-        //divergence += neumannTemp;
-        u3.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
-        divergence += neumannTemp;
+        divergence += ddx(u1);
+        divergence += ddz(u3);
 
         //divergence.ToNodal(B);
         //HeatPlot(B, L1, L3, 0, "images/divergence.png");
@@ -233,12 +225,8 @@ public:
         //std::cout << q.stack(5, 0) << std::endl << std::endl;
 
         // subtract the gradient of this from the velocity
-        q.Dim1MatMul(dim1Derivative, neumannTemp);
-        u1 -= neumannTemp;
-        //q.Dim2MatMul(dim2Derivative, neumannTemp);
-        //u2 -= neumannTemp;
-        q.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
-        u3 -= dirichletTemp;
+        u1 -= ddx(q);
+        u3 -= ddz(q);
         //std::cout << dirichletTemp.stack(5, 0) << std::endl << std::endl;
 
         // also add it on to p for the next step
@@ -286,10 +274,58 @@ public:
 
 
 private:
+    MField& ddx(MField& f) const
+    {
+        static DiagonalMatrix<complex, -1> dim1Derivative = FourierDerivativeMatrix(L1, N1);
+
+        if(f.BC() == BoundaryCondition::Neumann)
+        {
+            f.Dim1MatMul(dim1Derivative, neumannTemp);
+            return neumannTemp;
+        }
+        else
+        {
+            f.Dim1MatMul(dim1Derivative, dirichletTemp);
+            return dirichletTemp;
+        }
+    }
+
+    MField& ddy(MField& f) const
+    {
+        static DiagonalMatrix<complex, -1> dim2Derivative = FourierDerivativeMatrix(L2, N2);
+
+        if(f.BC() == BoundaryCondition::Neumann)
+        {
+            f.Dim2MatMul(dim2Derivative, neumannTemp);
+            return neumannTemp;
+        }
+        else
+        {
+            f.Dim2MatMul(dim2Derivative, dirichletTemp);
+            return dirichletTemp;
+        }
+    }
+
+    MField& ddz(MField& f) const
+    {
+        static MatrixXd dim3DerivativeNeumann = VerticalDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
+        static MatrixXd dim3DerivativeDirichlet = VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L3, N3);
+
+        if (f.BC() == BoundaryCondition::Dirichlet)
+        {
+            f.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
+            return neumannTemp;
+        }
+        else
+        {
+            f.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
+            return dirichletTemp;
+        }
+    }
+
     void ImplicitUpdate(int k)
     {
         R1.Dim3Solve(implicitSolveNeumann[k], u1);
-        //R2.Dim3Solve(implicitSolveNeumann[k], u2);
         R3.Dim3Solve(implicitSolveDirichlet[k], u3);
         RB.Dim3Solve(implicitSolveBuoyancy[k], b);
     }
@@ -298,7 +334,6 @@ private:
     {
         // calculate rhs terms and accumulate in y
         R1 = u1;
-        //R2 = u2;
         R3 = u3;
         RB = b;
 
@@ -312,9 +347,6 @@ private:
 
         u1.Dim3MatMul(explicitSolveNeumann, neumannTemp);
         R1 += 0.5*h[k]*neumannTemp;
-
-        //  u2.Dim3MatMul(explicitSolveNeumann, neumannTemp);
-        // R2 += 0.5*h[k]*neumannTemp;
 
         u3.Dim3MatMul(explicitSolveDirichlet, dirichletTemp);
         R3 += 0.5*h[k]*dirichletTemp;
@@ -335,91 +367,48 @@ private:
 
         // calculate products at nodes in physical space
         u1.ToNodal(U1);
-        //u2.ToNodal(U2);
         u3.ToNodal(U3);
-        b.ToNodal(B);
-
-        // ThreadPool::Get().ExecuteAsync([this](){u1.ToNodal(U1);});
-        // //ThreadPool::Get().ExecuteAsync([](){u2.ToNodal(U2);});
-        // ThreadPool::Get().ExecuteAsync([this](){u3.ToNodal(U3);});
-        // ThreadPool::Get().ExecuteAsync([this](){b.ToNodal(B);});
-        // ThreadPool::Get().WaitAll();
 
         // take into account background shear for nonlinear terms
         U1 += U_;
 
         NodalProduct(U1, U1, nnTemp);
         nnTemp.ToModal(mnProduct);
-        mnProduct.Dim1MatMul(dim1Derivative, neumannTemp);
-        r1 -= neumannTemp;
-
-        // NodalProduct(U1, U2, nnTemp);
-        // nnTemp.ToModal(mnProduct);
-        // mnProduct.Dim1MatMul(dim1Derivative, neumannTemp);
-        // r2 -= neumannTemp;
-        // mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
-        // r1 -= neumannTemp;
+        r1 -= ddx(mnProduct);
 
         NodalProduct(U1, U3, ndTemp);
         ndTemp.ToModal(mdProduct);
-        mdProduct.Dim1MatMul(dim1Derivative, dirichletTemp);
-        r3 -= dirichletTemp;
-        mdProduct.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
-        r1 -= neumannTemp;
-
-        // NodalProduct(U2, U2, nnTemp);
-        // nnTemp.ToModal(mnProduct);
-        // mnProduct.Dim2MatMul(dim2Derivative, neumannTemp);
-        // r2 -= neumannTemp;
-
-        // NodalProduct(U2, U3, ndTemp);
-        // ndTemp.ToModal(mdProduct);
-        // mdProduct.Dim2MatMul(dim2Derivative, dirichletTemp);
-        // r3 -= dirichletTemp;
-        // mdProduct.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
-        // r2 -= neumannTemp;
+        r3 -= ddx(mdProduct);
+        r1 -= ddz(mdProduct);
 
         NodalProduct(U3, U3, nnTemp);
         nnTemp.ToModal(mnProduct);
-        mnProduct.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
-        r3 -= dirichletTemp;
+        r3 -= ddz(mnProduct);
 
         // buoyancy nonlinear terms
-        NodalProduct(U1, B, ndTemp);
-        ndTemp.ToModal(mdProduct);
-        mdProduct.Dim1MatMul(dim1Derivative, dirichletTemp);
+        ddx(b).ToNodalNoFilter(ndTemp);
+        NodalProduct(ndTemp, U1, ndTemp);
+        ndTemp.ToModal(dirichletTemp);
         rB -= dirichletTemp;
 
-        // NodalProduct(U2, B, ndTemp);
-        // ndTemp.ToModal(mdProduct);
-        // mdProduct.Dim2MatMul(dim2Derivative, dirichletTemp);
-        // rB -= dirichletTemp;
-
-        NodalProduct(U3, B, nnTemp);
-        nnTemp.ToModal(mnProduct);
-        mnProduct.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
+        ddz(b).ToNodalNoFilter(nnTemp);
+        NodalProduct(nnTemp, U3, ndTemp);
+        ndTemp.ToModal(dirichletTemp);
         rB -= dirichletTemp;
 
-        // nonlinear term from background buoyancy
+        // advection term from background buoyancy
         NodalProduct(U3, dB_dz, ndTemp);
         ndTemp.ToModal(dirichletTemp);
         rB -= dirichletTemp;
 
         // now add on explicit terms
         R1 += (h[k]*beta[k])*r1;
-        // R2 += (h[k]*beta[k])*r2;
         R3 += (h[k]*beta[k])*r3;
         RB += (h[k]*beta[k])*rB;
 
         // now add on pressure term
-        p.Dim1MatMul(dim1Derivative, neumannTemp);
-        R1 += (-h[k])*neumannTemp;
-
-        // p.Dim2MatMul(dim2Derivative, neumannTemp);
-        // R2 += (-h[k])*neumannTemp;
-
-        p.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
-        R3 += (-h[k])*dirichletTemp;
+        R1 += (-h[k])*ddx(p);
+        R3 += (-h[k])*ddz(p);
     }
 
 private:
@@ -449,11 +438,6 @@ private:
     MField q;
 
     // these are precomputed matrices for performing and solving derivatives
-    DiagonalMatrix<complex, -1> dim1Derivative;
-    DiagonalMatrix<complex, -1> dim2Derivative;
-    MatrixXd dim3DerivativeNeumann;
-    MatrixXd dim3DerivativeDirichlet;
-
     DiagonalMatrix<double, -1> dim1Derivative2;
     DiagonalMatrix<double, -1> dim2Derivative2;
     MatrixXd dim3Derivative2Neumann;
@@ -492,9 +476,12 @@ int main()
     // add background flow
     IMEXRK::NField Ubar(BoundaryCondition::Neumann);
     IMEXRK::NField Bbar(BoundaryCondition::Neumann);
+    IMEXRK::NField dBdz(BoundaryCondition::Dirichlet);
     Ubar.SetValue([](double z){return tanh(z);}, IMEXRK::L3);
     Bbar.SetValue([](double z){return tanh(3*z);}, IMEXRK::L3);
-    solver.SetBackground(Ubar, Bbar);
+    dBdz.SetValue([](double z){return 9/(cosh(3*z)*cosh(3*z));}, IMEXRK::L3);
+
+    solver.SetBackground(Ubar, Bbar, dBdz);
 
     solver.RemoveDivergence(0.0);
     //solver.SolveForPressure();
