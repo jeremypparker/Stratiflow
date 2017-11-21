@@ -139,13 +139,10 @@ public:
 
     void PlotBuoyancy(std::string filename, int j2) const
     {
-        // b.ToNodalNoFilter(B);
-        // NodalSum(B, B_, nnTemp);
-        // nnTemp.ToModal(neumannTemp);
-        // HeatPlot(neumannTemp, L1, L3, j2, filename);
-
-        //b.Dim1MatMul(dim1Derivative, dirichletTemp);
-        HeatPlot(b, L1, L3, j2, filename);
+        b.ToNodalNoFilter(B);
+        NodalSum(B, B_, nnTemp);
+        nnTemp.ToModal(neumannTemp);
+        HeatPlot(neumannTemp, L1, L3, j2, filename);
     }
 
     void PlotPressure(std::string filename, int j2) const
@@ -160,11 +157,10 @@ public:
 
     void PlotStreamwiseVelocity(std::string filename, int j2) const
     {
-        // u1.ToNodalNoFilter(U1);
-        // U1 += U_;
-        // U1.ToModal(neumannTemp);
-        // HeatPlot(neumannTemp, L1, L3, j2, filename);
-        HeatPlot(u1, L1, L3, j2, filename);
+        u1.ToNodalNoFilter(U1);
+        U1 += U_;
+        U1.ToModal(neumannTemp);
+        HeatPlot(neumannTemp, L1, L3, j2, filename);
     }
 
     void SetInitial(NField velocity1, NField velocity3, NField buoyancy)
@@ -474,12 +470,14 @@ int main()
     solver.SetInitial(initialU1, initialU3, initialB);
 
     // add background flow
+    double alpha = 2;
+
     IMEXRK::NField Ubar(BoundaryCondition::Neumann);
     IMEXRK::NField Bbar(BoundaryCondition::Neumann);
     IMEXRK::NField dBdz(BoundaryCondition::Dirichlet);
     Ubar.SetValue([](double z){return tanh(z);}, IMEXRK::L3);
-    Bbar.SetValue([](double z){return tanh(3*z);}, IMEXRK::L3);
-    dBdz.SetValue([](double z){return 9/(cosh(3*z)*cosh(3*z));}, IMEXRK::L3);
+    Bbar.SetValue([alpha](double z){return tanh(alpha*z);}, IMEXRK::L3);
+    dBdz.SetValue([alpha](double z){return alpha/(cosh(alpha*z)*cosh(alpha*z));}, IMEXRK::L3);
 
     solver.SetBackground(Ubar, Bbar, dBdz);
 
