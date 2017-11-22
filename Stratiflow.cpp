@@ -10,7 +10,7 @@ class IMEXRK
 public:
     static constexpr int N1 = 100;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 61;
+    static constexpr int N3 = 65;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -190,9 +190,6 @@ public:
         double delta1 = L1/N1;
         double delta2 = L2/N2;
         double delta3 = z(N3/2) - z(N3/2+1);
-
-        std::cout << "delta1 = "<<delta1<<std::endl;
-        std::cout << "delta3 = "<<delta3<<std::endl;
 
         double cfl = U1.Max()/delta1 /*+ U2.Max()/delta2*/ + U3.Max()/delta3;
         cfl *= deltaT;
@@ -490,12 +487,12 @@ int main()
     {
         solver.TimeStep();
 
-        if(step%400==0)
+        if(step%500==0)
         {
-            solver.PlotPressure("images/pressure/"+std::to_string(step)+".png", IMEXRK::N2/2);
+            //solver.PlotPressure("images/pressure/"+std::to_string(step)+".png", IMEXRK::N2/2);
             solver.PlotBuoyancy("images/buoyancy/"+std::to_string(step)+".png", IMEXRK::N2/2);
-            solver.PlotVerticalVelocity("images/u3/"+std::to_string(step)+".png", IMEXRK::N2/2);
-            solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(step)+".png", IMEXRK::N2/2);
+            //solver.PlotVerticalVelocity("images/u3/"+std::to_string(step)+".png", IMEXRK::N2/2);
+            //solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(step)+".png", IMEXRK::N2/2);
 
             double cfl = solver.CFL();
             std::cout << "Step " << step << ", time " << step*solver.deltaT

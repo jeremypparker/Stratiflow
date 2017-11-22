@@ -312,7 +312,10 @@ public:
     {
         assert(other.BC() == this->BC());
 
-        std::vector<double> intermediateData(N1*N2*N3, 0); // todo: don't allocate
+        if(intermediateData.size() == 0)
+        {
+            intermediateData.resize(N1*N2*N3);
+        }
 
         // first do (co)sine transform in 3rd dimension
         {
@@ -420,6 +423,9 @@ public:
             }
         }
     }
+
+private:
+    mutable std::vector<double> intermediateData;
 };
 
 template<int N1, int N2, int N3>
@@ -433,7 +439,10 @@ public:
         assert(other.BC() == this->BC());
 
         // make a copy of the input data as it is modified by the transform
-        std::vector<complex> inputData(actualN1*N2*N3); // todo: don't allocate
+        if(inputData.size() == 0)
+        {
+            inputData.resize(actualN1*N2*N3);
+        }
         for (unsigned int j=0; j<actualN1*N2*N3; j++)
         {
             inputData[j] = this->Raw()[j];
@@ -548,6 +557,8 @@ public:
         }
     }
 
+private:
+    mutable std::vector<complex> inputData;
 };
 
 template<int N1, int N2, int N3>
