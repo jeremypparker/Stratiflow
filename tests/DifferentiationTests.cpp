@@ -257,7 +257,7 @@ TEST_CASE("Inverse Laplacian")
     physicalRHS.ToModal(rhs);
 
 
-    rhs.Dim3Solve(solveLaplacian, q);
+    rhs.Solve(solveLaplacian, q);
 
     NodalField<N1, N2, N3> physicalSolution(BoundaryCondition::Neumann);
     q.ToNodal(physicalSolution);

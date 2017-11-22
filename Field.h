@@ -177,6 +177,79 @@ public:
     template<typename M>
     void Dim3MatMul(const M& matrix, Field<T, N1, N2, N3>& result) const
     {
+        ParallelPerStack(
+            [&matrix,&result,this](int j1, int j2)
+            {
+                Dim3MatMul(matrix, j1, j2, result);
+            }
+        );
+    }
+    template<typename M>
+    void MatMul(const std::array<M, N1*N2>& matrices, Field<T, N1, N2, N3>& result) const
+    {
+        ParallelPerStack(
+            [&matrices,&result,this](int j1, int j2)
+            {
+                Dim3MatMul(matrices[j1*N2+j2], j1, j2, result);
+            }
+        );
+    }
+
+    void Dim1MatMul(const DiagonalMatrix<T, -1>& matrix, Field<T, N1, N2, N3>& result) const
+    {
+        assert(matrix.rows() == N1);
+
+        ParallelPerSlice([&result,&matrix,this](int j3){
+            result.slice(j3) = matrix * slice(j3).matrix();
+        });
+    }
+
+    void Dim2MatMul(const DiagonalMatrix<T, -1>& matrix, Field<T, N1, N2, N3>& result) const
+    {
+        assert(matrix.rows() == N2);
+
+        ParallelPerSlice([&result,&matrix,this](int j3){
+            result.slice(j3) = slice(j3).matrix() * matrix;
+        });
+    }
+
+    template<typename Solver>
+    void Solve(std::array<Solver, N1*N2>& solvers, Field<T, N1, N2, N3>& result) const
+    {
+        ParallelPerStack(
+            [&solvers,&result,this](int j1, int j2)
+            {
+                Dim3Solve(solvers[j1*N2+j2], j1, j2, result);
+            }
+        );
+    }
+
+    void ParallelPerSlice(std::function<void(int j3)> f) const
+    {
+        int each = N3/maxthreads + 1;
+        for (int first=0; first<N3; first+=each)
+        {
+            int last = first+each;
+            if(last>N3)
+            {
+                last = N3;
+            }
+
+            ThreadPool::Get().ExecuteAsync(
+                [&f,first,last]()
+                {
+                    for (int j3=first; j3<last; j3++)
+                    {
+                        f(j3);
+                    }
+                });
+        }
+
+        ThreadPool::Get().WaitAll();
+    }
+
+    void ParallelPerStack(std::function<void(int j1, int j2)> f) const
+    {
         int each = N1/maxthreads + 1;
         for (int first=0; first<N1; first+=each)
         {
@@ -187,117 +260,16 @@ public:
             }
 
             ThreadPool::Get().ExecuteAsync(
-                [&matrix,&result,first,last,this]()
+                [&f,first,last]()
                 {
                     for (int j1=first; j1<last; j1++)
                     {
                         for (int j2=0; j2<N2; j2++)
                         {
-                            Dim3MatMul(matrix, j1, j2, result);
+                            f(j1, j2);
                         }
                     }
                 });
-        }
-
-        ThreadPool::Get().WaitAll();
-    }
-    template<typename M>
-    void Dim3MatMul(const std::array<M, N1*N2>& matrices, Field<T, N1, N2, N3>& result) const
-    {
-        assert(matrices.size() == N1*N2);
-
-        for (int j1=0; j1<N1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                ThreadPool::Get().ExecuteAsync(
-                    [&matrices,&result,j1,j2,this]()
-                    {
-                        Dim3MatMul(matrices[j1*N2+j2], j1, j2, result);
-                    });
-            }
-        }
-
-        ThreadPool::Get().WaitAll();
-    }
-
-    void Dim1MatMul(const DiagonalMatrix<T, -1>& matrix, Field<T, N1, N2, N3>& result) const
-    {
-        assert(matrix.rows() == N1);
-
-        int each = N3/maxthreads + 1;
-        for (int first=0; first<N3; first+=each)
-        {
-            int last = first+each;
-            if(last>N3)
-            {
-                last = N3;
-            }
-
-            ThreadPool::Get().ExecuteAsync(
-                [&matrix,&result,first,last,this]()
-                {
-                    for (int j3=first; j3<last; j3++)
-                    {
-                        result.slice(j3) = matrix * slice(j3).matrix();
-                    }
-                });
-        }
-
-        ThreadPool::Get().WaitAll();
-    }
-
-    void Dim2MatMul(const DiagonalMatrix<T, -1>& matrix, Field<T, N1, N2, N3>& result) const
-    {
-        assert(matrix.rows() == N2);
-
-        int each = N3/maxthreads + 1;
-        for (int first=0; first<N3; first+=each)
-        {
-            int last = first+each;
-            if(last>N3)
-            {
-                last = N3;
-            }
-
-            ThreadPool::Get().ExecuteAsync(
-                [&matrix,&result,first,last,this]()
-                {
-                    for (int j3=first; j3<last; j3++)
-                    {
-                        result.slice(j3) = slice(j3).matrix() * matrix;
-                    }
-                });
-        }
-
-        ThreadPool::Get().WaitAll();
-    }
-
-    // template<typename Solver>
-    // void Dim3Solve(Solver& solver, Field<T, N1, N2, N3>& result) const
-    // {
-    //     for (int j1=0; j1<N1; j1++)
-    //     {
-    //         for (int j2=0; j2<N2; j2++)
-    //         {
-    //             Dim3Solve(solver, j1, j2, result);
-    //         }
-    //     }
-    // }
-
-    template<typename Solver>
-    void Dim3Solve(std::array<Solver, N1*N2>& solvers, Field<T, N1, N2, N3>& result) const
-    {
-        for (int j1=0; j1<N1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                ThreadPool::Get().ExecuteAsync(
-                    [&solvers,&result,j1,j2,this]()
-                    {
-                        Dim3Solve(solvers[j1*N2+j2], j1, j2, result);
-                    });
-            }
         }
 
         ThreadPool::Get().WaitAll();
@@ -603,26 +575,12 @@ void NodalProduct(const NodalField<N1, N2, N3>& f1,
            || f1.BC() == BoundaryCondition::Dirichlet
            || f2.BC() == BoundaryCondition::Dirichlet);
 
-    int each = N3/maxthreads + 1;
-    for (int first=0; first<N3; first+=each)
-    {
-        int last = first+each;
-        if(last>N3)
+    result.ParallelPerSlice(
+        [&result,&f1,&f2](int j3)
         {
-            last = N3;
+            result.slice(j3) = f1.slice(j3)*f2.slice(j3);
         }
-
-        ThreadPool::Get().ExecuteAsync(
-            [&f1,&f2,&result,first,last]()
-            {
-                for (int j3=first; j3<last; j3++)
-                {
-                    result.slice(j3) = f1.slice(j3)*f2.slice(j3);
-                }
-            });
-    }
-
-    ThreadPool::Get().WaitAll();
+    );
 }
 
 template<int N1, int N2, int N3>
@@ -634,24 +592,10 @@ void NodalSum(const NodalField<N1, N2, N3>& f1,
            || (f1.BC() == BoundaryCondition::Dirichlet
            && f2.BC() == BoundaryCondition::Dirichlet));
 
-    int each = N3/maxthreads + 1;
-    for (int first=0; first<N3; first+=each)
-    {
-        int last = first+each;
-        if(last>N3)
+    result.ParallelPerSlice(
+        [&result,&f1,&f2](int j3)
         {
-            last = N3;
+            result.slice(j3) = f1.slice(j3)+f2.slice(j3);
         }
-
-        ThreadPool::Get().ExecuteAsync(
-            [&f1,&f2,&result,first,last]()
-            {
-                for (int j3=first; j3<last; j3++)
-                {
-                    result.slice(j3) = f1.slice(j3) + f2.slice(j3);
-                }
-            });
-    }
-
-    ThreadPool::Get().WaitAll();
+    );
 }

@@ -19,7 +19,7 @@ public:
     const double deltaT = 0.001;
     const double Re = 2000;
     const double Pe = 1000;
-    const double Ri = 0.0;
+    const double Ri = 0.1;
 
     using NField = NodalField<N1,N2,N3>;
     using MField = ModalField<N1,N2,N3>;
@@ -213,7 +213,7 @@ public:
         divergence(0,0,0) = 0;
 
         // solve Δq = ∇·u as linear system Aq = divergence
-        divergence.Dim3Solve(solveLaplacian, q);
+        divergence.Solve(solveLaplacian, q);
 
         //q.ToNodal(B);
         //HeatPlot(B, L1, L3, 0, "images/pressureupdate.png");
@@ -265,7 +265,7 @@ public:
     //     // set value at infinity
     //     divergence(0,0,0) = 0;
 
-    //     divergence.Dim3Solve(solveLaplacian, p);
+    //     divergence.Solve(solveLaplacian, p);
     // }
 
 
@@ -321,9 +321,9 @@ private:
 
     void ImplicitUpdate(int k)
     {
-        R1.Dim3Solve(implicitSolveNeumann[k], u1);
-        R3.Dim3Solve(implicitSolveDirichlet[k], u3);
-        RB.Dim3Solve(implicitSolveBuoyancy[k], b);
+        R1.Solve(implicitSolveNeumann[k], u1);
+        R3.Solve(implicitSolveDirichlet[k], u3);
+        RB.Solve(implicitSolveBuoyancy[k], b);
     }
 
     void ExplicitUpdate(int k)
@@ -341,13 +341,13 @@ private:
 
         // explicit part of CN
 
-        u1.Dim3MatMul(explicitSolveNeumann, neumannTemp);
+        u1.MatMul(explicitSolveNeumann, neumannTemp);
         R1 += 0.5*h[k]*neumannTemp;
 
-        u3.Dim3MatMul(explicitSolveDirichlet, dirichletTemp);
+        u3.MatMul(explicitSolveDirichlet, dirichletTemp);
         R3 += 0.5*h[k]*dirichletTemp;
 
-        b.Dim3MatMul(explicitSolveBuoyancy, dirichletTemp);
+        b.MatMul(explicitSolveBuoyancy, dirichletTemp);
         RB += 0.5*h[k]*dirichletTemp;
 
         // now construct explicit terms
@@ -470,7 +470,7 @@ int main()
     solver.SetInitial(initialU1, initialU3, initialB);
 
     // add background flow
-    double alpha = 2;
+    double alpha = 5;
 
     IMEXRK::NField Ubar(BoundaryCondition::Neumann);
     IMEXRK::NField Bbar(BoundaryCondition::Neumann);
