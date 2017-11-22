@@ -312,7 +312,7 @@ public:
     {
         assert(other.BC() == this->BC());
 
-        std::vector<complex> intermediateData(N1*N2*N3, 0); // todo: don't allocate
+        std::vector<double> intermediateData(N1*N2*N3, 0); // todo: don't allocate
 
         // first do (co)sine transform in 3rd dimension
         {
@@ -320,7 +320,7 @@ public:
             fftw_r2r_kind kind;
 
             double* in = const_cast<double*>(this->Raw());
-            double* out = reinterpret_cast<double*>(intermediateData.data());
+            double* out = intermediateData.data();
 
             if (this->BC() == BoundaryCondition::Neumann)
             {
@@ -331,7 +331,7 @@ public:
             {
                 kind = FFTW_RODFT00;
                 in += N1*N2;
-                out += 2*N1*N2;
+                out += N1*N2;
                 dims = N3-2;
             }
             auto plan = fftw_plan_many_r2r(1,
@@ -343,8 +343,8 @@ public:
                                            1,
                                            out,
                                            nullptr,
-                                           N1*N2*2,
-                                           2,
+                                           N1*N2,
+                                           1,
                                            &kind,
                                            FFTW_ESTIMATE);
 
@@ -354,18 +354,17 @@ public:
 
         // then do FFT in 1st and 2nd dimensions
         int dims[] = {N2, N1};
-        auto plan = fftw_plan_many_dft(2,
+        auto plan = fftw_plan_many_dft_r2c(2,
                                        dims,
                                        N3,
-                                       reinterpret_cast<fftw_complex*>(intermediateData.data()),
+                                       intermediateData.data(),
                                        nullptr,
                                        1,
                                        N1*N2,
                                        reinterpret_cast<fftw_complex*>(other.Raw()),
                                        nullptr,
                                        1,
-                                       N1*N2,
-                                       FFTW_FORWARD,
+                                       (N1/2+1)*N2,
                                        FFTW_ESTIMATE);
         fftw_execute(plan);
         fftw_destroy_plan(plan);
@@ -424,47 +423,39 @@ public:
 };
 
 template<int N1, int N2, int N3>
-class ModalField : public Field<complex, N1, N2, N3>
+class ModalField : public Field<complex, N1/2+1, N2, N3>
 {
-    using Field<complex, N1, N2, N3>::Field;
+    static constexpr int actualN1 = N1/2 + 1;
+    using Field<complex, actualN1, N2, N3>::Field;
 public:
     void ToNodalHorizontal(NodalField<N1, N2, N3>& other) const
     {
         assert(other.BC() == this->BC());
 
         // make a copy of the input data as it is modified by the transform
-        std::vector<complex> inputData(N1*N2*N3); // todo: don't allocate
-        for (unsigned int j=0; j<N1*N2*N3; j++)
+        std::vector<complex> inputData(actualN1*N2*N3); // todo: don't allocate
+        for (unsigned int j=0; j<actualN1*N2*N3; j++)
         {
             inputData[j] = this->Raw()[j];
         }
-        std::vector<complex> outputData(N1*N2*N3); // todo: don't allocate
 
         // do IFT in 1st and 2nd dimensions
         {
             int dims[] = {N2, N1};
-            auto plan = fftw_plan_many_dft(2,
-                                        dims,
-                                        N3,
-                                        reinterpret_cast<fftw_complex*>(inputData.data()),
-                                        nullptr,
-                                        1,
-                                        N1*N2,
-                                        reinterpret_cast<fftw_complex*>(outputData.data()),
-                                        nullptr,
-                                        1,
-                                        N1*N2,
-                                        FFTW_BACKWARD,
-                                        FFTW_ESTIMATE);
+            auto plan = fftw_plan_many_dft_c2r(2,
+                                           dims,
+                                           N3,
+                                           reinterpret_cast<fftw_complex*>(inputData.data()),
+                                           nullptr,
+                                           1,
+                                           actualN1*N2,
+                                           other.Raw(),
+                                           nullptr,
+                                           1,
+                                           N1*N2,
+                                           FFTW_ESTIMATE);
             fftw_execute(plan);
             fftw_destroy_plan(plan);
-        }
-
-        // todo: remove
-        // copy back complex output into real buffer
-        for (unsigned int j=0; j<N1*N2*N3; j++)
-        {
-            other.Raw()[j] = outputData[j].real();
         }
     }
 
@@ -536,7 +527,7 @@ public:
 
         if (N1>2)
         {
-            for (int j1=N1/3; j1<=2*N1/3; j1++)
+            for (int j1=N1/3; j1<actualN1; j1++)
             {
                 for (int j2=0; j2<N2; j2++)
                 {
@@ -549,7 +540,7 @@ public:
         {
             for (int j2=N2/3; j2<=2*N2/3; j2++)
             {
-                for (int j1=0; j1<N1; j1++)
+                for (int j1=0; j1<actualN1; j1++)
                 {
                     this->stack(j1, j2).setZero();
                 }
@@ -560,10 +551,10 @@ public:
 };
 
 template<int N1, int N2, int N3>
-std::pair<const Field<complex, N1, N2, N3>*, complex> operator*(complex scalar,
+std::pair<const ModalField<N1, N2, N3>*, complex> operator*(complex scalar,
                                                                 const ModalField<N1, N2, N3>& field)
 {
-    return std::pair<const Field<complex, N1, N2, N3>*, complex>(&field, scalar);
+    return std::pair<const ModalField<N1, N2, N3>*, complex>(&field, scalar);
 }
 
 template<int N1, int N2, int N3>

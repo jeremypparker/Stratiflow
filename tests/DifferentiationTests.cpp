@@ -20,8 +20,11 @@ TEST_CASE("Chebyshev derivative matrices")
 
 TEST_CASE("Fourier derivative matrices")
 {
-    REQUIRE(MatrixXcd(FourierSecondDerivativeMatrix(5, 6)).isApprox(
-        MatrixXcd(FourierDerivativeMatrix(5, 6))*MatrixXcd(FourierDerivativeMatrix(5, 6))));
+    REQUIRE(MatrixXcd(FourierSecondDerivativeMatrix(5, 6, 1)).isApprox(
+        MatrixXcd(FourierDerivativeMatrix(5, 6, 1))*MatrixXcd(FourierDerivativeMatrix(5, 6, 1))));
+
+    REQUIRE(MatrixXcd(FourierSecondDerivativeMatrix(5, 6, 2)).isApprox(
+        MatrixXcd(FourierDerivativeMatrix(5, 6, 2))*MatrixXcd(FourierDerivativeMatrix(5, 6, 2))));
 }
 
 TEST_CASE("Simple derivatives Neumann")
@@ -120,7 +123,7 @@ TEST_CASE("Dim 1 fourier derivatives")
     f1.ToModal(f2);
 
     ModalField<N1,N2,N3> f3(BoundaryCondition::Neumann);
-    f2.Dim1MatMul(FourierDerivativeMatrix(L, N1), f3);
+    f2.Dim1MatMul(FourierDerivativeMatrix(L, N1, 1), f3);
 
     NodalField<N1,N2,N3> f4(BoundaryCondition::Neumann);
     f3.ToNodal(f4);
@@ -137,7 +140,7 @@ TEST_CASE("Dim 1 fourier derivatives")
     REQUIRE(f4 == expected);
 
     ModalField<N1,N2,N3> f5(BoundaryCondition::Neumann);
-    f2.Dim1MatMul(FourierSecondDerivativeMatrix(L, N1), f5);
+    f2.Dim1MatMul(FourierSecondDerivativeMatrix(L, N1, 1), f5);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Neumann);
     f5.ToNodal(f6);
@@ -174,7 +177,7 @@ TEST_CASE("Dim 2 fourier derivatives")
     f1.ToModal(f2);
 
     ModalField<N1,N2,N3> f3(BoundaryCondition::Neumann);
-    f2.Dim2MatMul(FourierDerivativeMatrix(L, N2), f3);
+    f2.Dim2MatMul(FourierDerivativeMatrix(L, N2, 2), f3);
 
     NodalField<N1,N2,N3> f4(BoundaryCondition::Neumann);
     f3.ToNodal(f4);
@@ -191,7 +194,7 @@ TEST_CASE("Dim 2 fourier derivatives")
     REQUIRE(f4 == expected);
 
     ModalField<N1,N2,N3> f5(BoundaryCondition::Neumann);
-    f2.Dim2MatMul(FourierSecondDerivativeMatrix(L, N2), f5);
+    f2.Dim2MatMul(FourierSecondDerivativeMatrix(L, N2, 2), f5);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Neumann);
     f5.ToNodal(f6);
@@ -218,13 +221,13 @@ TEST_CASE("Inverse Laplacian")
     constexpr double L2 = 3.5;
     constexpr double L3 = 3.0;
 
-    auto dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1);
-    auto dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2);
+    auto dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
+    auto dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2, 2);
 
-    std::array<ColPivHouseholderQR<MatrixXcd>, N1*N2> solveLaplacian;
+    std::array<ColPivHouseholderQR<MatrixXcd>, (N1/2 + 1)*N2> solveLaplacian;
 
     // we solve each vetical line separately, so N1*N2 total solves
-    for (int j1=0; j1<N1; j1++)
+    for (int j1=0; j1<N1/2 + 1; j1++)
     {
         for (int j2=0; j2<N2; j2++)
         {

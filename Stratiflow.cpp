@@ -12,6 +12,8 @@ public:
     static constexpr int N2 = 1;
     static constexpr int N3 = 61;
 
+    static constexpr int M1 = N1/2 + 1;
+
     static constexpr double L1 = 9.44; // size of domain streamwise
     static constexpr double L2 = 15.0;  // size of domain spanwise
     static constexpr double L3 = 2.0; // vertical scaling factor
@@ -19,7 +21,7 @@ public:
     const double deltaT = 0.001;
     const double Re = 2000;
     const double Pe = 1000;
-    const double Ri = 0.1;
+    const double Ri = 0.3;
 
     using NField = NodalField<N1,N2,N3>;
     using MField = ModalField<N1,N2,N3>;
@@ -55,13 +57,13 @@ public:
     , divergence(mnProduct)
     , q(p)
     {
-        dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1);
-        dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2);
+        dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
+        dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2, 2);
         dim3Derivative2Neumann = VerticalSecondDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
         dim3Derivative2Dirichlet = VerticalSecondDerivativeMatrix(BoundaryCondition::Dirichlet, L3, N3);
 
         // we solve each vetical line separately, so N1*N2 total solves
-        for (int j1=0; j1<N1; j1++)
+        for (int j1=0; j1<M1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
             {
@@ -131,9 +133,9 @@ public:
 
             auto t3 = std::chrono::high_resolution_clock::now();
 
-            totalExplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
-            totalImplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
-            totalDivergence += std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count();
+            totalExplicit += std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0).count();
+            totalImplicit += std::chrono::duration_cast<std::chrono::nanoseconds>(t2-t1).count();
+            totalDivergence += std::chrono::duration_cast<std::chrono::nanoseconds>(t3-t2).count();
         }
     }
 
@@ -272,7 +274,7 @@ public:
 private:
     MField& ddx(MField& f) const
     {
-        static DiagonalMatrix<complex, -1> dim1Derivative = FourierDerivativeMatrix(L1, N1);
+        static DiagonalMatrix<complex, -1> dim1Derivative = FourierDerivativeMatrix(L1, N1, 1);
 
         if(f.BC() == BoundaryCondition::Neumann)
         {
@@ -288,7 +290,7 @@ private:
 
     MField& ddy(MField& f) const
     {
-        static DiagonalMatrix<complex, -1> dim2Derivative = FourierDerivativeMatrix(L2, N2);
+        static DiagonalMatrix<complex, -1> dim2Derivative = FourierDerivativeMatrix(L2, N2, 2);
 
         if(f.BC() == BoundaryCondition::Neumann)
         {
@@ -439,13 +441,13 @@ private:
     MatrixXd dim3Derivative2Neumann;
     MatrixXd dim3Derivative2Dirichlet;
 
-    std::array<MatrixXcd, N1*N2> explicitSolveDirichlet;
-    std::array<MatrixXcd, N1*N2> explicitSolveNeumann;
-    std::array<MatrixXcd, N1*N2> explicitSolveBuoyancy;
-    std::array<ColPivHouseholderQR<MatrixXcd>, N1*N2> implicitSolveNeumann[3];
-    std::array<ColPivHouseholderQR<MatrixXcd>, N1*N2> implicitSolveDirichlet[3];
-    std::array<ColPivHouseholderQR<MatrixXcd>, N1*N2> implicitSolveBuoyancy[3];
-    std::array<ColPivHouseholderQR<MatrixXcd>, N1*N2> solveLaplacian;
+    std::array<MatrixXcd, M1*N2> explicitSolveDirichlet;
+    std::array<MatrixXcd, M1*N2> explicitSolveNeumann;
+    std::array<MatrixXcd, M1*N2> explicitSolveBuoyancy;
+    std::array<ColPivHouseholderQR<MatrixXcd>, M1*N2> implicitSolveNeumann[3];
+    std::array<ColPivHouseholderQR<MatrixXcd>, M1*N2> implicitSolveDirichlet[3];
+    std::array<ColPivHouseholderQR<MatrixXcd>, M1*N2> implicitSolveBuoyancy[3];
+    std::array<ColPivHouseholderQR<MatrixXcd>, M1*N2> solveLaplacian;
 };
 
 int main()

@@ -87,14 +87,36 @@ ArrayXd k(int n)
     return k;
 }
 
-DiagonalMatrix<double, -1> FourierSecondDerivativeMatrix(double L, int N)
+DiagonalMatrix<double, -1> FourierSecondDerivativeMatrix(double L, int N, int dimension)
 {
     VectorXd ret = -4*pi*pi*k(N)*k(N)/(L*L);
-    return ret.asDiagonal();
+
+    if (dimension == 2)
+    {
+        return ret.asDiagonal();
+    }
+    else if(dimension == 1)
+    {
+        return ret.head(N/2 +1).asDiagonal();
+    }
+
+    assert(0);
+    return DiagonalMatrix<double, -1>();
 }
 
-DiagonalMatrix<complex, -1> FourierDerivativeMatrix(double L, int N)
+DiagonalMatrix<complex, -1> FourierDerivativeMatrix(double L, int N, int dimension)
 {
     VectorXcd ret = 2.0*pi*i*k(N)/L;
-    return ret.asDiagonal();
+
+    if (dimension == 2)
+    {
+        return ret.asDiagonal();
+    }
+    else if(dimension == 1)
+    {
+        return ret.head(N/2 +1).asDiagonal();
+    }
+
+    assert(0);
+    return DiagonalMatrix<complex, -1>();
 }
