@@ -10,7 +10,7 @@ class IMEXRK
 public:
     static constexpr int N1 = 100;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 65;
+    static constexpr int N3 = 61;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -21,7 +21,7 @@ public:
     const double deltaT = 0.001;
     const double Re = 2000;
     const double Pe = 1000;
-    const double Ri = 0.3;
+    const double Ri = 0.1;
 
     using NField = NodalField<N1,N2,N3>;
     using MField = ModalField<N1,N2,N3>;
@@ -133,9 +133,9 @@ public:
 
             auto t3 = std::chrono::high_resolution_clock::now();
 
-            totalExplicit += std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0).count();
-            totalImplicit += std::chrono::duration_cast<std::chrono::nanoseconds>(t2-t1).count();
-            totalDivergence += std::chrono::duration_cast<std::chrono::nanoseconds>(t3-t2).count();
+            totalExplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
+            totalImplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
+            totalDivergence += std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count();
         }
     }
 
@@ -469,7 +469,7 @@ int main()
     solver.SetInitial(initialU1, initialU3, initialB);
 
     // add background flow
-    double alpha = 5;
+    double alpha = 2;
 
     IMEXRK::NField Ubar(BoundaryCondition::Neumann);
     IMEXRK::NField Bbar(BoundaryCondition::Neumann);
@@ -487,12 +487,12 @@ int main()
     {
         solver.TimeStep();
 
-        if(step%500==0)
+        if(step%400==0)
         {
-            //solver.PlotPressure("images/pressure/"+std::to_string(step)+".png", IMEXRK::N2/2);
+            solver.PlotPressure("images/pressure/"+std::to_string(step)+".png", IMEXRK::N2/2);
             solver.PlotBuoyancy("images/buoyancy/"+std::to_string(step)+".png", IMEXRK::N2/2);
-            //solver.PlotVerticalVelocity("images/u3/"+std::to_string(step)+".png", IMEXRK::N2/2);
-            //solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(step)+".png", IMEXRK::N2/2);
+            solver.PlotVerticalVelocity("images/u3/"+std::to_string(step)+".png", IMEXRK::N2/2);
+            solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(step)+".png", IMEXRK::N2/2);
 
             double cfl = solver.CFL();
             std::cout << "Step " << step << ", time " << step*solver.deltaT
