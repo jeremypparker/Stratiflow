@@ -5,6 +5,8 @@
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <Eigen/StdVector>
+
 #include <cassert>
 #include <fftw3.h>
 #include <vector>
@@ -90,30 +92,30 @@ public:
     const Field<T, N1, N2, N3>& operator+=(std::pair<const Field<T, N1, N2, N3>*, T> pair)
     {
         assert(pair.first->BC()==BC());
-        for (int j=0; j<N3; j++)
-        {
+
+        ParallelPerSlice([&pair,this](int j){
             slice(j) += pair.second * pair.first->slice(j);
-        }
+        });
 
         return *this;
     }
     const Field<T, N1, N2, N3>& operator+=(const Field<T, N1, N2, N3>& other)
     {
         assert(other.BC()==BC());
-        for (int j=0; j<N3; j++)
-        {
+
+        ParallelPerSlice([&other,this](int j){
             slice(j) += other.slice(j);
-        }
+        });
 
         return *this;
     }
     const Field<T, N1, N2, N3>& operator-=(const Field<T, N1, N2, N3>& other)
     {
         assert(other.BC()==BC());
-        for (int j=0; j<N3; j++)
-        {
+
+        ParallelPerSlice([&other,this](int j){
             slice(j) -= other.slice(j);
-        }
+        });
 
         return *this;
     }
@@ -295,7 +297,7 @@ private:
 
 
     // stored in column-major ordering of size (N1, N2, N3)
-    std::vector<T> _data;
+    std::vector<T, aligned_allocator<T>> _data;
 
     BoundaryCondition _bc;
 };
@@ -425,7 +427,7 @@ public:
     }
 
 private:
-    mutable std::vector<double> intermediateData;
+    mutable std::vector<double, aligned_allocator<double>> intermediateData;
 };
 
 template<int N1, int N2, int N3>
@@ -558,7 +560,7 @@ public:
     }
 
 private:
-    mutable std::vector<complex> inputData;
+    mutable std::vector<complex, aligned_allocator<complex>> inputData;
 };
 
 template<int N1, int N2, int N3>

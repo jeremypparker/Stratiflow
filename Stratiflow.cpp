@@ -15,7 +15,7 @@ public:
     static constexpr int M1 = N1/2 + 1;
 
     static constexpr double L1 = 9.44; // size of domain streamwise
-    static constexpr double L2 = 15.0;  // size of domain spanwise
+    static constexpr double L2 = 4.0;  // size of domain spanwise
     static constexpr double L3 = 2.0; // vertical scaling factor
 
     const double deltaT = 0.001;
@@ -157,6 +157,11 @@ public:
         HeatPlot(u3, L1, L3, j2, filename);
     }
 
+    void PlotSpanwiseVelocity(std::string filename, int j2) const
+    {
+        HeatPlot(u2, L1, L3, j2, filename);
+    }
+
     void PlotStreamwiseVelocity(std::string filename, int j2) const
     {
         u1.ToNodalNoFilter(U1);
@@ -165,9 +170,10 @@ public:
         HeatPlot(neumannTemp, L1, L3, j2, filename);
     }
 
-    void SetInitial(NField velocity1, NField velocity3, NField buoyancy)
+    void SetInitial(NField velocity1, NField velocity2, NField velocity3, NField buoyancy)
     {
         velocity1.ToModal(u1);
+        velocity2.ToModal(u2);
         velocity3.ToModal(u3);
         buoyancy.ToModal(b);
     }
@@ -184,14 +190,14 @@ public:
     {
         static ArrayXd z = VerticalPoints(L3, N3);
         u1.ToNodal(U1);
-        //u2.ToNodal(U2);
+        u2.ToNodal(U2);
         u3.ToNodal(U3);
 
         double delta1 = L1/N1;
         double delta2 = L2/N2;
         double delta3 = z(N3/2) - z(N3/2+1);
 
-        double cfl = U1.Max()/delta1 /*+ U2.Max()/delta2*/ + U3.Max()/delta3;
+        double cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
 
         return cfl;
@@ -203,10 +209,8 @@ public:
         divergence.Zero();
 
         divergence += ddx(u1);
+        divergence += ddy(u2);
         divergence += ddz(u3);
-
-        //divergence.ToNodal(B);
-        //HeatPlot(B, L1, L3, 0, "images/divergence.png");
 
         // constant term - set value at infinity to zero
         divergence(0,0,0) = 0;
@@ -214,15 +218,10 @@ public:
         // solve Δq = ∇·u as linear system Aq = divergence
         divergence.Solve(solveLaplacian, q);
 
-        //q.ToNodal(B);
-        //HeatPlot(B, L1, L3, 0, "images/pressureupdate.png");
-
-        //std::cout << q.stack(5, 0) << std::endl << std::endl;
-
         // subtract the gradient of this from the velocity
         u1 -= ddx(q);
+        u2 -= ddy(q);
         u3 -= ddz(q);
-        //std::cout << dirichletTemp.stack(5, 0) << std::endl << std::endl;
 
         // also add it on to p for the next step
         // this is scaled to match the p that was added before
@@ -321,6 +320,7 @@ private:
     void ImplicitUpdate(int k)
     {
         R1.Solve(implicitSolveNeumann[k], u1);
+        R2.Solve(implicitSolveNeumann[k], u2);
         R3.Solve(implicitSolveDirichlet[k], u3);
         RB.Solve(implicitSolveBuoyancy[k], b);
     }
@@ -329,12 +329,13 @@ private:
     {
         // calculate rhs terms and accumulate in y
         R1 = u1;
+        R2 = u2;
         R3 = u3;
         RB = b;
 
         // add term from last rk step
         R1 += (h[k]*zeta[k])*r1;
-        //R2 += (h[k]*zeta[k])*r2;
+        R2 += (h[k]*zeta[k])*r2;
         R3 += (h[k]*zeta[k])*r3;
         RB += (h[k]*zeta[k])*rB;
 
@@ -342,6 +343,9 @@ private:
 
         u1.MatMul(explicitSolveNeumann, neumannTemp);
         R1 += 0.5*h[k]*neumannTemp;
+
+        u2.MatMul(explicitSolveNeumann, neumannTemp);
+        R2 += 0.5*h[k]*neumannTemp;
 
         u3.MatMul(explicitSolveDirichlet, dirichletTemp);
         R3 += 0.5*h[k]*dirichletTemp;
@@ -351,7 +355,7 @@ private:
 
         // now construct explicit terms
         r1.Zero();
-        //r2.Zero();
+        r2.Zero();
         r3.Zero();
         rB.Zero();
 
@@ -362,6 +366,7 @@ private:
 
         // calculate products at nodes in physical space
         u1.ToNodal(U1);
+        u2.ToNodal(U2);
         u3.ToNodal(U3);
 
         // take into account background shear for nonlinear terms
@@ -376,13 +381,32 @@ private:
         r3 -= ddx(mdProduct);
         r1 -= ddz(mdProduct);
 
+        NodalProduct(U2, U2, nnTemp);
+        nnTemp.ToModal(mnProduct);
+        r2 -= ddy(mnProduct);
+
+        NodalProduct(U2, U3, ndTemp);
+        ndTemp.ToModal(mdProduct);
+        r3 -= ddy(mdProduct);
+        r2 -= ddz(mdProduct);
+
         NodalProduct(U3, U3, nnTemp);
         nnTemp.ToModal(mnProduct);
         r3 -= ddz(mnProduct);
 
+        NodalProduct(U1, U2, nnTemp);
+        nnTemp.ToModal(mnProduct);
+        r1 -= ddy(mnProduct);
+        r2 -= ddx(mnProduct);
+
         // buoyancy nonlinear terms
         ddx(b).ToNodalNoFilter(ndTemp);
         NodalProduct(ndTemp, U1, ndTemp);
+        ndTemp.ToModal(dirichletTemp);
+        rB -= dirichletTemp;
+
+        ddy(b).ToNodalNoFilter(ndTemp);
+        NodalProduct(ndTemp, U2, ndTemp);
         ndTemp.ToModal(dirichletTemp);
         rB -= dirichletTemp;
 
@@ -398,11 +422,13 @@ private:
 
         // now add on explicit terms
         R1 += (h[k]*beta[k])*r1;
+        R2 += (h[k]*beta[k])*r2;
         R3 += (h[k]*beta[k])*r3;
         RB += (h[k]*beta[k])*rB;
 
         // now add on pressure term
         R1 += (-h[k])*ddx(p);
+        R2 += (-h[k])*ddy(p);
         R3 += (-h[k])*ddz(p);
     }
 
@@ -449,9 +475,13 @@ private:
 
 int main()
 {
+    fftw_init_threads();
+    fftw_plan_with_nthreads(maxthreads);
+
     IMEXRK solver;
 
     IMEXRK::NField initialU1(BoundaryCondition::Neumann);
+    IMEXRK::NField initialU2(BoundaryCondition::Neumann);
     IMEXRK::NField initialU3(BoundaryCondition::Dirichlet);
     IMEXRK::NField initialB(BoundaryCondition::Dirichlet);
     auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
@@ -463,10 +493,11 @@ int main()
         if (j>2*IMEXRK::N3/5 && j<3*IMEXRK::N3/5)
         {
             initialU1.slice(j) += 0.1*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU2.slice(j) += 0.01*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
             initialU3.slice(j) += 0.01*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
         }
     }
-    solver.SetInitial(initialU1, initialU3, initialB);
+    solver.SetInitial(initialU1, initialU2, initialU3, initialB);
 
     // add background flow
     double alpha = 2;
@@ -492,6 +523,7 @@ int main()
             solver.PlotPressure("images/pressure/"+std::to_string(step)+".png", IMEXRK::N2/2);
             solver.PlotBuoyancy("images/buoyancy/"+std::to_string(step)+".png", IMEXRK::N2/2);
             solver.PlotVerticalVelocity("images/u3/"+std::to_string(step)+".png", IMEXRK::N2/2);
+            solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(step)+".png", IMEXRK::N2/2);
             solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(step)+".png", IMEXRK::N2/2);
 
             double cfl = solver.CFL();
@@ -504,6 +536,8 @@ int main()
                       << std::endl;
         }
     }
+
+    fftw_cleanup_threads();
 
     return 0;
 }
