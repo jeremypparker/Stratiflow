@@ -4,14 +4,14 @@
 
 TEST_CASE("Basic Field")
 {
-    Field<double, 3, 4, 5> f1(BoundaryCondition::Dirichlet); // constructor
+    Field<float, 3, 4, 5> f1(BoundaryCondition::Dirichlet); // constructor
 
     f1.slice(1).setRandom();
 
     auto f2 = f1; // copy constructor
     REQUIRE(f2 == f1);
 
-    Field<double, 3, 4, 5> f3(BoundaryCondition::Dirichlet);
+    Field<float, 3, 4, 5> f3(BoundaryCondition::Dirichlet);
     f3.slice(2).setRandom();
 
     f2 = f3; // assignment operator
@@ -37,16 +37,16 @@ TEST_CASE("Zero")
 
 TEST_CASE("Slice and stack")
 {
-    Field<double, 2, 2, 2> f1(BoundaryCondition::Dirichlet);
+    Field<float, 2, 2, 2> f1(BoundaryCondition::Dirichlet);
     f1.slice(0) << 1, 2,
                    3, 4;
     f1.slice(1) << 2, 3,
                    4, 5;
 
-    ArrayXd expected(2);
+    ArrayXf expected(2);
     expected << 2, 3;
 
-    ArrayXd actual = f1.stack(0, 1);
+    ArrayXf actual = f1.stack(0, 1);
     REQUIRE(actual.isApprox(expected));
 
     const auto& f2 = f1;
@@ -62,11 +62,11 @@ TEST_CASE("Stackwise Matmul")
     NodalField<5, 6, 8> f1(BoundaryCondition::Dirichlet);
     NodalField<5, 6, 8> f2(BoundaryCondition::Dirichlet);
 
-    DiagonalMatrix<double,-1> mat = VectorXd::Constant(8, 5.0).asDiagonal();
+    DiagonalMatrix<float,-1> mat = VectorXf::Constant(8, 5.0f).asDiagonal();
 
     f1.Dim3MatMul(mat, f2);
 
-    f1 *= 5.0;
+    f1 *= 5.0f;
     REQUIRE(f2 == f1);
 }
 
@@ -80,7 +80,7 @@ TEST_CASE("Multiply Add")
         f2.slice(j).setConstant(1);
     }
 
-    f1 += (-3.0)*f2;
+    f1 += (-3.0f)*f2;
 
     f2 *= 2;
 

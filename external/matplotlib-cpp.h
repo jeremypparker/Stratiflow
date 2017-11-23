@@ -258,12 +258,12 @@ namespace matplotlibcpp {
 		return varray;
 	}
 
-	PyObject* get_array(const std::vector<double>& v, int N1, int N2)
+	PyObject* get_array(const std::vector<float>& v, int N1, int N2)
 	{
 		assert(N1*N2 == v.size());
 		detail::_interpreter::get();
 		npy_intp vsize[2] = {N1, N2};
-		PyObject* varray = PyArray_SimpleNewFromData(2, vsize, NPY_DOUBLE, (void*)(v.data()));
+		PyObject* varray = PyArray_SimpleNewFromData(2, vsize, NPY_FLOAT, (void*)(v.data()));
 		return varray;
 	}
 
@@ -311,7 +311,7 @@ namespace matplotlibcpp {
 		return res;
 	}
 
-	bool imshow(const std::vector<double> &x, int N1, int N2)
+	bool imshow(const std::vector<float> &x, int N1, int N2)
 	{
 		assert(x.size() == N1*N2);
 

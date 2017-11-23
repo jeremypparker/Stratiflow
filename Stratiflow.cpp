@@ -14,14 +14,14 @@ public:
 
     static constexpr int M1 = N1/2 + 1;
 
-    static constexpr double L1 = 9.44; // size of domain streamwise
-    static constexpr double L2 = 4.0;  // size of domain spanwise
-    static constexpr double L3 = 2.0; // vertical scaling factor
+    static constexpr float L1 = 9.44; // size of domain streamwise
+    static constexpr float L2 = 4.0f;  // size of domain spanwise
+    static constexpr float L3 = 2.0f; // vertical scaling factor
 
-    const double deltaT = 0.001;
-    const double Re = 2000;
-    const double Pe = 1000;
-    const double Ri = 0.1;
+    const float deltaT = 0.001;
+    const float Re = 2000;
+    const float Pe = 1000;
+    const float Ri = 0.1;
 
     using NField = NodalField<N1,N2,N3>;
     using MField = ModalField<N1,N2,N3>;
@@ -67,11 +67,11 @@ public:
         {
             for (int j2=0; j2<N2; j2++)
             {
-                MatrixXd laplacian = dim3Derivative2Neumann;
+                MatrixXf laplacian = dim3Derivative2Neumann;
 
                 // add terms for horizontal derivatives
-                laplacian += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
-                laplacian += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
+                laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
+                laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
 
                 // prevent singularity - first row gives average value at infinity
                 if (j1 == 0 && j2 == 0)
@@ -88,25 +88,25 @@ public:
 
                 // for viscous terms
                 explicitSolveDirichlet[j1*N2+j2] = dim3Derivative2Dirichlet;
-                explicitSolveDirichlet[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
-                explicitSolveDirichlet[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
+                explicitSolveDirichlet[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
+                explicitSolveDirichlet[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
                 explicitSolveBuoyancy[j1*N2 + j2] = explicitSolveDirichlet[j1*N2+j2];
                 explicitSolveBuoyancy[j1*N2+j2] /= Pe;
                 explicitSolveDirichlet[j1*N2+j2] /= Re;
 
                 explicitSolveNeumann[j1*N2+j2] = dim3Derivative2Neumann;
-                explicitSolveNeumann[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXd::Identity(N3, N3);
-                explicitSolveNeumann[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXd::Identity(N3, N3);
+                explicitSolveNeumann[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
+                explicitSolveNeumann[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
                 explicitSolveNeumann[j1*N2+j2] /= Re;
 
                 for (int k=0; k<s; k++)
                 {
                     implicitSolveDirichlet[k][j1*N2+j2].compute(
-                        MatrixXd::Identity(N3, N3)-0.5*h[k]*explicitSolveDirichlet[j1*N2+j2]);
+                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveDirichlet[j1*N2+j2]);
                     implicitSolveNeumann[k][j1*N2+j2].compute(
-                        MatrixXd::Identity(N3, N3)-0.5*h[k]*explicitSolveNeumann[j1*N2+j2]);
+                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveNeumann[j1*N2+j2]);
                     implicitSolveBuoyancy[k][j1*N2+j2].compute(
-                        MatrixXd::Identity(N3, N3)-0.5*h[k]*explicitSolveBuoyancy[j1*N2+j2]);
+                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveBuoyancy[j1*N2+j2]);
                 }
             }
         }
@@ -186,24 +186,24 @@ public:
     }
 
     // gives an upper bound on cfl number
-    double CFL()
+    float CFL()
     {
-        static ArrayXd z = VerticalPoints(L3, N3);
+        static ArrayXf z = VerticalPoints(L3, N3);
         u1.ToNodal(U1);
         u2.ToNodal(U2);
         u3.ToNodal(U3);
 
-        double delta1 = L1/N1;
-        double delta2 = L2/N2;
-        double delta3 = z(N3/2) - z(N3/2+1);
+        float delta1 = L1/N1;
+        float delta2 = L2/N2;
+        float delta3 = z(N3/2) - z(N3/2+1);
 
-        double cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
+        float cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
 
         return cfl;
     }
 
-    void RemoveDivergence(double pressureMultiplier=1.0)
+    void RemoveDivergence(float pressureMultiplier=1.0f)
     {
         // construct the diverence of u
         divergence.Zero();
@@ -302,8 +302,8 @@ private:
 
     MField& ddz(MField& f) const
     {
-        static MatrixXd dim3DerivativeNeumann = VerticalDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
-        static MatrixXd dim3DerivativeDirichlet = VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L3, N3);
+        static MatrixXf dim3DerivativeNeumann = VerticalDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
+        static MatrixXf dim3DerivativeDirichlet = VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L3, N3);
 
         if (f.BC() == BoundaryCondition::Dirichlet)
         {
@@ -444,9 +444,9 @@ private:
 
     // parameters for the scheme
     const int s = 3;
-    const double h[3] = {deltaT*8.0/15.0, deltaT*2.0/15.0, deltaT*5.0/15.0};
-    const double beta[3] = {1.0, 25.0/8.0, 9.0/4.0};
-    const double zeta[3] = {0, -17.0/8.0, -5.0/4.0};
+    const float h[3] = {deltaT*8.0f/15.0f, deltaT*2.0f/15.0f, deltaT*5.0f/15.0f};
+    const float beta[3] = {1.0f, 25.0f/8.0f, 9.0f/4.0f};
+    const float zeta[3] = {0, -17.0f/8.0f, -5.0f/4.0f};
 
     // these are intermediate variables used in the computation, preallocated for efficiency
     MField R1, R2, R3, RB;
@@ -459,24 +459,24 @@ private:
     MField q;
 
     // these are precomputed matrices for performing and solving derivatives
-    DiagonalMatrix<double, -1> dim1Derivative2;
-    DiagonalMatrix<double, -1> dim2Derivative2;
-    MatrixXd dim3Derivative2Neumann;
-    MatrixXd dim3Derivative2Dirichlet;
+    DiagonalMatrix<float, -1> dim1Derivative2;
+    DiagonalMatrix<float, -1> dim2Derivative2;
+    MatrixXf dim3Derivative2Neumann;
+    MatrixXf dim3Derivative2Dirichlet;
 
-    std::array<MatrixXcd, M1*N2> explicitSolveDirichlet;
-    std::array<MatrixXcd, M1*N2> explicitSolveNeumann;
-    std::array<MatrixXcd, M1*N2> explicitSolveBuoyancy;
-    std::array<ColPivHouseholderQR<MatrixXcd>, M1*N2> implicitSolveNeumann[3];
-    std::array<ColPivHouseholderQR<MatrixXcd>, M1*N2> implicitSolveDirichlet[3];
-    std::array<ColPivHouseholderQR<MatrixXcd>, M1*N2> implicitSolveBuoyancy[3];
-    std::array<ColPivHouseholderQR<MatrixXcd>, M1*N2> solveLaplacian;
+    std::array<MatrixXcf, M1*N2> explicitSolveDirichlet;
+    std::array<MatrixXcf, M1*N2> explicitSolveNeumann;
+    std::array<MatrixXcf, M1*N2> explicitSolveBuoyancy;
+    std::array<ColPivHouseholderQR<MatrixXcf>, M1*N2> implicitSolveNeumann[3];
+    std::array<ColPivHouseholderQR<MatrixXcf>, M1*N2> implicitSolveDirichlet[3];
+    std::array<ColPivHouseholderQR<MatrixXcf>, M1*N2> implicitSolveBuoyancy[3];
+    std::array<ColPivHouseholderQR<MatrixXcf>, M1*N2> solveLaplacian;
 };
 
 int main()
 {
-    fftw_init_threads();
-    fftw_plan_with_nthreads(maxthreads);
+    fftwf_init_threads();
+    fftwf_plan_with_nthreads(maxthreads);
 
     IMEXRK solver;
 
@@ -492,26 +492,26 @@ int main()
     {
         if (j>2*IMEXRK::N3/5 && j<3*IMEXRK::N3/5)
         {
-            initialU1.slice(j) += 0.1*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU2.slice(j) += 0.01*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU3.slice(j) += 0.01*ArrayXd::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU1.slice(j) += 0.1*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU2.slice(j) += 0.01*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU3.slice(j) += 0.01*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
         }
     }
     solver.SetInitial(initialU1, initialU2, initialU3, initialB);
 
     // add background flow
-    double alpha = 2;
+    float alpha = 2;
 
     IMEXRK::NField Ubar(BoundaryCondition::Neumann);
     IMEXRK::NField Bbar(BoundaryCondition::Neumann);
     IMEXRK::NField dBdz(BoundaryCondition::Dirichlet);
-    Ubar.SetValue([](double z){return tanh(z);}, IMEXRK::L3);
-    Bbar.SetValue([alpha](double z){return tanh(alpha*z);}, IMEXRK::L3);
-    dBdz.SetValue([alpha](double z){return alpha/(cosh(alpha*z)*cosh(alpha*z));}, IMEXRK::L3);
+    Ubar.SetValue([](float z){return tanh(z);}, IMEXRK::L3);
+    Bbar.SetValue([alpha](float z){return tanh(alpha*z);}, IMEXRK::L3);
+    dBdz.SetValue([alpha](float z){return alpha/(cosh(alpha*z)*cosh(alpha*z));}, IMEXRK::L3);
 
     solver.SetBackground(Ubar, Bbar, dBdz);
 
-    solver.RemoveDivergence(0.0);
+    solver.RemoveDivergence(0.0f);
     //solver.SolveForPressure();
 
     for (int step=0; step<50000; step++)
@@ -526,7 +526,7 @@ int main()
             solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(step)+".png", IMEXRK::N2/2);
             solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(step)+".png", IMEXRK::N2/2);
 
-            double cfl = solver.CFL();
+            float cfl = solver.CFL();
             std::cout << "Step " << step << ", time " << step*solver.deltaT
                       << ", CFL number: " << cfl << std::endl;
 
@@ -537,7 +537,7 @@ int main()
         }
     }
 
-    fftw_cleanup_threads();
+    fftwf_cleanup_threads();
 
     return 0;
 }

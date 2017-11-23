@@ -15,8 +15,8 @@
 
 using namespace Eigen;
 
-ArrayXd VerticalPoints(double L, int N);
-ArrayXd FourierPoints(double L, int N);
+ArrayXf VerticalPoints(float L, int N);
+ArrayXf FourierPoints(float L, int N);
 
 template<typename T, int N1, int N2, int N3>
 class Field
@@ -306,9 +306,9 @@ template<int N1, int N2, int N3>
 class ModalField;
 
 template<int N1, int N2, int N3>
-class NodalField : public Field<double, N1, N2, N3>
+class NodalField : public Field<float, N1, N2, N3>
 {
-    using Field<double, N1, N2, N3>::Field;
+    using Field<float, N1, N2, N3>::Field;
 public:
     void ToModal(ModalField<N1, N2, N3>& other) const
     {
@@ -322,10 +322,10 @@ public:
         // first do (co)sine transform in 3rd dimension
         {
             int dims;
-            fftw_r2r_kind kind;
+            fftwf_r2r_kind kind;
 
-            double* in = const_cast<double*>(this->Raw());
-            double* out = intermediateData.data();
+            float* in = const_cast<float*>(this->Raw());
+            float* out = intermediateData.data();
 
             if (this->BC() == BoundaryCondition::Neumann)
             {
@@ -339,7 +339,7 @@ public:
                 out += N1*N2;
                 dims = N3-2;
             }
-            auto plan = fftw_plan_many_r2r(1,
+            auto plan = fftwf_plan_many_r2r(1,
                                            &dims,
                                            N1*N2,
                                            in,
@@ -353,28 +353,28 @@ public:
                                            &kind,
                                            FFTW_ESTIMATE);
 
-            fftw_execute(plan);
-            fftw_destroy_plan(plan);
+            fftwf_execute(plan);
+            fftwf_destroy_plan(plan);
         }
 
         // then do FFT in 1st and 2nd dimensions
         int dims[] = {N2, N1};
-        auto plan = fftw_plan_many_dft_r2c(2,
+        auto plan = fftwf_plan_many_dft_r2c(2,
                                        dims,
                                        N3,
                                        intermediateData.data(),
                                        nullptr,
                                        1,
                                        N1*N2,
-                                       reinterpret_cast<fftw_complex*>(other.Raw()),
+                                       reinterpret_cast<fftwf_complex*>(other.Raw()),
                                        nullptr,
                                        1,
                                        (N1/2+1)*N2,
                                        FFTW_ESTIMATE);
-        fftw_execute(plan);
-        fftw_destroy_plan(plan);
+        fftwf_execute(plan);
+        fftwf_destroy_plan(plan);
 
-        other *= 1/static_cast<double>(N1*N2*2*(N3-1));
+        other *= 1/static_cast<float>(N1*N2*2*(N3-1));
 
         if (this->BC() == BoundaryCondition::Dirichlet)
         {
@@ -383,13 +383,13 @@ public:
         }
     }
 
-    double Max() const
+    float Max() const
     {
-        double max = 0;
+        float max = 0;
 
         for (int j3=0; j3<N3; j3++)
         {
-            double norm = this->slice(j3).matrix().template lpNorm<Infinity>();
+            float norm = this->slice(j3).matrix().template lpNorm<Infinity>();
             if (norm > max)
             {
                 max = norm;
@@ -399,20 +399,20 @@ public:
         return max;
     }
 
-    void SetValue(std::function<double(double)> f, double L3)
+    void SetValue(std::function<float(float)> f, float L3)
     {
-        ArrayXd z = VerticalPoints(L3, N3);
+        ArrayXf z = VerticalPoints(L3, N3);
         for (int j3=0; j3<N3; j3++)
         {
             this->slice(j3).setConstant(f(z(j3)));
         }
     }
 
-    void SetValue(std::function<double(double,double,double)> f, double L1, double L2, double L3)
+    void SetValue(std::function<float(float,float,float)> f, float L1, float L2, float L3)
     {
-        ArrayXd x = FourierPoints(L1, N1);
-        ArrayXd y = FourierPoints(L2, N2);
-        ArrayXd z = VerticalPoints(L3, N3);
+        ArrayXf x = FourierPoints(L1, N1);
+        ArrayXf y = FourierPoints(L2, N2);
+        ArrayXf z = VerticalPoints(L3, N3);
 
         for (int j1=0; j1<N1; j1++)
         {
@@ -427,7 +427,7 @@ public:
     }
 
 private:
-    mutable std::vector<double, aligned_allocator<double>> intermediateData;
+    mutable std::vector<float, aligned_allocator<float>> intermediateData;
 };
 
 template<int N1, int N2, int N3>
@@ -453,10 +453,10 @@ public:
         // do IFT in 1st and 2nd dimensions
         {
             int dims[] = {N2, N1};
-            auto plan = fftw_plan_many_dft_c2r(2,
+            auto plan = fftwf_plan_many_dft_c2r(2,
                                            dims,
                                            N3,
-                                           reinterpret_cast<fftw_complex*>(inputData.data()),
+                                           reinterpret_cast<fftwf_complex*>(inputData.data()),
                                            nullptr,
                                            1,
                                            actualN1*N2,
@@ -465,8 +465,8 @@ public:
                                            1,
                                            N1*N2,
                                            FFTW_ESTIMATE);
-            fftw_execute(plan);
-            fftw_destroy_plan(plan);
+            fftwf_execute(plan);
+            fftwf_destroy_plan(plan);
         }
     }
 
@@ -477,9 +477,9 @@ public:
         // then do (co)sine transform in 3rd dimension
         {
             int dims;
-            fftw_r2r_kind kind;
-            double* in = other.Raw();
-            double* out = other.Raw();
+            fftwf_r2r_kind kind;
+            float* in = other.Raw();
+            float* out = other.Raw();
 
             if (this->BC() == BoundaryCondition::Neumann)
             {
@@ -493,7 +493,7 @@ public:
                 out += N1*N2;
                 dims = N3-2;
             }
-            auto plan = fftw_plan_many_r2r(1,
+            auto plan = fftwf_plan_many_r2r(1,
                                            &dims,
                                            N1*N2,
                                            in,
@@ -507,8 +507,8 @@ public:
                                            &kind,
                                            FFTW_ESTIMATE);
 
-            fftw_execute(plan);
-            fftw_destroy_plan(plan);
+            fftwf_execute(plan);
+            fftwf_destroy_plan(plan);
         }
 
         if (this->BC() == BoundaryCondition::Dirichlet)
