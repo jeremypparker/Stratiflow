@@ -9,7 +9,7 @@ class IMEXRK
 {
 public:
     static constexpr int N1 = 100;
-    static constexpr int N2 = 1;
+    static constexpr int N2 = 16;
     static constexpr int N3 = 61;
 
     static constexpr int M1 = N1/2 + 1;
@@ -21,7 +21,7 @@ public:
     const float deltaT = 0.001;
     const float Re = 2000;
     const float Pe = 1000;
-    const float Ri = 0.1;
+    const float Ri = 0.05;
 
     using NField = NodalField<N1,N2,N3>;
     using MField = ModalField<N1,N2,N3>;
@@ -514,7 +514,7 @@ int main()
     solver.RemoveDivergence(0.0f);
     //solver.SolveForPressure();
 
-    for (int step=0; step<50000; step++)
+    for (int step=0; step<500000; step++)
     {
         solver.TimeStep();
 
