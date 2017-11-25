@@ -9,7 +9,7 @@ class IMEXRK
 {
 public:
     static constexpr int N1 = 100;
-    static constexpr int N2 = 16;
+    static constexpr int N2 = 1;
     static constexpr int N3 = 61;
 
     static constexpr int M1 = N1/2 + 1;
@@ -368,6 +368,7 @@ private:
         u1.ToNodal(U1);
         u2.ToNodal(U2);
         u3.ToNodal(U3);
+        b.ToNodalNoFilter(B);
 
         // take into account background shear for nonlinear terms
         U1 += U_;
@@ -400,20 +401,17 @@ private:
         r2 -= ddx(mnProduct);
 
         // buoyancy nonlinear terms
-        ddx(b).ToNodalNoFilter(ndTemp);
-        NodalProduct(ndTemp, U1, ndTemp);
-        ndTemp.ToModal(dirichletTemp);
-        rB -= dirichletTemp;
+        NodalProduct(U1, B, ndTemp);
+        ndTemp.ToModal(mdProduct);
+        rB -= ddx(mdProduct);
 
-        ddy(b).ToNodalNoFilter(ndTemp);
-        NodalProduct(ndTemp, U2, ndTemp);
-        ndTemp.ToModal(dirichletTemp);
-        rB -= dirichletTemp;
+        NodalProduct(U2, B, ndTemp);
+        ndTemp.ToModal(mdProduct);
+        rB -= ddy(mdProduct);
 
-        ddz(b).ToNodalNoFilter(nnTemp);
-        NodalProduct(nnTemp, U3, ndTemp);
-        ndTemp.ToModal(dirichletTemp);
-        rB -= dirichletTemp;
+        NodalProduct(U3, B, nnTemp);
+        nnTemp.ToModal(mnProduct);
+        rB -= ddz(mnProduct);
 
         // advection term from background buoyancy
         NodalProduct(U3, dB_dz, ndTemp);
