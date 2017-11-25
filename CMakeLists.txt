@@ -14,6 +14,7 @@ include_directories(SYSTEM /usr/include/python2.7)
 include_directories(SYSTEM external)
 link_libraries(python2.7)
 link_libraries(fftw3f fftw3f_threads m)
+link_libraries(cufft cudart)
 link_libraries(${CMAKE_THREAD_LIBS_INIT})
 
 add_library(StratiLib Differentiation.cpp Field.cpp Graph.cpp)
