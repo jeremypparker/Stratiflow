@@ -2,7 +2,7 @@
 
 ArrayXf VerticalPoints(float L, int N)
 {
-    assert(N%2 == 1);
+    assert(N%4 == 0); // need for alignment
     ArrayXf ret =  L/(tan(ArrayXf::LinSpaced(N, 0, pi)));
 
     // fix infinities

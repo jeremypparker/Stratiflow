@@ -10,7 +10,7 @@ class IMEXRK
 public:
     static constexpr int N1 = 100;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 61;
+    static constexpr int N3 = 64;
 
     static constexpr int M1 = N1/2 + 1;
 

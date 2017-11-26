@@ -85,10 +85,9 @@ public:
 
     const Field<T, N1, N2, N3>& operator*=(T mult)
     {
-        for (int j=0; j<N3; j++)
-        {
-            slice(j) *= mult;
-        }
+        ParallelPerStack([mult,this](int j1, int j2){
+            stack(j1, j2) *= mult;
+        });
 
         return *this;
     }
@@ -97,8 +96,8 @@ public:
     {
         assert(pair.first->BC()==BC());
 
-        ParallelPerSlice([&pair,this](int j){
-            slice(j) += pair.second * pair.first->slice(j);
+        ParallelPerStack([&pair,this](int j1, int j2){
+            stack(j1, j2) += pair.second * pair.first->stack(j1, j2);
         });
 
         return *this;
@@ -107,8 +106,8 @@ public:
     {
         assert(other.BC()==BC());
 
-        ParallelPerSlice([&other,this](int j){
-            slice(j) += other.slice(j);
+        ParallelPerStack([&other,this](int j1, int j2){
+            stack(j1, j2) += other.stack(j1, j2);
         });
 
         return *this;
@@ -117,45 +116,45 @@ public:
     {
         assert(other.BC()==BC());
 
-        ParallelPerSlice([&other,this](int j){
-            slice(j) -= other.slice(j);
+        ParallelPerStack([&other,this](int j1, int j2){
+            stack(j1, j2) -= other.stack(j1, j2);
         });
 
         return *this;
     }
 
-    using Slice = Map<Array<T, -1, -1>, Unaligned>;
-    using Stack = Map<Array<T, N3, 1>, Unaligned, Stride<1, N2*N1>>;
-    using ConstSlice = Map<const Array<T, -1, -1>, Unaligned>;
-    using ConstStack = Map<const Array<T, N3, 1>, Unaligned, Stride<1, N1*N2>>;
+    using Slice = Map<Array<T, -1, -1>, Aligned16, Stride<N3*N1, N3>>;
+    using Stack = Map<Array<T, N3, 1>, Aligned16>;
+    using ConstSlice = Map<const Array<T, -1, -1>, Aligned16, Stride<N3*N1, N3>>;
+    using ConstStack = Map<const Array<T, N3, 1>, Aligned16>;
 
     Slice slice(int n3)
     {
         assert(n3>=0 && n3<N3);
-        return Slice(&Raw()[N1*N2*n3], N1, N2);
+        return Slice(&Raw()[n3], N1, N2);
     }
     ConstSlice slice(int n3) const
     {
         assert(n3>=0 && n3<N3);
-        return ConstSlice(&Raw()[N1*N2*n3], N1, N2);
+        return ConstSlice(&Raw()[n3], N1, N2);
     }
 
     Stack stack(int n1, int n2)
     {
         assert(n1>=0 && n1<N1);
         assert(n2>=0 && n2<N2);
-        return Stack(&Raw()[N1*n2 + n1]);
+        return Stack(&Raw()[(N1*n2 + n1)*N3]);
     }
     ConstStack stack(int n1, int n2) const
     {
         assert(n1>=0 && n1<N1);
         assert(n2>=0 && n2<N2);
-        return ConstStack(&Raw()[N1*n2 + n1]);
+        return ConstStack(&Raw()[(N1*n2 + n1)*N3]);
     }
 
     T& operator()(int n1, int n2, int n3)
     {
-        return Raw()[N1*N2*n3 + N1*n2 + n1];
+        return Raw()[(N1*n2 + n1)*N3 + n3];
     }
 
     T* Raw()
@@ -205,8 +204,8 @@ public:
     {
         assert(matrix.rows() == N1);
 
-        ParallelPerSlice([&result,&matrix,this](int j3){
-            result.slice(j3) = matrix * slice(j3).matrix();
+        ParallelPerStack([&result,&matrix,this](int j1, int j2){
+            result.stack(j1, j2) = matrix.diagonal()(j1) * stack(j1,j2);
         });
     }
 
@@ -214,8 +213,8 @@ public:
     {
         assert(matrix.rows() == N2);
 
-        ParallelPerSlice([&result,&matrix,this](int j3){
-            result.slice(j3) = slice(j3).matrix() * matrix;
+        ParallelPerStack([&result,&matrix,this](int j1, int j2){
+            result.stack(j1, j2) = matrix.diagonal()(j2) * stack(j1,j2);
         });
     }
 
@@ -339,21 +338,21 @@ public:
             else
             {
                 kind = FFTW_RODFT00;
-                in += N1*N2;
-                out += N1*N2;
+                in += 1;
+                out += 1;
                 dims = N3-2;
             }
             auto plan = fftwf_plan_many_r2r(1,
                                            &dims,
                                            N1*N2,
                                            in,
-                                           nullptr,
-                                           N1*N2,
+                                           &dims,
                                            1,
+                                           N3,
                                            out,
-                                           nullptr,
-                                           N1*N2,
+                                           &dims,
                                            1,
+                                           N3,
                                            &kind,
                                            FFTW_ESTIMATE);
 
@@ -377,15 +376,16 @@ public:
                 cudaMalloc((void**)&realdata, smalldatasize);
 
                 int dims[] = {N2, N1};
+                int odims[] = {N2, (N1/2+1)};
                 cufftPlanMany(&plan, // todo: do beforehand
                             2,
                             dims,
-                            nullptr,
+                            dims,
+                            N3,
                             1,
-                            N1*N2,
-                            nullptr,
+                            odims,
+                            N3,
                             1,
-                            (N1/2+1)*N2,
                             CUFFT_R2C,
                             N3);
             }
@@ -477,15 +477,16 @@ public:
                 cudaMalloc((void**)&realdata, smalldatasize);
 
                 int dims[] = {N2, N1};
+                int idims[] = {N2, actualN1};
                 cufftPlanMany(&plan, // todo: do beforehand
                             2,
                             dims,
-                            nullptr,
+                            idims,
+                            N3,
                             1,
-                            actualN1*N2,
-                            nullptr,
+                            dims,
+                            N3,
                             1,
-                            N1*N2,
                             CUFFT_C2R,
                             N3);
             }
@@ -515,21 +516,21 @@ public:
             else
             {
                 kind = FFTW_RODFT00;
-                in += N1*N2;
-                out += N1*N2;
+                in += 1;
+                out += 1;
                 dims = N3-2;
             }
             auto plan = fftwf_plan_many_r2r(1,
                                            &dims,
                                            N1*N2,
                                            in,
-                                           nullptr,
-                                           N1*N2,
+                                           &dims,
                                            1,
+                                           N3,
                                            out,
-                                           nullptr,
-                                           N1*N2,
+                                           &dims,
                                            1,
+                                           N3,
                                            &kind,
                                            FFTW_ESTIMATE);
 
@@ -605,10 +606,10 @@ void NodalProduct(const NodalField<N1, N2, N3>& f1,
            || f1.BC() == BoundaryCondition::Dirichlet
            || f2.BC() == BoundaryCondition::Dirichlet);
 
-    result.ParallelPerSlice(
-        [&result,&f1,&f2](int j3)
+    result.ParallelPerStack(
+        [&result,&f1,&f2](int j1, int j2)
         {
-            result.slice(j3) = f1.slice(j3)*f2.slice(j3);
+            result.stack(j1, j2) = f1.stack(j1, j2)*f2.stack(j1, j2);
         }
     );
 }
@@ -622,10 +623,10 @@ void NodalSum(const NodalField<N1, N2, N3>& f1,
            || (f1.BC() == BoundaryCondition::Dirichlet
            && f2.BC() == BoundaryCondition::Dirichlet));
 
-    result.ParallelPerSlice(
-        [&result,&f1,&f2](int j3)
+    result.ParallelPerStack(
+        [&result,&f1,&f2](int j1, int j2)
         {
-            result.slice(j3) = f1.slice(j3)+f2.slice(j3);
+            result.stack(j1, j2) = f1.stack(j1, j2)+f2.stack(j1, j2);
         }
     );
 }
