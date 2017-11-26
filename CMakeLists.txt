@@ -1,6 +1,8 @@
 project(Stratiflow)
 cmake_minimum_required(VERSION 3.1.3)
 
+option(CUDA "Whether to enable CUDA acceleration of DFTs")
+
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_STANDARD 11)
 
@@ -14,8 +16,12 @@ include_directories(SYSTEM /usr/include/python2.7)
 include_directories(SYSTEM external)
 link_libraries(python2.7)
 link_libraries(fftw3f fftw3f_threads m)
-link_libraries(cufft cudart)
 link_libraries(${CMAKE_THREAD_LIBS_INIT})
+
+if(CUDA)
+    link_libraries(cufft cudart)
+    add_definitions(-DUSE_CUDA)
+endif()
 
 add_library(StratiLib Differentiation.cpp Field.cpp Graph.cpp)
 
