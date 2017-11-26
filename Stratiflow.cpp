@@ -462,13 +462,13 @@ private:
     MatrixXf dim3Derivative2Neumann;
     MatrixXf dim3Derivative2Dirichlet;
 
-    std::array<MatrixXcf, M1*N2> explicitSolveDirichlet;
-    std::array<MatrixXcf, M1*N2> explicitSolveNeumann;
-    std::array<MatrixXcf, M1*N2> explicitSolveBuoyancy;
-    std::array<ColPivHouseholderQR<MatrixXcf>, M1*N2> implicitSolveNeumann[3];
-    std::array<ColPivHouseholderQR<MatrixXcf>, M1*N2> implicitSolveDirichlet[3];
-    std::array<ColPivHouseholderQR<MatrixXcf>, M1*N2> implicitSolveBuoyancy[3];
-    std::array<ColPivHouseholderQR<MatrixXcf>, M1*N2> solveLaplacian;
+    std::array<MatrixXf, M1*N2> explicitSolveDirichlet;
+    std::array<MatrixXf, M1*N2> explicitSolveNeumann;
+    std::array<MatrixXf, M1*N2> explicitSolveBuoyancy;
+    std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveNeumann[3];
+    std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveDirichlet[3];
+    std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveBuoyancy[3];
+    std::array<PartialPivLU<MatrixXf>, M1*N2> solveLaplacian;
 };
 
 int main()
@@ -483,8 +483,6 @@ int main()
     IMEXRK::NField initialU3(BoundaryCondition::Dirichlet);
     IMEXRK::NField initialB(BoundaryCondition::Dirichlet);
     auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
-
-    std::cout << x3 << std::endl;
 
     for (int j=0; j<IMEXRK::N3; j++)
     {

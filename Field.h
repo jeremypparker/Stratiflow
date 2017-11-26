@@ -123,9 +123,9 @@ public:
         return *this;
     }
 
-    using Slice = Map<Array<T, -1, -1>, Aligned16, Stride<N3*N1, N3>>;
+    using Slice = Map<Array<T, -1, -1>, Unaligned, Stride<N3*N1, N3>>;
     using Stack = Map<Array<T, N3, 1>, Aligned16>;
-    using ConstSlice = Map<const Array<T, -1, -1>, Aligned16, Stride<N3*N1, N3>>;
+    using ConstSlice = Map<const Array<T, -1, -1>, Unaligned, Stride<N3*N1, N3>>;
     using ConstStack = Map<const Array<T, N3, 1>, Aligned16>;
 
     Slice slice(int n3)
@@ -295,7 +295,9 @@ private:
     {
         assert(solver.rows() == N3);
 
-        result.stack(j1, j2) = solver.solve(stack(j1, j2).matrix());
+        Matrix<T, N3, 1> col = stack(j1, j2);
+        Matrix<T, N3, 1> res = solver.solve(col);
+        result.stack(j1, j2) = res;
     }
 
 
