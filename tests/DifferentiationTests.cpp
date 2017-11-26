@@ -33,7 +33,7 @@ TEST_CASE("Simple derivatives Neumann")
 
     constexpr int N1 = 1;
     constexpr int N2 = 1;
-    constexpr int N3 = 61;
+    constexpr int N3 = 64;
 
     NodalField<N1,N2,N3> f1(BoundaryCondition::Neumann);
     f1.SetValue([](float z){return tanh(z);}, L);
@@ -68,7 +68,7 @@ TEST_CASE("Simple derivatives Dirichlet")
 {
     constexpr int N1 = 2;
     constexpr int N2 = 2;
-    constexpr int N3 = 61;
+    constexpr int N3 = 64;
     float L = 5.0f;
 
     auto x = VerticalPoints(L, N3);
@@ -107,17 +107,11 @@ TEST_CASE("Dim 1 fourier derivatives")
 {
     constexpr int N1 = 20;
     constexpr int N2 = 2;
-    constexpr int N3 = 5;
+    constexpr int N3 = 4;
     float L = 14.0f;
 
     NodalField<N1,N2,N3> f1(BoundaryCondition::Neumann);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            f1.stack(j1, j2).setConstant(cos(2*pi*j1/static_cast<float>(N1)));
-        }
-    }
+    f1.SetValue([L](float x, float y, float z){return cos(2*pi*x/L);}, L, 1, 1);
 
     ModalField<N1,N2,N3> f2(BoundaryCondition::Neumann);
     f1.ToModal(f2);
@@ -129,13 +123,8 @@ TEST_CASE("Dim 1 fourier derivatives")
     f3.ToNodal(f4);
 
     NodalField<N1,N2,N3> expected(BoundaryCondition::Neumann);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            expected.stack(j1, j2).setConstant(-2*pi*sin(2*pi*j1/static_cast<float>(N1))/L);
-        }
-    }
+    expected.SetValue([L](float x, float y, float z){return -2*pi*sin(2*pi*x/L)/L;}, L, 1, 1);
+
 
     REQUIRE(f4 == expected);
 
@@ -146,13 +135,7 @@ TEST_CASE("Dim 1 fourier derivatives")
     f5.ToNodal(f6);
 
     NodalField<N1,N2,N3> expected2(BoundaryCondition::Neumann);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            expected2.stack(j1, j2).setConstant(-4*pi*pi*cos(2*pi*j1/static_cast<float>(N1))/L/L);
-        }
-    }
+    expected2.SetValue([L](float x, float y, float z){return -4*pi*pi*cos(2*pi*x/L)/L/L;}, L, 1, 1);
 
     REQUIRE(f6 == expected2);
 }
@@ -161,17 +144,12 @@ TEST_CASE("Dim 2 fourier derivatives")
 {
     constexpr int N1 = 20;
     constexpr int N2 = 10;
-    constexpr int N3 = 5;
+    constexpr int N3 = 4;
     float L = 14.0f;
 
     NodalField<N1,N2,N3> f1(BoundaryCondition::Neumann);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            f1.stack(j1, j2).setConstant(sin(2*pi*j2/static_cast<float>(N2)) + j1);
-        }
-    }
+    f1.SetValue([L](float x, float y, float z){return sin(2*pi*y/L) + x;}, 1, L, 1);
+
 
     ModalField<N1,N2,N3> f2(BoundaryCondition::Neumann);
     f1.ToModal(f2);
@@ -183,13 +161,7 @@ TEST_CASE("Dim 2 fourier derivatives")
     f3.ToNodal(f4);
 
     NodalField<N1,N2,N3> expected(BoundaryCondition::Neumann);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            expected.stack(j1, j2).setConstant(2*pi*cos(2*pi*j2/static_cast<float>(N2))/L);
-        }
-    }
+    expected.SetValue([L](float x, float y, float z){return 2*pi*cos(2*pi*y/L)/L;}, 1, L, 1);
 
     REQUIRE(f4 == expected);
 
@@ -200,13 +172,7 @@ TEST_CASE("Dim 2 fourier derivatives")
     f5.ToNodal(f6);
 
     NodalField<N1,N2,N3> expected2(BoundaryCondition::Neumann);
-    for (int j1=0; j1<N1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            expected2.stack(j1, j2).setConstant(-4*pi*pi*sin(2*pi*j2/static_cast<float>(N2))/L/L);
-        }
-    }
+    expected2.SetValue([L](float x, float y, float z){return -4*pi*pi*sin(2*pi*y/L)/L/L;}, 1, L, 1);
 
     REQUIRE(f6 == expected2);
 }
@@ -215,7 +181,7 @@ TEST_CASE("Inverse Laplacian")
 {
     constexpr int N1 = 20;
     constexpr int N2 = 22;
-    constexpr int N3 = 41;
+    constexpr int N3 = 40;
 
     constexpr float L1 = 14.0f;
     constexpr float L2 = 3.5;
@@ -245,14 +211,11 @@ TEST_CASE("Inverse Laplacian")
     // create field in physical space
     NodalField<N1, N2, N3> physicalRHS(BoundaryCondition::Neumann);
     auto x = VerticalPoints(L3, N3);
-    for (int j1=0; j1<N1; j1++)
+    physicalRHS.SetValue([L1](float x, float y, float z)
     {
-        for (int j2=0; j2<N2; j2++)
-        {
-            physicalRHS.stack(j1, j2) = (4*(x+2)*(x+2) - 2 -4.0f*pi*pi/L1/L1)*
-                                        exp(-(x+2)*(x+2))*sin(2*pi*j1/static_cast<float>(N1));
-        }
-    }
+        return (4*(z+2)*(z+2) - 2 -4*pi*pi/L1/L1)*
+               exp(-(z+2)*(z+2))*sin(2*pi*x/L1);
+    }, L1, L2, L3);
 
     ModalField<N1, N2, N3> q(BoundaryCondition::Neumann);
 
@@ -266,13 +229,11 @@ TEST_CASE("Inverse Laplacian")
     q.ToNodal(physicalSolution);
 
     NodalField<N1, N2, N3> expectedSolution(BoundaryCondition::Neumann);
-    for (int j1=0; j1<N1; j1++)
+    expectedSolution.SetValue([L1](float x, float y, float z)
     {
-        for (int j2=0; j2<N2; j2++)
-        {
-            expectedSolution.stack(j1, j2)= exp(-(x+2)*(x+2))*sin(2*pi*j1/static_cast<float>(N1));
-        }
-    }
+        return exp(-(z+2)*(z+2))*sin(2*pi*x/L1);
+    }, L1, L2, L3);
+
 
     REQUIRE(physicalSolution == expectedSolution);
 }
