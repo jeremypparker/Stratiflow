@@ -316,16 +316,76 @@ class ModalField;
 template<int N1, int N2, int N3>
 class NodalField : public Field<float, N1, N2, N3>
 {
-    using Field<float, N1, N2, N3>::Field;
 public:
+    NodalField(BoundaryCondition bc)
+    : Field<float, N1, N2, N3>(bc)
+    , intermediateData(N1*N2*N3, 0)
+    {
+        // do some ffts to find optimal method
+        std::vector<float> data0(N1*N2*N3);
+        std::vector<float> data1(N1*N2*N3);
+        std::vector<complex> data2((N1/2+1)*N2*N3);
+
+        {
+            int dims;
+            fftwf_r2r_kind kind;
+
+            float* in = data0.data();
+            float* out = data1.data();
+
+            if (this->BC() == BoundaryCondition::Neumann)
+            {
+                kind = FFTW_REDFT00;
+                dims = N3;
+            }
+            else
+            {
+                kind = FFTW_RODFT00;
+                in += 1;
+                out += 1;
+                dims = N3-2;
+            }
+            auto plan = fftwf_plan_many_r2r(1,
+                                           &dims,
+                                           N1*N2,
+                                           in,
+                                           &dims,
+                                           1,
+                                           N3,
+                                           out,
+                                           &dims,
+                                           1,
+                                           N3,
+                                           &kind,
+                                           FFTW_PATIENT);
+
+            fftwf_execute(plan);
+            fftwf_destroy_plan(plan);
+        }
+
+        {
+            int dims[] = {N2, N1};
+            int odims[] = {N2, (N1/2+1)};
+            auto plan = fftwf_plan_many_dft_r2c(2,
+                                        dims,
+                                        N3,
+                                        data1.data(),
+                                        dims,
+                                        N3,
+                                        1,
+                                        reinterpret_cast<fftwf_complex*>(data2.data()),
+                                        odims,
+                                        N3,
+                                        1,
+                                        FFTW_PATIENT | FFTW_DESTROY_INPUT);
+            fftwf_execute(plan);
+            fftwf_destroy_plan(plan);
+        }
+    }
+
     void ToModal(ModalField<N1, N2, N3>& other) const
     {
         assert(other.BC() == this->BC());
-
-        if(intermediateData.size() == 0)
-        {
-            intermediateData.resize(N1*N2*N3);
-        }
 
         // first do (co)sine transform in 3rd dimension
         {
@@ -359,7 +419,7 @@ public:
                                            1,
                                            N3,
                                            &kind,
-                                           FFTW_MEASURE);
+                                           FFTW_ESTIMATE);
 
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
@@ -413,7 +473,7 @@ public:
                                         odims,
                                         N3,
                                         1,
-                                        FFTW_MEASURE | FFTW_DESTROY_INPUT);
+                                        FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
 #endif
@@ -479,8 +539,50 @@ template<int N1, int N2, int N3>
 class ModalField : public Field<complex, N1/2+1, N2, N3>
 {
     static constexpr int actualN1 = N1/2 + 1;
-    using Field<complex, actualN1, N2, N3>::Field;
 public:
+    ModalField(BoundaryCondition bc)
+    : Field<complex, N1/2+1, N2, N3>(bc)
+    {
+        // do fft to measure time
+        std::vector<float> data0(N1*N2*N3);
+        {
+            int dims;
+            fftwf_r2r_kind kind;
+            float* in = data0.data();
+            float* out = data0.data();
+
+            if (this->BC() == BoundaryCondition::Neumann)
+            {
+                kind = FFTW_REDFT00;
+                dims = N3;
+            }
+            else
+            {
+                kind = FFTW_RODFT00;
+                in += 1;
+                out += 1;
+                dims = N3-2;
+            }
+            auto plan = fftwf_plan_many_r2r(1,
+                                           &dims,
+                                           N1*N2,
+                                           in,
+                                           &dims,
+                                           1,
+                                           N3,
+                                           out,
+                                           &dims,
+                                           1,
+                                           N3,
+                                           &kind,
+                                           FFTW_PATIENT);
+
+            fftwf_execute(plan);
+            fftwf_destroy_plan(plan);
+        }
+    }
+
+
     void ToNodalHorizontal(NodalField<N1, N2, N3>& other) const
     {
         assert(other.BC() == this->BC());
@@ -544,7 +646,7 @@ public:
                                         dims,
                                         N3,
                                         1,
-                                        FFTW_MEASURE);
+                                        FFTW_PATIENT);
         fftwf_execute(plan);
         fftwf_destroy_plan(plan);
 #endif
@@ -585,7 +687,7 @@ public:
                                            1,
                                            N3,
                                            &kind,
-                                           FFTW_MEASURE);
+                                           FFTW_ESTIMATE);
 
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
