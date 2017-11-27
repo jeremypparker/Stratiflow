@@ -8,13 +8,13 @@
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 100;
+    static constexpr int N1 = 200;
     static constexpr int N2 = 1;
     static constexpr int N3 = 60;
 
     static constexpr int M1 = N1/2 + 1;
 
-    static constexpr float L1 = 9.44; // size of domain streamwise
+    static constexpr float L1 = 32; // size of domain streamwise
     static constexpr float L2 = 4.0f;  // size of domain spanwise
     static constexpr float L3 = 2.0f; // vertical scaling factor
 
