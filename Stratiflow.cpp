@@ -10,7 +10,7 @@ class IMEXRK
 public:
     static constexpr int N1 = 100;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 64;
+    static constexpr int N3 = 60;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -19,7 +19,7 @@ public:
     static constexpr float L3 = 2.0f; // vertical scaling factor
 
     const float deltaT = 0.001;
-    const float Re = 2000;
+    const float Re = 1000;
     const float Pe = 1000;
     const float Ri = 0.05;
 
