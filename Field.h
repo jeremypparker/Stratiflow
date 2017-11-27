@@ -359,7 +359,7 @@ public:
                                            1,
                                            N3,
                                            &kind,
-                                           FFTW_ESTIMATE);
+                                           FFTW_MEASURE);
 
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
@@ -413,7 +413,7 @@ public:
                                         odims,
                                         N3,
                                         1,
-                                        FFTW_ESTIMATE);
+                                        FFTW_MEASURE | FFTW_DESTROY_INPUT);
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
 #endif
@@ -544,7 +544,7 @@ public:
                                         dims,
                                         N3,
                                         1,
-                                        FFTW_ESTIMATE);
+                                        FFTW_MEASURE);
         fftwf_execute(plan);
         fftwf_destroy_plan(plan);
 #endif
@@ -585,7 +585,7 @@ public:
                                            1,
                                            N3,
                                            &kind,
-                                           FFTW_ESTIMATE);
+                                           FFTW_MEASURE);
 
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
