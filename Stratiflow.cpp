@@ -1,5 +1,6 @@
 #include "Field.h"
 #include "Differentiation.h"
+#include "Integration.h"
 #include "Graph.h"
 
 #include <iostream>
@@ -145,6 +146,10 @@ public:
         NodalSum(B, B_, nnTemp);
         nnTemp.ToModal(neumannTemp);
         HeatPlot(neumannTemp, L1, L3, j2, filename);
+
+        std::cout << "Integral of buoyancy perturbation: "
+                  << IntegrateAllSpace(B, L1, L2, L3)
+                  << std::endl;
     }
 
     void PlotPressure(std::string filename, int j2) const

@@ -1,7 +1,5 @@
 #include <catch.h>
 
-#include "matplotlib-cpp.h"
-
 #include "Differentiation.h"
 #include "Field.h"
 
