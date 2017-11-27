@@ -489,13 +489,17 @@ int main()
     IMEXRK::NField initialB(BoundaryCondition::Dirichlet);
     auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
 
+    // nudge with something like the eigenmode
+    initialU3.SetValue([](float x, float y, float z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
+
+    // add a perturbation to allow secondary instabilities to develop
     for (int j=0; j<IMEXRK::N3; j++)
     {
-        if (j>2*IMEXRK::N3/5 && j<3*IMEXRK::N3/5)
+        if (x3(j) > -1 && x3(j) < 1)
         {
-            initialU1.slice(j) += 0.1*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU2.slice(j) += 0.01*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU3.slice(j) += 0.01*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU1.slice(j) += 0.001*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU2.slice(j) += 0.001*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU3.slice(j) += 0.001*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
         }
     }
     solver.SetInitial(initialU1, initialU2, initialU3, initialB);
