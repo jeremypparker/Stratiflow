@@ -6,6 +6,9 @@
 #include <iostream>
 #include <chrono>
 
+// will become unnecessary with C++17
+#define FullMatMul MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
+
 class IMEXRK
 {
 public:
@@ -218,11 +221,7 @@ public:
     void RemoveDivergence(float pressureMultiplier=1.0f)
     {
         // construct the diverence of u
-        divergence.Zero();
-
-        divergence += ddx(u1);
-        divergence += ddy(u2);
-        divergence += ddz(u3);
+        divergence = ddx(u1) + ddy(u2) + ddz(u3);
 
         // constant term - set value at infinity to zero
         divergence(0,0,0) = 0;
@@ -242,52 +241,35 @@ public:
     }
 
 private:
-    MField& ddx(MField& f) const
+    template<typename T>
+    Dim1MatMul<T, complex, complex, M1, N2, N3> ddx(const StackContainer<T, complex, M1, N2, N3>& f) const
     {
         static DiagonalMatrix<complex, -1> dim1Derivative = FourierDerivativeMatrix(L1, N1, 1);
 
-        if(f.BC() == BoundaryCondition::Neumann)
-        {
-            f.Dim1MatMul(dim1Derivative, neumannTemp);
-            return neumannTemp;
-        }
-        else
-        {
-            f.Dim1MatMul(dim1Derivative, dirichletTemp);
-            return dirichletTemp;
-        }
+        return Dim1MatMul<T, complex, complex, M1, N2, N3>(dim1Derivative, f);
     }
 
-    MField& ddy(MField& f) const
+    template<typename T>
+    Dim2MatMul<T, complex, complex, M1, N2, N3> ddy(const StackContainer<T, complex, M1, N2, N3>& f) const
     {
         static DiagonalMatrix<complex, -1> dim2Derivative = FourierDerivativeMatrix(L2, N2, 2);
 
-        if(f.BC() == BoundaryCondition::Neumann)
-        {
-            f.Dim2MatMul(dim2Derivative, neumannTemp);
-            return neumannTemp;
-        }
-        else
-        {
-            f.Dim2MatMul(dim2Derivative, dirichletTemp);
-            return dirichletTemp;
-        }
+        return Dim2MatMul<T, complex, complex, M1, N2, N3>(dim2Derivative, f);
     }
 
-    MField& ddz(MField& f) const
+    template<typename T>
+    Dim3MatMul<T, float, complex, M1, N2, N3> ddz(const StackContainer<T, complex, M1, N2, N3>& f) const
     {
         static MatrixXf dim3DerivativeNeumann = VerticalDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
         static MatrixXf dim3DerivativeDirichlet = VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L3, N3);
 
         if (f.BC() == BoundaryCondition::Dirichlet)
         {
-            f.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
-            return neumannTemp;
+            return Dim3MatMul<T, float, complex, M1, N2, N3>(dim3DerivativeDirichlet, f, BoundaryCondition::Neumann);
         }
         else
         {
-            f.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
-            return dirichletTemp;
+            return Dim3MatMul<T, float, complex, M1, N2, N3>(dim3DerivativeNeumann, f, BoundaryCondition::Dirichlet);
         }
     }
 
@@ -301,40 +283,19 @@ private:
 
     void ExplicitUpdate(int k)
     {
-        // calculate rhs terms and accumulate in y
-        R1 = u1;
-        R2 = u2;
-        R3 = u3;
-        RB = b;
-
-        // add term from last rk step
-        R1 += (h[k]*zeta[k])*r1;
-        R2 += (h[k]*zeta[k])*r2;
-        R3 += (h[k]*zeta[k])*r3;
-        RB += (h[k]*zeta[k])*rB;
-
-        // explicit part of CN
-
-        u1.MatMul(explicitSolveNeumann, neumannTemp);
-        R1 += 0.5*h[k]*neumannTemp;
-
-        u2.MatMul(explicitSolveNeumann, neumannTemp);
-        R2 += 0.5*h[k]*neumannTemp;
-
-        u3.MatMul(explicitSolveDirichlet, dirichletTemp);
-        R3 += 0.5*h[k]*dirichletTemp;
-
-        b.MatMul(explicitSolveBuoyancy, dirichletTemp);
-        RB += 0.5*h[k]*dirichletTemp;
+        // build up right hand sides for the implicit solve in R
+        
+        //   old      last rk step         pressure         explicit CN
+        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + 0.5*h[k]*FullMatMul(explicitSolveNeumann, u1);
+        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + 0.5*h[k]*FullMatMul(explicitSolveNeumann, u2);
+        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + 0.5*h[k]*FullMatMul(explicitSolveDirichlet, u3);
+        RB = b  + (h[k]*zeta[k])*rB                  + 0.5*h[k]*FullMatMul(explicitSolveDirichlet, b);
 
         // now construct explicit terms
         r1.Zero();
         r2.Zero();
         r3.Zero();
-        rB.Zero();
-
-        // add buoyancy force
-        r3 += Ri*b; // z goes down
+        rB = Ri*b; // buoyancy force - z goes down
 
         //////// NONLINEAR TERMS ////////
 
@@ -392,16 +353,11 @@ private:
         ndTemp.ToModal(dirichletTemp);
         rB -= dirichletTemp;
 
-        // now add on explicit terms
+        // now add on explicit terms to RHS
         R1 += (h[k]*beta[k])*r1;
         R2 += (h[k]*beta[k])*r2;
         R3 += (h[k]*beta[k])*r3;
         RB += (h[k]*beta[k])*rB;
-
-        // now add on pressure term
-        R1 += (-h[k])*ddx(p);
-        R2 += (-h[k])*ddy(p);
-        R3 += (-h[k])*ddz(p);
     }
 
 private:
