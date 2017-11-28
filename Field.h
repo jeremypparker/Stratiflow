@@ -25,8 +25,164 @@ using namespace Eigen;
 ArrayXf VerticalPoints(float L, int N);
 ArrayXf FourierPoints(float L, int N);
 
+template<typename A, typename T, int N1, int N2, int N3>
+class StackContainer
+{
+public:
+    virtual A stack(int n1, int n2) const = 0;
+    virtual BoundaryCondition BC() const = 0;
+};
+
+template<typename A, typename T, int N1, int N2, int N3>
+class ScalarProduct : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T, T>, const CwiseNullaryOp<internal::scalar_constant_op<T>,const Array<T, -1, 1>>, const A>, T, N1, N2, N3>
+{
+public:
+    ScalarProduct(T scalar, const StackContainer<A, T, N1, N2, N3>* other)
+    : scalar(scalar)
+    , rhs(other)
+    {}
+
+    virtual 
+        CwiseBinaryOp<internal::scalar_product_op<T, T>, const CwiseNullaryOp<internal::scalar_constant_op<T>,const Array<T, -1, 1>>, const A> 
+        stack(int n1, int n2) const override
+    {
+        return scalar*rhs->stack(n1, n2);
+    }
+    virtual BoundaryCondition BC() const override
+    {
+        return rhs->BC();
+    }
+private:
+    const StackContainer<A, T, N1, N2, N3>* rhs;
+    T scalar;
+};
+
+template<typename A, typename B, typename T, int N1, int N2, int N3>
+class ComponentwiseSum : public StackContainer<CwiseBinaryOp<internal::scalar_sum_op<T, T>, const A, const B>, T, N1, N2, N3>
+{
+public:
+    ComponentwiseSum(const StackContainer<A, T, N1, N2, N3>* lhs, const StackContainer<B, T, N1, N2, N3>* rhs)
+    : lhs(lhs)
+    , rhs(rhs)
+    {}
+    virtual
+        CwiseBinaryOp<internal::scalar_sum_op<T, T>, const A, const B>
+        stack(int n1, int n2) const override
+    {
+        return lhs->stack(n1, n2) + rhs->stack(n1, n2);
+    }
+    virtual BoundaryCondition BC() const override
+    {
+        return lhs->BC(); // todo!
+    }
+private:
+    const StackContainer<A, T, N1, N2, N3>* lhs;
+    const StackContainer<B, T, N1, N2, N3>* rhs;
+};
+
+template<typename A, typename T1, typename T2, int N1, int N2, int N3>
+class Dim1MatMul : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>, T2, N1, N2, N3>
+{
+public:
+    Dim1MatMul(const DiagonalMatrix<T1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field)
+    : matrix(matrix)
+    , field(field)
+    {}
+
+    virtual 
+        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A> 
+        stack(int n1, int n2) const override
+    {
+        return matrix.diagonal()(n1)*field.stack(n1, n2);
+    }
+    virtual BoundaryCondition BC() const override
+    {
+        return field.BC();
+    }
+private:
+    const StackContainer<A, T2, N1, N2, N3>& field;
+    const DiagonalMatrix<T1, -1>& matrix;
+};
+
+template<typename A, typename T1, typename T2, int N1, int N2, int N3>
+class Dim2MatMul : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>, T2, N1, N2, N3>
+{
+public:
+    Dim2MatMul(const DiagonalMatrix<T1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field)
+    : matrix(matrix)
+    , field(field)
+    {}
+
+    virtual 
+        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A> 
+        stack(int n1, int n2) const override
+    {
+        return matrix.diagonal()(n2)*field.stack(n1, n2);
+    }
+    virtual BoundaryCondition BC() const override
+    {
+        return field.BC();
+    }
+private:
+    const StackContainer<A, T2, N1, N2, N3>& field;
+    const DiagonalMatrix<T1, -1>& matrix;
+};
+
+template<typename A, typename T1, typename T2, int N1, int N2, int N3>
+class Dim3MatMul : public StackContainer<ArrayWrapper<const Product<Matrix<T1,-1,-1>, MatrixWrapper<A>>>, T2, N1, N2, N3>
+{
+public:
+    Dim3MatMul(const Matrix<T1, -1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field, BoundaryCondition resultingBC)
+    : matrix(matrix)
+    , field(field)
+    , resultingBC(resultingBC)
+    {}
+
+    virtual 
+        ArrayWrapper<const Product<Matrix<T1,-1,-1>, MatrixWrapper<A>>>
+        stack(int n1, int n2) const override
+    {
+        return (matrix*field.stack(n1, n2).matrix()).array();
+    }
+    virtual BoundaryCondition BC() const override
+    {
+        return resultingBC;
+    }
+private:
+    const StackContainer<A, T2, N1, N2, N3>& field;
+    const Matrix<T1, -1, -1>& matrix;
+    BoundaryCondition resultingBC;
+};
+
+template<typename A, typename T1, typename T2, int N1, int N2, int N3>
+class MatMul : public StackContainer<ArrayWrapper<const Product<Matrix<T1,-1,-1>, MatrixWrapper<A>>>, T2, N1, N2, N3>
+{
+public:
+    MatMul(const std::array<Matrix<T1, -1, -1>, N1*N2>& matrices, const StackContainer<A, T2, N1, N2, N3>& field)
+    : matrices(matrices)
+    , field(field)
+    , resultingBC(field.BC())
+    {}
+    
+
+    virtual 
+        ArrayWrapper<const Product<Matrix<T1,-1,-1>, MatrixWrapper<A>>>
+        stack(int n1, int n2) const override
+    {
+        return (matrices[n1*N2+n2]*field.stack(n1, n2).matrix()).array();
+    }
+    virtual BoundaryCondition BC() const override
+    {
+        return resultingBC;
+    }
+private:
+    const StackContainer<A, T2, N1, N2, N3>& field;
+    const std::array<Matrix<T1, -1, -1>, N1*N2>& matrices;
+    BoundaryCondition resultingBC;
+};
+
 template<typename T, int N1, int N2, int N3>
-class Field
+class Field : public StackContainer<Map<const Array<T, -1, 1>, Aligned16>,T,N1,N2,N3>
 {
 public:
     Field(BoundaryCondition bc)
@@ -41,10 +197,15 @@ public:
     {
     }
 
-    const Field<T, N1, N2, N3>& operator=(const Field<T, N1, N2, N3>& other)
+    template<typename A>
+    const Field<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
         assert(other.BC() == BC());
-        _data = other._data;
+
+        ParallelPerStack([&other,this](int j1, int j2){
+            stack(j1, j2) = other.stack(j1,j2);
+        });
+        
         return *this;
     }
 
@@ -95,17 +256,8 @@ public:
         return *this;
     }
 
-    const Field<T, N1, N2, N3>& operator+=(std::pair<const Field<T, N1, N2, N3>*, T> pair)
-    {
-        assert(pair.first->BC()==BC());
-
-        ParallelPerStack([&pair,this](int j1, int j2){
-            stack(j1, j2) += pair.second * pair.first->stack(j1, j2);
-        });
-
-        return *this;
-    }
-    const Field<T, N1, N2, N3>& operator+=(const Field<T, N1, N2, N3>& other)
+    template<typename A>
+    const Field<T, N1, N2, N3>& operator+=(const StackContainer<A, T, N1, N2, N3>& other)
     {
         assert(other.BC()==BC());
 
@@ -115,7 +267,8 @@ public:
 
         return *this;
     }
-    const Field<T, N1, N2, N3>& operator-=(const Field<T, N1, N2, N3>& other)
+    template<typename A>
+    const Field<T, N1, N2, N3>& operator-=(const StackContainer<A, T, N1, N2, N3>& other)
     {
         assert(other.BC()==BC());
 
@@ -127,9 +280,9 @@ public:
     }
 
     using Slice = Map<Array<T, -1, -1>, Unaligned, Stride<N3*N1, N3>>;
-    using Stack = Map<Array<T, N3, 1>, Aligned16>;
+    using Stack = Map<Array<T, -1, 1>, Aligned16>;
     using ConstSlice = Map<const Array<T, -1, -1>, Unaligned, Stride<N3*N1, N3>>;
-    using ConstStack = Map<const Array<T, N3, 1>, Aligned16>;
+    using ConstStack = Map<const Array<T, -1, 1>, Aligned16>;
 
     Slice slice(int n3)
     {
@@ -146,13 +299,13 @@ public:
     {
         assert(n1>=0 && n1<N1);
         assert(n2>=0 && n2<N2);
-        return Stack(&Raw()[(N1*n2 + n1)*N3]);
+        return Stack(&Raw()[(N1*n2 + n1)*N3], N3);
     }
-    ConstStack stack(int n1, int n2) const
+    virtual ConstStack stack(int n1, int n2) const override
     {
         assert(n1>=0 && n1<N1);
         assert(n2>=0 && n2<N2);
-        return ConstStack(&Raw()[(N1*n2 + n1)*N3]);
+        return ConstStack(&Raw()[(N1*n2 + n1)*N3], N3);
     }
 
     T& operator()(int n1, int n2, int n3)
@@ -169,7 +322,7 @@ public:
         return _data.data();
     }
 
-    BoundaryCondition BC() const
+    virtual BoundaryCondition BC() const override
     {
         return _bc;
     }
@@ -182,44 +335,6 @@ public:
         }
     }
 
-    template<typename M>
-    void Dim3MatMul(const M& matrix, Field<T, N1, N2, N3>& result) const
-    {
-        ParallelPerStack(
-            [&matrix,&result,this](int j1, int j2)
-            {
-                Dim3MatMul(matrix, j1, j2, result);
-            }
-        );
-    }
-    template<typename M>
-    void MatMul(const std::array<M, N1*N2>& matrices, Field<T, N1, N2, N3>& result) const
-    {
-        ParallelPerStack(
-            [&matrices,&result,this](int j1, int j2)
-            {
-                Dim3MatMul(matrices[j1*N2+j2], j1, j2, result);
-            }
-        );
-    }
-
-    void Dim1MatMul(const DiagonalMatrix<T, -1>& matrix, Field<T, N1, N2, N3>& result) const
-    {
-        assert(matrix.rows() == N1);
-
-        ParallelPerStack([&result,&matrix,this](int j1, int j2){
-            result.stack(j1, j2) = matrix.diagonal()(j1) * stack(j1,j2);
-        });
-    }
-
-    void Dim2MatMul(const DiagonalMatrix<T, -1>& matrix, Field<T, N1, N2, N3>& result) const
-    {
-        assert(matrix.rows() == N2);
-
-        ParallelPerStack([&result,&matrix,this](int j1, int j2){
-            result.stack(j1, j2) = matrix.diagonal()(j2) * stack(j1,j2);
-        });
-    }
 
     template<typename Solver>
     void Solve(std::array<Solver, N1*N2>& solvers, Field<T, N1, N2, N3>& result) const
@@ -230,30 +345,6 @@ public:
                 Dim3Solve(solvers[j1*N2+j2], j1, j2, result);
             }
         );
-    }
-
-    void ParallelPerSlice(std::function<void(int j3)> f) const
-    {
-        int each = N3/maxthreads + 1;
-        for (int first=0; first<N3; first+=each)
-        {
-            int last = first+each;
-            if(last>N3)
-            {
-                last = N3;
-            }
-
-            ThreadPool::Get().ExecuteAsync(
-                [&f,first,last]()
-                {
-                    for (int j3=first; j3<last; j3++)
-                    {
-                        f(j3);
-                    }
-                });
-        }
-
-        ThreadPool::Get().WaitAll();
     }
 
     void ParallelPerStack(std::function<void(int j1, int j2)> f) const
@@ -284,22 +375,14 @@ public:
     }
 
 private:
-    template<typename M>
-    void Dim3MatMul(const M& matrix, int j1, int j2, Field<T, N1, N2, N3>& result) const
-    {
-        assert(matrix.rows() == matrix.cols());
-        assert(matrix.rows() == N3);
-
-        result.stack(j1, j2) = matrix * stack(j1, j2).matrix();
-    }
 
     template<typename Solver>
     void Dim3Solve(Solver& solver, int j1, int j2, Field<T, N1, N2, N3>& result) const
     {
         assert(solver.rows() == N3);
 
-        Matrix<T, N3, 1> col = stack(j1, j2);
-        Matrix<T, N3, 1> res = solver.solve(col);
+        Matrix<T, -1, 1> col = stack(j1, j2);
+        Matrix<T, -1, 1> res = solver.solve(col);
         result.stack(j1, j2) = res;
     }
 
@@ -317,6 +400,8 @@ template<int N1, int N2, int N3>
 class NodalField : public Field<float, N1, N2, N3>
 {
 public:
+    using Field<float, N1, N2, N3>::operator=;
+
     NodalField(BoundaryCondition bc)
     : Field<float, N1, N2, N3>(bc)
     , intermediateData(N1*N2*N3, 0)
@@ -540,6 +625,8 @@ class ModalField : public Field<complex, N1/2+1, N2, N3>
 {
     static constexpr int actualN1 = N1/2 + 1;
 public:
+    using Field<complex, actualN1, N2, N3>::operator=;
+
     ModalField(BoundaryCondition bc)
     : Field<complex, N1/2+1, N2, N3>(bc)
     {
@@ -745,11 +832,24 @@ private:
     mutable std::vector<complex, aligned_allocator<complex>> inputData;
 };
 
-template<int N1, int N2, int N3>
-std::pair<const ModalField<N1, N2, N3>*, complex> operator*(complex scalar,
-                                                                const ModalField<N1, N2, N3>& field)
+template<typename A, typename T, int N1, int N2, int N3>
+ScalarProduct<A, T, N1, N2, N3> operator*(T scalar,
+                                       const StackContainer<A, T, N1, N2, N3>& field)
 {
-    return std::pair<const ModalField<N1, N2, N3>*, complex>(&field, scalar);
+    return ScalarProduct<A, T, N1, N2, N3>(scalar, &field);
+}
+
+template<typename A, typename T, int N1, int N2, int N3>
+ScalarProduct<A, T, N1, N2, N3> operator*(float scalar,
+                                       const StackContainer<A, T, N1, N2, N3>& field)
+{
+    return ScalarProduct<A, T, N1, N2, N3>(scalar, &field);
+}
+
+template<typename A, typename B, typename T, int N1, int N2, int N3>
+ComponentwiseSum<A, B, T, N1, N2, N3> operator+(const StackContainer<A, T, N1, N2, N3>& lhs, const StackContainer<B, T, N1, N2, N3>& rhs)
+{
+    return ComponentwiseSum<A, B, T, N1, N2, N3>(&lhs, &rhs);
 }
 
 template<int N1, int N2, int N3>
