@@ -232,30 +232,6 @@ public:
         );
     }
 
-    void ParallelPerSlice(std::function<void(int j3)> f) const
-    {
-        int each = N3/maxthreads + 1;
-        for (int first=0; first<N3; first+=each)
-        {
-            int last = first+each;
-            if(last>N3)
-            {
-                last = N3;
-            }
-
-            ThreadPool::Get().ExecuteAsync(
-                [&f,first,last]()
-                {
-                    for (int j3=first; j3<last; j3++)
-                    {
-                        f(j3);
-                    }
-                });
-        }
-
-        ThreadPool::Get().WaitAll();
-    }
-
     void ParallelPerStack(std::function<void(int j1, int j2)> f) const
     {
         int each = N1/maxthreads + 1;
@@ -486,6 +462,8 @@ public:
             other.slice(0).setZero();
             other.slice(N3-1).setZero();
         }
+
+        other.Filter();
     }
 
     float Max() const
@@ -652,7 +630,7 @@ public:
 #endif
     }
 
-    void ToNodalNoFilter(NodalField<N1, N2, N3>& other) const
+    void ToNodal(NodalField<N1, N2, N3>& other) const
     {
         ToNodalHorizontal(other);
 
@@ -699,13 +677,6 @@ public:
             other.slice(N3-1).setZero();
         }
 
-    }
-
-    void ToNodal(NodalField<N1, N2, N3>& other)
-    {
-        Filter();
-
-        ToNodalNoFilter(other);
     }
 
     void Filter()

@@ -9,9 +9,9 @@
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 200;
+    static constexpr int N1 = 400;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 60;
+    static constexpr int N3 = 140;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -19,7 +19,7 @@ public:
     static constexpr float L2 = 4.0f;  // size of domain spanwise
     static constexpr float L3 = 2.0f; // vertical scaling factor
 
-    const float deltaT = 0.001;
+    const float deltaT = 0.0001;
     const float Re = 1000;
     const float Pe = 1000;
     const float Ri = 0.05;
@@ -138,11 +138,18 @@ public:
             totalImplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
             totalDivergence += std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count();
         }
+
+        // To prevent anything dodgy accumulating in the unused coefficients
+        u1.Filter();
+        u2.Filter();
+        u3.Filter();
+        b.Filter();
+        p.Filter();
     }
 
     void PlotBuoyancy(std::string filename, int j2) const
     {
-        b.ToNodalNoFilter(B);
+        b.ToNodal(B);
         NodalSum(B, B_, nnTemp);
         nnTemp.ToModal(neumannTemp);
         HeatPlot(neumannTemp, L1, L3, j2, filename);
@@ -169,7 +176,7 @@ public:
 
     void PlotStreamwiseVelocity(std::string filename, int j2) const
     {
-        u1.ToNodalNoFilter(U1);
+        u1.ToNodal(U1);
         U1 += U_;
         U1.ToModal(neumannTemp);
         HeatPlot(neumannTemp, L1, L3, j2, filename);
@@ -232,45 +239,7 @@ public:
         // this is scaled to match the p that was added before
         // effectively we have forward euler
         p += pressureMultiplier*q;
-
-        // pressure never gets filtered unless we do it explicitly
-        p.Filter();
     }
-
-    // void SolveForPressure()
-    // {
-    //     // solve Δp = -∇u∇u
-    //     // (store rhs in divergence)
-    //     divergence.Zero();
-
-
-    //     // todo: cleanup use of temp variables
-    //     u1.Dim1MatMul(dim1Derivative, neumannTemp);
-    //     neumannTemp.ToNodal(U1);
-    //     NodalProduct(U1, U1, nnTemp);
-    //     nnTemp.ToModal(mnProduct);
-    //     divergence -= mnProduct;
-
-    //     u3.Dim3MatMul(dim3DerivativeDirichlet, neumannTemp);
-    //     neumannTemp.ToNodal(U2);
-    //     NodalProduct(U2, U2, nnTemp);
-    //     nnTemp.ToModal(mnProduct);
-    //     divergence -= mnProduct;
-
-    //     u1.Dim3MatMul(dim3DerivativeNeumann, dirichletTemp);
-    //     dirichletTemp.ToNodal(ndTemp);
-    //     u3.Dim1MatMul(dim1Derivative, dirichletTemp);
-    //     dirichletTemp.ToNodal(U3);
-    //     NodalProduct(ndTemp, U3, nnTemp);
-    //     nnTemp.ToModal(mnProduct);
-    //     divergence += (-2)*mnProduct;
-
-    //     // set value at infinity
-    //     divergence(0,0,0) = 0;
-
-    //     divergence.Solve(solveLaplacian, p);
-    // }
-
 
 private:
     MField& ddx(MField& f) const
@@ -373,7 +342,7 @@ private:
         u1.ToNodal(U1);
         u2.ToNodal(U2);
         u3.ToNodal(U3);
-        b.ToNodalNoFilter(B);
+        b.ToNodal(B);
 
         // take into account background shear for nonlinear terms
         U1 += U_;
