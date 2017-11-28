@@ -12,9 +12,9 @@
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 400;
+    static constexpr int N1 = 256;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 140;
+    static constexpr int N3 = 128;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -22,7 +22,7 @@ public:
     static constexpr float L2 = 4.0f;  // size of domain spanwise
     static constexpr float L3 = 2.0f; // vertical scaling factor
 
-    const float deltaT = 0.0001;
+    float deltaT = 0.1;
     const float Re = 1000;
     const float Pe = 1000;
     const float Ri = 0.05;
@@ -102,18 +102,10 @@ public:
                 explicitSolveNeumann[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
                 explicitSolveNeumann[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
                 explicitSolveNeumann[j1*N2+j2] /= Re;
-
-                for (int k=0; k<s; k++)
-                {
-                    implicitSolveDirichlet[k][j1*N2+j2].compute(
-                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveDirichlet[j1*N2+j2]);
-                    implicitSolveNeumann[k][j1*N2+j2].compute(
-                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveNeumann[j1*N2+j2]);
-                    implicitSolveBuoyancy[k][j1*N2+j2].compute(
-                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveBuoyancy[j1*N2+j2]);
-                }
             }
         }
+
+        UpdateForTimestep();        
     }
 
 
@@ -156,10 +148,6 @@ public:
         NodalSum(B, B_, nnTemp);
         nnTemp.ToModal(neumannTemp);
         HeatPlot(neumannTemp, L1, L3, j2, filename);
-
-        std::cout << "Integral of buoyancy perturbation: "
-                  << IntegrateAllSpace(B, L1, L2, L3)
-                  << std::endl;
     }
 
     void PlotPressure(std::string filename, int j2) const
@@ -200,7 +188,7 @@ public:
         dB_dz = buoyancyDerivative;
     }
 
-    // gives an upper bound on cfl number
+    // gives an upper bound on cfl number - also updates if it's too high
     float CFL()
     {
         static ArrayXf z = VerticalPoints(L3, N3);
@@ -210,10 +198,19 @@ public:
 
         float delta1 = L1/N1;
         float delta2 = L2/N2;
-        float delta3 = z(N3/2) - z(N3/2+1);
+        float delta3 = z(N3/2) - z(N3/2+1); // smallest gap in middle
+
+        std::cout << delta3 << std::endl;
 
         float cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
+
+        constexpr float targetCFL = 0.25;
+        if (cfl>targetCFL)
+        {
+            deltaT *= targetCFL / cfl;
+            UpdateForTimestep();
+        }
 
         return cfl;
     }
@@ -360,6 +357,30 @@ private:
         RB += (h[k]*beta[k])*rB;
     }
 
+    void UpdateForTimestep()
+    {
+        h[0] = deltaT*8.0f/15.0f;
+        h[1] = deltaT*2.0f/15.0f;
+        h[2] = deltaT*5.0f/15.0f;
+
+        for (int j1=0; j1<M1; j1++)
+        {
+            for (int j2=0; j2<N2; j2++)
+            {
+                for (int k=0; k<s; k++)
+                {
+                    implicitSolveDirichlet[k][j1*N2+j2].compute(
+                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveDirichlet[j1*N2+j2]);
+                    implicitSolveNeumann[k][j1*N2+j2].compute(
+                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveNeumann[j1*N2+j2]);
+                    implicitSolveBuoyancy[k][j1*N2+j2].compute(
+                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveBuoyancy[j1*N2+j2]);
+                }
+
+            }
+        }
+    }
+
 private:
     // these are the actual variables we care about
     MField u1, u2, u3, b;
@@ -372,7 +393,7 @@ private:
 
     // parameters for the scheme
     const int s = 3;
-    const float h[3] = {deltaT*8.0f/15.0f, deltaT*2.0f/15.0f, deltaT*5.0f/15.0f};
+    float h[3];
     const float beta[3] = {1.0f, 25.0f/8.0f, 9.0f/4.0f};
     const float zeta[3] = {0, -17.0f/8.0f, -5.0f/4.0f};
 
@@ -418,13 +439,16 @@ int main()
     initialU3.SetValue([](float x, float y, float z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
 
     // add a perturbation to allow secondary instabilities to develop
+
+    float bandmax = 4;
     for (int j=0; j<IMEXRK::N3; j++)
     {
-        if (x3(j) > -1 && x3(j) < 1)
+        if (x3(j) > -bandmax && x3(j) < bandmax)
         {
-            initialU1.slice(j) += 0.001*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU2.slice(j) += 0.001*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU3.slice(j) += 0.001*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
+            initialB.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
         }
     }
     solver.SetInitial(initialU1, initialU2, initialU3, initialB);
@@ -442,28 +466,38 @@ int main()
     solver.SetBackground(Ubar, Bbar, dBdz);
 
     solver.RemoveDivergence(0.0f);
-    //solver.SolveForPressure();
-
+    
+    float totalTime = 0.0f;
+    float saveEvery = 1.0f;
+    int lastFrame = -1;
     for (int step=0; step<500000; step++)
     {
         solver.TimeStep();
+        totalTime += solver.deltaT;
 
-        if(step%400==0)
+        if(step%50==0)
         {
-            solver.PlotPressure("images/pressure/"+std::to_string(step)+".png", IMEXRK::N2/2);
-            solver.PlotBuoyancy("images/buoyancy/"+std::to_string(step)+".png", IMEXRK::N2/2);
-            solver.PlotVerticalVelocity("images/u3/"+std::to_string(step)+".png", IMEXRK::N2/2);
-            solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(step)+".png", IMEXRK::N2/2);
-            solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(step)+".png", IMEXRK::N2/2);
-
             float cfl = solver.CFL();
-            std::cout << "Step " << step << ", time " << step*solver.deltaT
+            std::cout << "Step " << step << ", time " << totalTime
                       << ", CFL number: " << cfl << std::endl;
 
             std::cout << "Average timings: " << solver.totalExplicit / (step+1)
                       << ", " << solver.totalImplicit / (step+1)
                       << ", " << solver.totalDivergence / (step+1)
                       << std::endl;
+        }
+
+        int frame = static_cast<int>(totalTime / saveEvery);
+
+        if (frame>lastFrame)
+        {
+            lastFrame=frame;
+
+            solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            solver.PlotBuoyancy("images/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
         }
     }
 
