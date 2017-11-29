@@ -56,7 +56,7 @@ inline void HeatPlot(const ModalField<N1, N2, N3> &u, float L1, float L3, int j2
     matplotlibcpp::figure();
 
 
-    int scale = 2;
+    int scale = 1;
 
     int cols = N1*scale;
     int rows = N1*scale;

@@ -42,8 +42,8 @@ public:
     , rhs(other)
     {}
 
-    virtual 
-        CwiseBinaryOp<internal::scalar_product_op<T, T>, const CwiseNullaryOp<internal::scalar_constant_op<T>,const Array<T, -1, 1>>, const A> 
+    virtual
+        CwiseBinaryOp<internal::scalar_product_op<T, T>, const CwiseNullaryOp<internal::scalar_constant_op<T>,const Array<T, -1, 1>>, const A>
         stack(int n1, int n2) const override
     {
         return scalar*rhs->stack(n1, n2);
@@ -89,8 +89,8 @@ public:
     , field(field)
     {}
 
-    virtual 
-        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A> 
+    virtual
+        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>
         stack(int n1, int n2) const override
     {
         return matrix.diagonal()(n1)*field.stack(n1, n2);
@@ -113,8 +113,8 @@ public:
     , field(field)
     {}
 
-    virtual 
-        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A> 
+    virtual
+        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>
         stack(int n1, int n2) const override
     {
         return matrix.diagonal()(n2)*field.stack(n1, n2);
@@ -138,7 +138,7 @@ public:
     , resultingBC(resultingBC)
     {}
 
-    virtual 
+    virtual
         ArrayWrapper<const Product<Matrix<T1,-1,-1>, MatrixWrapper<A>>>
         stack(int n1, int n2) const override
     {
@@ -163,9 +163,9 @@ public:
     , field(field)
     , resultingBC(field.BC())
     {}
-    
 
-    virtual 
+
+    virtual
         ArrayWrapper<const Product<Matrix<T1,-1,-1>, MatrixWrapper<A>>>
         stack(int n1, int n2) const override
     {
@@ -205,7 +205,7 @@ public:
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) = other.stack(j1,j2);
         });
-        
+
         return *this;
     }
 
@@ -347,7 +347,7 @@ public:
         );
     }
 
-    void ParallelPerStack(std::function<void(int j1, int j2)> f) const
+    virtual void ParallelPerStack(std::function<void(int j1, int j2)> f) const
     {
         int each = N1/maxthreads + 1;
         for (int first=0; first<N1; first+=each)
@@ -821,6 +821,37 @@ public:
                 }
             }
         }
+    }
+
+    virtual void ParallelPerStack(std::function<void(int j1, int j2)> f) const override
+    {
+        int maxN1 = std::min(N1/2 + 1, 2*(N1/2 + 1)/3+1);
+        int halfMaxN2 = N2/3+1;
+
+        int each = maxN1/maxthreads + 1;
+        for (int first=0; first<maxN1; first+=each)
+        {
+            int last = first+each;
+            if(last>maxN1)
+            {
+                last = maxN1;
+            }
+
+            ThreadPool::Get().ExecuteAsync(
+                [&f,first,last,halfMaxN2]()
+                {
+                    for (int j1=first; j1<last; j1++)
+                    {
+                        for (int j2=0; j2<halfMaxN2; j2++)
+                        {
+                            f(j1, j2);
+                            f(j1, N2-1-j2);
+                        }
+                    }
+                });
+        }
+
+        ThreadPool::Get().WaitAll();
     }
 
 private:

@@ -13,14 +13,14 @@ class IMEXRK
 {
 public:
     static constexpr int N1 = 256;
-    static constexpr int N2 = 1;
+    static constexpr int N2 = 16;
     static constexpr int N3 = 128;
 
     static constexpr int M1 = N1/2 + 1;
 
     static constexpr float L1 = 32; // size of domain streamwise
     static constexpr float L2 = 4.0f;  // size of domain spanwise
-    static constexpr float L3 = 2.0f; // vertical scaling factor
+    static constexpr float L3 = 4.0f; // vertical scaling factor
 
     float deltaT = 0.1;
     const float Re = 1000;
@@ -105,7 +105,7 @@ public:
             }
         }
 
-        UpdateForTimestep();        
+        UpdateForTimestep();
     }
 
 
@@ -205,7 +205,7 @@ public:
         float cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
 
-        constexpr float targetCFL = 0.25;
+        constexpr float targetCFL = 0.4;
         if (cfl>targetCFL)
         {
             deltaT *= targetCFL / cfl;
@@ -281,7 +281,7 @@ private:
     void ExplicitUpdate(int k)
     {
         // build up right hand sides for the implicit solve in R
-        
+
         //   old      last rk step         pressure         explicit CN
         R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + 0.5*h[k]*FullMatMul(explicitSolveNeumann, u1);
         R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + 0.5*h[k]*FullMatMul(explicitSolveNeumann, u2);
@@ -445,7 +445,7 @@ int main()
     {
         if (x3(j) > -bandmax && x3(j) < bandmax)
         {
-            initialB.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
+            //initialB.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
             initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
             initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
             initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
@@ -454,7 +454,7 @@ int main()
     solver.SetInitial(initialU1, initialU2, initialU3, initialB);
 
     // add background flow
-    float alpha = 2;
+    float alpha = 1;
 
     IMEXRK::NField Ubar(BoundaryCondition::Neumann);
     IMEXRK::NField Bbar(BoundaryCondition::Neumann);
@@ -466,7 +466,7 @@ int main()
     solver.SetBackground(Ubar, Bbar, dBdz);
 
     solver.RemoveDivergence(0.0f);
-    
+
     float totalTime = 0.0f;
     float saveEvery = 1.0f;
     int lastFrame = -1;

@@ -18,13 +18,19 @@ public:
 public:
     void ExecuteAsync(std::function<void()> f)
     {
-        //f();
         if(threads[next].joinable())
         {
             threads[next].join();
         }
 
-        threads[next] = std::thread(f);
+        if (next == numthreads-1)
+        {
+            f(); // run one part synchronously
+        }
+        else
+        {
+            threads[next] = std::thread(f);
+        }
 
         next++;
         if (next == numthreads)
