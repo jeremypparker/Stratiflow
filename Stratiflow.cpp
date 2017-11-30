@@ -291,8 +291,8 @@ private:
         // now construct explicit terms
         r1.Zero();
         r2.Zero();
-        r3.Zero();
-        rB = Ri*b; // buoyancy force - z goes down
+        r3 = Ri*b; // buoyancy force - z goes down
+        rB.Zero();
 
         //////// NONLINEAR TERMS ////////
 
@@ -445,10 +445,12 @@ int main()
     {
         if (x3(j) > -bandmax && x3(j) < bandmax)
         {
-            //initialB.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))*ArrayXf::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+            initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
         }
     }
     solver.SetInitial(initialU1, initialU2, initialU3, initialB);
