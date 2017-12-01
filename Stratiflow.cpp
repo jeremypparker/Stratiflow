@@ -13,14 +13,14 @@ class IMEXRK
 {
 public:
     static constexpr int N1 = 256;
-    static constexpr int N2 = 16;
-    static constexpr int N3 = 128;
+    static constexpr int N2 = 1;
+    static constexpr int N3 = 192;
 
     static constexpr int M1 = N1/2 + 1;
 
     static constexpr float L1 = 32; // size of domain streamwise
     static constexpr float L2 = 4.0f;  // size of domain spanwise
-    static constexpr float L3 = 4.0f; // vertical scaling factor
+    static constexpr float L3 = 6.0f; // vertical scaling factor
 
     float deltaT = 0.1;
     const float Re = 1000;

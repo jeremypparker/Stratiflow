@@ -842,10 +842,17 @@ public:
                 {
                     for (int j1=first; j1<last; j1++)
                     {
-                        for (int j2=0; j2<halfMaxN2; j2++)
+                        if (N2>1)
                         {
-                            f(j1, j2);
-                            f(j1, N2-1-j2);
+                            for (int j2=0; j2<halfMaxN2; j2++)
+                            {
+                                f(j1, j2);
+                                f(j1, N2-1-j2);
+                            }
+                        }
+                        else
+                        {
+                            f(j1, 0);
                         }
                     }
                 });
