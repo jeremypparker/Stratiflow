@@ -1072,11 +1072,11 @@ ScalarProduct<A, T, N1, N2, N3> operator*(T scalar,
     return ScalarProduct<A, T, N1, N2, N3>(scalar, &field);
 }
 
-template<typename A, typename T, int N1, int N2, int N3>
-ScalarProduct<A, T, N1, N2, N3> operator*(float scalar,
-                                       const StackContainer<A, T, N1, N2, N3>& field)
+template<typename A, int N1, int N2, int N3>
+ScalarProduct<A, complex, N1, N2, N3> operator*(float scalar,
+                                       const StackContainer<A, complex, N1, N2, N3>& field)
 {
-    return ScalarProduct<A, T, N1, N2, N3>(scalar, &field);
+    return ScalarProduct<A, complex, N1, N2, N3>(scalar, &field);
 }
 
 template<typename A, typename B, typename T, int N1, int N2, int N3>

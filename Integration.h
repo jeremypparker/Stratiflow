@@ -14,7 +14,7 @@ float IntegrateAllSpace(const NodalField<N1,N2,N3>& U, float L1, float L2, float
 
     // we hope this product doesn't get too large, otherwise we're stuck
     NodalField<N1,N2,N3> I(BoundaryCondition::Neumann);
-    NodalProduct(U, w, I);
+    I = U*w;
 
     ModalField<N1,N2,N3> J(BoundaryCondition::Neumann);
     I.ToModal(J);

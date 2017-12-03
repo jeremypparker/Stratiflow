@@ -4,6 +4,7 @@
 #include "Graph.h"
 
 #include <iostream>
+#include <fstream>
 #include <chrono>
 
 // will become unnecessary with C++17
@@ -211,8 +212,6 @@ public:
         float delta2 = L2/N2;
         float delta3 = z(N3/2) - z(N3/2+1); // smallest gap in middle
 
-        std::cout << delta3 << std::endl;
-
         float cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
 
@@ -224,6 +223,26 @@ public:
         }
 
         return cfl;
+    }
+
+    float KE() const
+    {
+        u1.ToNodal(U1);
+        u2.ToNodal(U2);
+        u3.ToNodal(U3);
+
+        ndTemp = 0.5f*(U1*U1 + U2*U2 + U3*U3);
+
+        return IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
+    }
+
+    float PE() const
+    {
+        b.ToNodal(B);
+
+        ndTemp = 0.5f*Ri*B*B;
+
+        return IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
     }
 
     void RemoveDivergence(float pressureMultiplier=1.0f)
@@ -297,13 +316,13 @@ private:
         // build up right hand sides for the implicit solve in R
 
         //   old      last rk step         pressure         explicit CN
-        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + 0.5*h[k]*FullMatMul(explicitSolveNeumann, u1);
-        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + 0.5*h[k]*FullMatMul(explicitSolveNeumann, u2);
-        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + 0.5*h[k]*FullMatMul(explicitSolveDirichlet, u3);
-        RB = b  + (h[k]*zeta[k])*rB                  + 0.5*h[k]*FullMatMul(explicitSolveDirichlet, b);
+        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + 0.5f*h[k]*FullMatMul(explicitSolveNeumann, u1);
+        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + 0.5f*h[k]*FullMatMul(explicitSolveNeumann, u2);
+        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + 0.5f*h[k]*FullMatMul(explicitSolveDirichlet, u3);
+        RB = b  + (h[k]*zeta[k])*rB                  + 0.5f*h[k]*FullMatMul(explicitSolveDirichlet, b);
 
-        RU_ = u_ + 0.5*h[k]*MatMul1D(explicitSolveNeumann[0], u_);
-        RB_ = b_ + 0.5*h[k]*MatMul1D(explicitSolveNeumann[0], b_); // todo: use buoyancy matrix
+        RU_ = u_ + 0.5f*h[k]*MatMul1D(explicitSolveNeumann[0], u_);
+        RB_ = b_ + 0.5f*h[k]*MatMul1D(explicitSolveNeumann[0], b_); // todo: use buoyancy matrix
 
         // now construct explicit terms
         r1.Zero();
@@ -490,6 +509,8 @@ int main()
 
     solver.RemoveDivergence(0.0f);
 
+    std::ofstream energyFile("energy.dat");
+
     float totalTime = 0.0f;
     float saveEvery = 1.0f;
     int lastFrame = -1;
@@ -521,6 +542,8 @@ int main()
             solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
             solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
             solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+
+            energyFile << totalTime << " " << solver.KE() << " " << solver.PE() << std::endl;
         }
     }
 
