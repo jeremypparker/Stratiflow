@@ -80,6 +80,29 @@ private:
     const StackContainer<B, T, N1, N2, N3>* rhs;
 };
 
+template<typename A, typename B, typename T, int N1, int N2, int N3>
+class ComponentwiseProduct : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T, T>, const A, const B>, T, N1, N2, N3>
+{
+public:
+    ComponentwiseProduct(const StackContainer<A, T, N1, N2, N3>* lhs, const StackContainer<B, T, N1, N2, N3>* rhs)
+    : lhs(lhs)
+    , rhs(rhs)
+    {}
+    virtual
+        CwiseBinaryOp<internal::scalar_product_op<T, T>, const A, const B>
+        stack(int n1, int n2) const override
+    {
+        return lhs->stack(n1, n2) * rhs->stack(n1, n2);
+    }
+    virtual BoundaryCondition BC() const override
+    {
+        return lhs->BC(); // todo!
+    }
+private:
+    const StackContainer<A, T, N1, N2, N3>* lhs;
+    const StackContainer<B, T, N1, N2, N3>* rhs;
+};
+
 template<typename A, typename T1, typename T2, int N1, int N2, int N3>
 class Dim1MatMul : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>, T2, N1, N2, N3>
 {
@@ -136,6 +159,12 @@ public:
     : matrix(matrix)
     , field(field)
     , resultingBC(resultingBC)
+    {}
+
+    Dim3MatMul(const Matrix<T1, -1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field)
+    : matrix(matrix)
+    , field(field)
+    , resultingBC(field.BC())
     {}
 
     virtual
@@ -381,7 +410,7 @@ private:
     {
         assert(solver.rows() == N3);
 
-        Matrix<T, -1, 1> col = stack(j1, j2);
+        Matrix<T, -1, 1> col = stack(j1, j2); // todo: don't allocate
         Matrix<T, -1, 1> res = solver.solve(col);
         result.stack(j1, j2) = res;
     }
@@ -392,6 +421,177 @@ private:
 
     BoundaryCondition _bc;
 };
+
+template<typename T, int N1, int N2, int N3>
+class Field1D : public StackContainer<Map<const Array<T, -1, 1>, Aligned16>, T, N1, N2, N3>
+{
+public:
+    Field1D(BoundaryCondition bc)
+    : _data(N3)
+    , _bc(bc)
+    {
+        _data.setZero();
+    }
+
+    template<typename A>
+    const Field1D<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
+    {
+        assert(other.BC() == BC());
+
+        Get() = other.stack(0, 0);
+
+        return *this;
+    }
+
+    const Field1D<T, N1, N2, N3>& operator*=(T mult)
+    {
+        Get() *= mult;
+
+        return *this;
+    }
+
+    virtual Map<const Array<T, -1, 1>, Aligned16> stack(int n1, int n2) const override
+    {
+        return Map<const Array<T, -1, 1>, Aligned16>(Raw(), N3);
+    }
+
+
+    template<typename Solver>
+    void Solve(Solver& solver, Field1D<T, N1, N2, N3>& result) const
+    {
+        assert(solver.rows() == N3);
+
+        // todo: don't allocate
+        Matrix<T, -1, 1> in = Get();
+        Matrix<T, -1, 1> out(N3);
+        out = solver.solve(in);
+        result.Get() = out;
+    }
+
+    virtual BoundaryCondition BC() const override
+    {
+        return _bc;
+    }
+
+    T* Raw()
+    {
+        return _data.data();
+    }
+    const T* Raw() const
+    {
+        return _data.data();
+    }
+
+    Array<T, -1, 1>& Get()
+    {
+        return _data;
+    }
+
+    const Array<T, -1, 1>& Get() const
+    {
+        return _data;
+    }
+private:
+    BoundaryCondition _bc;
+    Array<T, -1, 1> _data;
+};
+
+template<int N1, int N2, int N3>
+class Nodal1D;
+
+template<int N1, int N2, int N3>
+class Modal1D : public Field1D<float, 1, 1, N3>
+{
+public:
+    using Field1D<float, 1, 1, N3>::Field1D;
+    using Field1D<float, 1, 1, N3>::operator=;
+
+    void ToNodal(Nodal1D<N1,N2,N3>& other) const
+    {
+        int size;
+        fftwf_r2r_kind kind;
+
+        float* in = const_cast<float*>(this->Raw());
+        float* out = other.Raw();
+
+        if (this->BC() == BoundaryCondition::Neumann)
+        {
+            kind = FFTW_REDFT00;
+            size = N3;
+        }
+        else
+        {
+            kind = FFTW_RODFT00;
+            in += 1;
+            out += 1;
+            size = N3-2;
+        }
+
+        auto plan = fftwf_plan_many_r2r(1, &size, 1, in, nullptr, 1, 1, out, nullptr, 1, 1, &kind, FFTW_ESTIMATE);
+
+        fftwf_execute(plan);
+        fftwf_destroy_plan(plan);
+
+        if (this->BC() == BoundaryCondition::Dirichlet)
+        {
+            other.Raw()[0] = 0.0f;
+            other.Raw()[N3-1] = 0.0f;
+        }
+    }
+};
+
+template<int N1, int N2, int N3>
+class Nodal1D : public Field1D<float, N1, N2, N3>
+{
+public:
+    using Field1D<float, N1, N2, N3>::Field1D;
+    using Field1D<float, N1, N2, N3>::operator=;
+
+    void ToModal(Modal1D<N1,N2,N3>& other) const
+    {
+        int size;
+        fftwf_r2r_kind kind;
+
+        float* in = const_cast<float*>(this->Raw());
+        float* out = other.Raw();
+
+        if (this->BC() == BoundaryCondition::Neumann)
+        {
+            kind = FFTW_REDFT00;
+            size = N3;
+        }
+        else
+        {
+            kind = FFTW_RODFT00;
+            in += 1;
+            out += 1;
+            size = N3-2;
+        }
+
+        auto plan = fftwf_plan_many_r2r(1, &size, 1, in, nullptr, 1, 1, out, nullptr, 1, 1, &kind, FFTW_ESTIMATE);
+
+        fftwf_execute(plan);
+        fftwf_destroy_plan(plan);
+
+        other *= 1/static_cast<float>(2*(N3-1));
+
+        if (this->BC() == BoundaryCondition::Dirichlet)
+        {
+            other.Raw()[0] = 0.0f;
+            other.Raw()[N3-1] = 0.0f;
+        }
+    }
+
+    void SetValue(std::function<float(float)> f, float L3)
+    {
+        ArrayXf z = VerticalPoints(L3, N3);
+        for (int j3=0; j3<N3; j3++)
+        {
+            this->Get()(j3) = f(z(j3));
+        }
+    }
+};
+
 
 template<int N1, int N2, int N3>
 class ModalField;
@@ -885,36 +1085,8 @@ ComponentwiseSum<A, B, T, N1, N2, N3> operator+(const StackContainer<A, T, N1, N
     return ComponentwiseSum<A, B, T, N1, N2, N3>(&lhs, &rhs);
 }
 
-template<int N1, int N2, int N3>
-void NodalProduct(const NodalField<N1, N2, N3>& f1,
-             const NodalField<N1, N2, N3>& f2,
-             NodalField<N1, N2, N3>& result)
+template<typename A, typename B, typename T, int N1, int N2, int N3>
+ComponentwiseProduct<A, B, T, N1, N2, N3> operator*(const StackContainer<A, T, N1, N2, N3>& lhs, const StackContainer<B, T, N1, N2, N3>& rhs)
 {
-    assert(result.BC() == BoundaryCondition::Neumann
-           || f1.BC() == BoundaryCondition::Dirichlet
-           || f2.BC() == BoundaryCondition::Dirichlet);
-
-    result.ParallelPerStack(
-        [&result,&f1,&f2](int j1, int j2)
-        {
-            result.stack(j1, j2) = f1.stack(j1, j2)*f2.stack(j1, j2);
-        }
-    );
-}
-
-template<int N1, int N2, int N3>
-void NodalSum(const NodalField<N1, N2, N3>& f1,
-             const NodalField<N1, N2, N3>& f2,
-             NodalField<N1, N2, N3>& result)
-{
-    assert(result.BC() == BoundaryCondition::Neumann
-           || (f1.BC() == BoundaryCondition::Dirichlet
-           && f2.BC() == BoundaryCondition::Dirichlet));
-
-    result.ParallelPerStack(
-        [&result,&f1,&f2](int j1, int j2)
-        {
-            result.stack(j1, j2) = f1.stack(j1, j2)+f2.stack(j1, j2);
-        }
-    );
+    return ComponentwiseProduct<A, B, T, N1, N2, N3>(&lhs, &rhs);
 }

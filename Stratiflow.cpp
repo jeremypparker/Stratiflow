@@ -8,13 +8,14 @@
 
 // will become unnecessary with C++17
 #define FullMatMul MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
+#define MatMul1D Dim3MatMul<Map<const Array<float, -1, 1>, Aligned16>, float, float, 1, 1, N3>
 
 class IMEXRK
 {
 public:
     static constexpr int N1 = 256;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 192;
+    static constexpr int N3 = 256;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -25,10 +26,12 @@ public:
     float deltaT = 0.1;
     const float Re = 1000;
     const float Pe = 1000;
-    const float Ri = 0.05;
+    const float Ri = 0.1;
 
     using NField = NodalField<N1,N2,N3>;
     using MField = ModalField<N1,N2,N3>;
+    using M1D = Modal1D<N1,N2,N3>;
+    using N1D = Nodal1D<N1,N2,N3>;
 
     long totalExplicit = 0;
     long totalImplicit = 0;
@@ -42,16 +45,20 @@ public:
     , p(BoundaryCondition::Neumann)
     , b(BoundaryCondition::Dirichlet)
 
-    , U_(BoundaryCondition::Neumann)
-    , B_(BoundaryCondition::Neumann)
-    , dB_dz(BoundaryCondition::Dirichlet)
+    , u_(BoundaryCondition::Neumann)
+    , b_(BoundaryCondition::Neumann)
+    , db_dz(BoundaryCondition::Dirichlet)
 
     , R1(u1), R2(u2), R3(u3), RB(b)
+    , RU_(u_), RB_(b_)
     , r1(u1), r2(u2), r3(u3), rB(b)
     , U1(BoundaryCondition::Neumann)
     , U2(BoundaryCondition::Neumann)
     , U3(BoundaryCondition::Dirichlet)
     , B(BoundaryCondition::Dirichlet)
+    , U_(BoundaryCondition::Neumann)
+    , B_(BoundaryCondition::Neumann)
+    , dB_dz(BoundaryCondition::Dirichlet)
     , dirichletTemp(BoundaryCondition::Dirichlet)
     , neumannTemp(BoundaryCondition::Neumann)
     , ndTemp(BoundaryCondition::Dirichlet)
@@ -145,7 +152,8 @@ public:
     void PlotBuoyancy(std::string filename, int j2) const
     {
         b.ToNodal(B);
-        NodalSum(B, B_, nnTemp);
+        b_.ToNodal(B_);
+        nnTemp = B_ + B;
         nnTemp.ToModal(neumannTemp);
         HeatPlot(neumannTemp, L1, L3, j2, filename);
     }
@@ -168,6 +176,7 @@ public:
     void PlotStreamwiseVelocity(std::string filename, int j2) const
     {
         u1.ToNodal(U1);
+        u_.ToNodal(U_);
         U1 += U_;
         U1.ToModal(neumannTemp);
         HeatPlot(neumannTemp, L1, L3, j2, filename);
@@ -181,11 +190,10 @@ public:
         buoyancy.ToModal(b);
     }
 
-    void SetBackground(NField velocity, NField buoyancy, NField buoyancyDerivative)
+    void SetBackground(N1D velocity, N1D buoyancy)
     {
-        U_ = velocity;
-        B_ = buoyancy;
-        dB_dz = buoyancyDerivative;
+        velocity.ToModal(u_);
+        buoyancy.ToModal(b_);
     }
 
     // gives an upper bound on cfl number - also updates if it's too high
@@ -195,6 +203,9 @@ public:
         u1.ToNodal(U1);
         u2.ToNodal(U2);
         u3.ToNodal(U3);
+
+        u_.ToNodal(U_);
+        U1 += U_;
 
         float delta1 = L1/N1;
         float delta2 = L2/N2;
@@ -254,19 +265,19 @@ private:
         return Dim2MatMul<T, complex, complex, M1, N2, N3>(dim2Derivative, f);
     }
 
-    template<typename T>
-    Dim3MatMul<T, float, complex, M1, N2, N3> ddz(const StackContainer<T, complex, M1, N2, N3>& f) const
+    template<typename A, typename T, int K1, int K2, int K3>
+    Dim3MatMul<A, float, T, K1, K2, K3> ddz(const StackContainer<A, T, K1, K2, K3>& f) const
     {
         static MatrixXf dim3DerivativeNeumann = VerticalDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
         static MatrixXf dim3DerivativeDirichlet = VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L3, N3);
 
         if (f.BC() == BoundaryCondition::Dirichlet)
         {
-            return Dim3MatMul<T, float, complex, M1, N2, N3>(dim3DerivativeDirichlet, f, BoundaryCondition::Neumann);
+            return Dim3MatMul<A, float, T, K1, K2, K3>(dim3DerivativeDirichlet, f, BoundaryCondition::Neumann);
         }
         else
         {
-            return Dim3MatMul<T, float, complex, M1, N2, N3>(dim3DerivativeNeumann, f, BoundaryCondition::Dirichlet);
+            return Dim3MatMul<A, float, T, K1, K2, K3>(dim3DerivativeNeumann, f, BoundaryCondition::Dirichlet);
         }
     }
 
@@ -276,6 +287,9 @@ private:
         R2.Solve(implicitSolveNeumann[k], u2);
         R3.Solve(implicitSolveDirichlet[k], u3);
         RB.Solve(implicitSolveBuoyancy[k], b);
+
+        RU_.Solve(implicitSolveNeumann[k][0], u_);
+        RB_.Solve(implicitSolveNeumann[k][0], b_); // todo: use buoyancy solver
     }
 
     void ExplicitUpdate(int k)
@@ -288,6 +302,9 @@ private:
         R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + 0.5*h[k]*FullMatMul(explicitSolveDirichlet, u3);
         RB = b  + (h[k]*zeta[k])*rB                  + 0.5*h[k]*FullMatMul(explicitSolveDirichlet, b);
 
+        RU_ = u_ + 0.5*h[k]*MatMul1D(explicitSolveNeumann[0], u_);
+        RB_ = b_ + 0.5*h[k]*MatMul1D(explicitSolveNeumann[0], b_); // todo: use buoyancy matrix
+
         // now construct explicit terms
         r1.Zero();
         r2.Zero();
@@ -297,56 +314,61 @@ private:
         //////// NONLINEAR TERMS ////////
 
         // calculate products at nodes in physical space
+
         u1.ToNodal(U1);
         u2.ToNodal(U2);
         u3.ToNodal(U3);
         b.ToNodal(B);
-
+        
         // take into account background shear for nonlinear terms
+        u_.ToNodal(U_);
         U1 += U_;
 
-        NodalProduct(U1, U1, nnTemp);
+        nnTemp = U1*U1;
         nnTemp.ToModal(mnProduct);
         r1 -= ddx(mnProduct);
 
-        NodalProduct(U1, U3, ndTemp);
+        ndTemp = U1*U3;
         ndTemp.ToModal(mdProduct);
         r3 -= ddx(mdProduct);
         r1 -= ddz(mdProduct);
 
-        NodalProduct(U2, U2, nnTemp);
+        nnTemp = U2*U2;
         nnTemp.ToModal(mnProduct);
         r2 -= ddy(mnProduct);
 
-        NodalProduct(U2, U3, ndTemp);
+        ndTemp = U2*U3;
         ndTemp.ToModal(mdProduct);
         r3 -= ddy(mdProduct);
         r2 -= ddz(mdProduct);
 
-        NodalProduct(U3, U3, nnTemp);
+        nnTemp = U3*U3;
         nnTemp.ToModal(mnProduct);
         r3 -= ddz(mnProduct);
 
-        NodalProduct(U1, U2, nnTemp);
+        nnTemp = U1*U2;
         nnTemp.ToModal(mnProduct);
         r1 -= ddy(mnProduct);
         r2 -= ddx(mnProduct);
 
         // buoyancy nonlinear terms
-        NodalProduct(U1, B, ndTemp);
+        ndTemp = U1*B;
         ndTemp.ToModal(mdProduct);
         rB -= ddx(mdProduct);
 
-        NodalProduct(U2, B, ndTemp);
+        ndTemp = U2*B;
         ndTemp.ToModal(mdProduct);
         rB -= ddy(mdProduct);
 
-        NodalProduct(U3, B, nnTemp);
+        nnTemp = U3*B;
         nnTemp.ToModal(mnProduct);
         rB -= ddz(mnProduct);
 
         // advection term from background buoyancy
-        NodalProduct(U3, dB_dz, ndTemp);
+        db_dz = ddz(b_);
+        db_dz.ToNodal(dB_dz);
+
+        ndTemp = U3*dB_dz;
         ndTemp.ToModal(dirichletTemp);
         rB -= dirichletTemp;
 
@@ -387,9 +409,7 @@ private:
     MField p;
 
     // background flow
-    NField U_;
-    NField B_; // used only for plotting
-    NField dB_dz;
+    M1D u_, b_, db_dz;
 
     // parameters for the scheme
     const int s = 3;
@@ -399,8 +419,10 @@ private:
 
     // these are intermediate variables used in the computation, preallocated for efficiency
     MField R1, R2, R3, RB;
+    M1D RU_, RB_;
     MField r1, r2, r3, rB;
     mutable NField U1, U2, U3, B;
+    mutable N1D U_, B_, dB_dz;
     mutable NField ndTemp, nnTemp;
     mutable MField mdProduct, mnProduct;
     mutable MField dirichletTemp, neumannTemp;
@@ -456,16 +478,15 @@ int main()
     solver.SetInitial(initialU1, initialU2, initialU3, initialB);
 
     // add background flow
-    float alpha = 1;
+    float R = 2;
 
-    IMEXRK::NField Ubar(BoundaryCondition::Neumann);
-    IMEXRK::NField Bbar(BoundaryCondition::Neumann);
-    IMEXRK::NField dBdz(BoundaryCondition::Dirichlet);
+    IMEXRK::N1D Ubar(BoundaryCondition::Neumann);
+    IMEXRK::N1D Bbar(BoundaryCondition::Neumann);
+    IMEXRK::N1D dBdz(BoundaryCondition::Dirichlet);
     Ubar.SetValue([](float z){return tanh(z);}, IMEXRK::L3);
-    Bbar.SetValue([alpha](float z){return tanh(alpha*z);}, IMEXRK::L3);
-    dBdz.SetValue([alpha](float z){return alpha/(cosh(alpha*z)*cosh(alpha*z));}, IMEXRK::L3);
+    Bbar.SetValue([R](float z){return tanh(R*z);}, IMEXRK::L3);
 
-    solver.SetBackground(Ubar, Bbar, dBdz);
+    solver.SetBackground(Ubar, Bbar);
 
     solver.RemoveDivergence(0.0f);
 
