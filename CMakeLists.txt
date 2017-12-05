@@ -30,3 +30,6 @@ add_subdirectory(tests)
 
 add_executable(Stratiflow Stratiflow.cpp)
 target_link_libraries(Stratiflow StratiLib)
+
+add_executable(SnapshotViewer SnapshotViewer.cpp)
+target_link_libraries(SnapshotViewer StratiLib)

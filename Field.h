@@ -21,6 +21,7 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <fstream>
 
 using namespace Eigen;
 

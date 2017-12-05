@@ -15,7 +15,7 @@ class IMEXRK
 {
 public:
     static constexpr int N1 = 256;
-    static constexpr int N2 = 32;
+    static constexpr int N2 = 1;
     static constexpr int N3 = 256;
 
     static constexpr int M1 = N1/2 + 1;
@@ -281,6 +281,26 @@ public:
         p += pressureMultiplier*q;
     }
 
+    void SaveFlow(const std::string& filename)
+    {
+        u1.ToNodal(U1);
+        u2.ToNodal(U2);
+        u3.ToNodal(U3);
+        b.ToNodal(B);
+
+        u_.ToNodal(U_);
+        b_.ToNodal(B_);
+
+        std::ofstream filestream(filename, std::ios::out | std::ios::binary);
+        U1 += U_;
+        U1.Save(filestream);
+        U2.Save(filestream);
+        U3.Save(filestream);
+
+        nnTemp = B + B_;
+        nnTemp.Save(filestream);
+    }
+
 private:
     template<typename T>
     Dim1MatMul<T, complex, complex, M1, N2, N3> ddx(const StackContainer<T, complex, M1, N2, N3>& f) const
@@ -531,6 +551,8 @@ int main()
     {
         solver.TimeStep();
         totalTime += solver.deltaT;
+
+        solver.SaveFlow("snapshots/"+std::to_string(totalTime)+".fields");
 
         if(step%50==0)
         {
