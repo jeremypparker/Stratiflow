@@ -16,6 +16,10 @@ float IntegrateAllSpace(const NodalField<N1,N2,N3>& U, float L1, float L2, float
     NodalField<N1,N2,N3> I(BoundaryCondition::Neumann);
     I = U*w;
 
+    // because these ones won't play nicely with the regularised positions
+    I.slice(0).setZero();
+    I.slice(N3-1).setZero();
+
     ModalField<N1,N2,N3> J(BoundaryCondition::Neumann);
     I.ToModal(J);
 

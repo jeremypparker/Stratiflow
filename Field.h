@@ -73,7 +73,14 @@ public:
     }
     virtual BoundaryCondition BC() const override
     {
-        return lhs->BC(); // todo!
+        if(lhs->BC() == BoundaryCondition::Dirichlet && rhs->BC() == BoundaryCondition::Dirichlet)
+        {
+            return BoundaryCondition::Dirichlet;
+        }
+        else
+        {
+            return BoundaryCondition::Neumann;
+        }
     }
 private:
     const StackContainer<A, T, N1, N2, N3>* lhs;
@@ -96,7 +103,14 @@ public:
     }
     virtual BoundaryCondition BC() const override
     {
-        return lhs->BC(); // todo!
+        if(lhs->BC() == BoundaryCondition::Dirichlet || rhs->BC() == BoundaryCondition::Dirichlet)
+        {
+            return BoundaryCondition::Dirichlet;
+        }
+        else
+        {
+            return BoundaryCondition::Neumann;
+        }
     }
 private:
     const StackContainer<A, T, N1, N2, N3>* lhs;
@@ -229,7 +243,7 @@ public:
     template<typename A>
     const Field<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
-        assert(other.BC() == BC());
+        //assert(BC() == BoundaryCondition::Neumann || other.BC() == BoundaryCondition::Dirichlet);
 
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) = other.stack(j1,j2);

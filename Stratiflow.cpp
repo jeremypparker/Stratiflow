@@ -15,7 +15,7 @@ class IMEXRK
 {
 public:
     static constexpr int N1 = 256;
-    static constexpr int N2 = 1;
+    static constexpr int N2 = 32;
     static constexpr int N3 = 256;
 
     static constexpr int M1 = N1/2 + 1;
@@ -64,9 +64,7 @@ public:
     , neumannTemp(BoundaryCondition::Neumann)
     , ndTemp(BoundaryCondition::Dirichlet)
     , nnTemp(BoundaryCondition::Neumann)
-    , mdProduct(BoundaryCondition::Dirichlet)
-    , mnProduct(BoundaryCondition::Neumann)
-    , divergence(mnProduct)
+    , divergence(neumannTemp)
     , q(p)
     {
         dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
@@ -231,16 +229,32 @@ public:
         u2.ToNodal(U2);
         u3.ToNodal(U3);
 
+        // hack for now: perturbation energy relative to frozen bg
+        u_.ToNodal(U_);
+        U1 += U_;
+        NField Uinitial(BoundaryCondition::Neumann);
+        Uinitial.SetValue([](float z){return tanh(z);}, L3);
+        U1 -= Uinitial;
+
         ndTemp = 0.5f*(U1*U1 + U2*U2 + U3*U3);
 
         return IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
+
+        return 0.0f;
     }
 
     float PE() const
     {
         b.ToNodal(B);
 
-        ndTemp = 0.5f*Ri*B*B;
+        // hack for now: perturbation energy relative to frozen bg
+        b_.ToNodal(B_);
+        nnTemp = B_ + B;
+        N1D Binitial(BoundaryCondition::Neumann);
+        Binitial.SetValue([](float z){return tanh(2*z);}, L3);
+        nnTemp -= Binitial;
+
+        ndTemp = 0.5f*Ri*nnTemp*nnTemp;
 
         return IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
     }
@@ -313,6 +327,11 @@ private:
 
     void ExplicitUpdate(int k)
     {
+        u1.ToNodal(U1);
+        u2.ToNodal(U2);
+        u3.ToNodal(U3);
+        b.ToNodal(B);
+
         // build up right hand sides for the implicit solve in R
 
         //   old      last rk step         pressure         explicit CN
@@ -334,54 +353,49 @@ private:
 
         // calculate products at nodes in physical space
 
-        u1.ToNodal(U1);
-        u2.ToNodal(U2);
-        u3.ToNodal(U3);
-        b.ToNodal(B);
-        
         // take into account background shear for nonlinear terms
         u_.ToNodal(U_);
         U1 += U_;
 
         nnTemp = U1*U1;
-        nnTemp.ToModal(mnProduct);
-        r1 -= ddx(mnProduct);
+        nnTemp.ToModal(neumannTemp);
+        r1 -= ddx(neumannTemp);
 
         ndTemp = U1*U3;
-        ndTemp.ToModal(mdProduct);
-        r3 -= ddx(mdProduct);
-        r1 -= ddz(mdProduct);
+        ndTemp.ToModal(dirichletTemp);
+        r3 -= ddx(dirichletTemp);
+        r1 -= ddz(dirichletTemp);
 
         nnTemp = U2*U2;
-        nnTemp.ToModal(mnProduct);
-        r2 -= ddy(mnProduct);
+        nnTemp.ToModal(neumannTemp);
+        r2 -= ddy(neumannTemp);
 
         ndTemp = U2*U3;
-        ndTemp.ToModal(mdProduct);
-        r3 -= ddy(mdProduct);
-        r2 -= ddz(mdProduct);
+        ndTemp.ToModal(dirichletTemp);
+        r3 -= ddy(dirichletTemp);
+        r2 -= ddz(dirichletTemp);
 
         nnTemp = U3*U3;
-        nnTemp.ToModal(mnProduct);
-        r3 -= ddz(mnProduct);
+        nnTemp.ToModal(neumannTemp);
+        r3 -= ddz(neumannTemp);
 
         nnTemp = U1*U2;
-        nnTemp.ToModal(mnProduct);
-        r1 -= ddy(mnProduct);
-        r2 -= ddx(mnProduct);
+        nnTemp.ToModal(neumannTemp);
+        r1 -= ddy(neumannTemp);
+        r2 -= ddx(neumannTemp);
 
         // buoyancy nonlinear terms
         ndTemp = U1*B;
-        ndTemp.ToModal(mdProduct);
-        rB -= ddx(mdProduct);
+        ndTemp.ToModal(dirichletTemp);
+        rB -= ddx(dirichletTemp);
 
         ndTemp = U2*B;
-        ndTemp.ToModal(mdProduct);
-        rB -= ddy(mdProduct);
+        ndTemp.ToModal(dirichletTemp);
+        rB -= ddy(dirichletTemp);
 
         nnTemp = U3*B;
-        nnTemp.ToModal(mnProduct);
-        rB -= ddz(mnProduct);
+        nnTemp.ToModal(neumannTemp);
+        rB -= ddz(neumannTemp);
 
         // advection term from background buoyancy
         db_dz = ddz(b_);
@@ -437,13 +451,12 @@ private:
     const float zeta[3] = {0, -17.0f/8.0f, -5.0f/4.0f};
 
     // these are intermediate variables used in the computation, preallocated for efficiency
-    MField R1, R2, R3, RB;
+    MField& R1,& R2,& R3,& RB;
     M1D RU_, RB_;
     MField r1, r2, r3, rB;
     mutable NField U1, U2, U3, B;
     mutable N1D U_, B_, dB_dz;
     mutable NField ndTemp, nnTemp;
-    mutable MField mdProduct, mnProduct;
     mutable MField dirichletTemp, neumannTemp;
     MField& divergence; // reference to share memory
     MField q;
