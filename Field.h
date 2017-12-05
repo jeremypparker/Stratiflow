@@ -19,6 +19,8 @@
 #include <vector>
 #include <utility>
 #include <functional>
+#include <iostream>
+#include <iterator>
 
 using namespace Eigen;
 
@@ -415,6 +417,16 @@ public:
         }
 
         ThreadPool::Get().WaitAll();
+    }
+
+    void Save(std::ofstream& filestream)
+    {
+        filestream.write(reinterpret_cast<char*>(Raw()), sizeof(T)*N1*N2*N3);
+    }
+
+    void Load(std::ifstream& filestream)
+    {
+        filestream.read(reinterpret_cast<char*>(Raw()), sizeof(T)*N1*N2*N3);
     }
 
 private:
