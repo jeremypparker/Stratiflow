@@ -5,6 +5,7 @@
 #include <fstream>
 #include <dirent.h>
 #include <iostream>
+#include <map>
 
 
 template<int N1, int N2, int N3>
@@ -19,44 +20,60 @@ void LoadBuoyancy(std::string filename, NodalField<N1,N2,N3>& buoyancy)
     buoyancy.Load(filestream);
 }
 
-int main(int argc, char *argv[])
+std::map<float, std::string> BuildFilenameMap()
 {
-    constexpr int N1 = 256;
-    constexpr int N2 = 1;
-    constexpr int N3 = 256;
-
-    const float L1 = 32;
-    const float L2 = 4;
-    const float L3 = 6;
-
-    float time = strtof(argv[1], nullptr);
-
-    std::string filenameabove;
-    std::string filenamebelow;
-    float timeabove = 10000000000.0f;
-    float timebelow = -1.0f;
-
+    
+    std::map<float, std::string> ret;
     auto dir = opendir("snapshots");
     struct dirent* file = nullptr;
     while((file=readdir(dir)))
     {
         std::string foundfilename(file->d_name);
-        
         int end = foundfilename.find(".fields");
         float foundtime = strtof(foundfilename.substr(0, end).c_str(), nullptr);
 
-        if(foundtime >= time && foundtime < timeabove)
-        {
-            timeabove = foundtime;
-            filenameabove = "snapshots/"+foundfilename;
-        }
-        if(foundtime < time && foundtime > timebelow)
-        {
-            timebelow = foundtime;
-            filenamebelow = "snapshots/"+foundfilename;
-        }
+        ret.insert(std::pair<float, std::string>(foundtime, "snapshots/"+foundfilename));
     }
     closedir(dir);
+
+    return ret;
+}
+
+
+
+int main(int argc, char *argv[])
+{
+    constexpr int N1 = 256;
+    constexpr int N2 = 1;
+    constexpr int N3 = 400;
+
+    const float L1 = 32;
+    const float L2 = 4;
+    const float L3 = 8;
+
+    float time = strtof(argv[1], nullptr);
+
+    std::string filenameabove;
+    std::string filenamebelow;
+    float timeabove;
+    float timebelow;
+
+    auto filenamemap = BuildFilenameMap();
+
+    for (auto entry = filenamemap.begin(); entry != filenamemap.end(); entry++)
+    {
+        if(entry->first>=time)
+        {
+            timeabove = entry->first;
+            filenameabove = entry->second;
+
+            entry--;
+            timebelow = entry->first;
+            filenamebelow = entry->second;
+
+            break;
+        }
+    }
 
     NodalField<N1,N2,N3> bAbove(BoundaryCondition::Neumann);
     NodalField<N1,N2,N3> bBelow(BoundaryCondition::Neumann);
