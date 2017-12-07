@@ -616,7 +616,6 @@ public:
 
     NodalField(BoundaryCondition bc)
     : Field<float, N1, N2, N3>(bc)
-    , intermediateData(N1*N2*N3, 0)
     {
         // do some ffts to find optimal method
         std::vector<float> data0(N1*N2*N3);
@@ -831,8 +830,11 @@ public:
     }
 
 private:
-    mutable std::vector<float, aligned_allocator<float>> intermediateData;
+    static std::vector<float, aligned_allocator<float>> intermediateData;
 };
+
+template<int N1, int N2, int N3>
+std::vector<float, aligned_allocator<float>> NodalField<N1,N2,N3>::intermediateData(N1*N2*N3, 0);
 
 template<int N1, int N2, int N3>
 class ModalField : public Field<complex, N1/2+1, N2, N3>
@@ -1043,17 +1045,27 @@ public:
         #pragma omp parallel for
         for (int j1=0; j1<maxN1; j1++)
         {
-            for (int j2=0; j2<halfMaxN2; j2++)
+            if(N2>1)
             {
-                f(j1, j2);
-                f(j1, N2-1-j2);
+                for (int j2=0; j2<halfMaxN2; j2++)
+                {
+                    f(j1, j2);
+                    f(j1, N2-1-j2);
+                }
+            }
+            else
+            {
+                f(j1, 0);
             }
         }
     }
 
 private:
-    mutable std::vector<complex, aligned_allocator<complex>> inputData;
+    static std::vector<complex, aligned_allocator<complex>> inputData;
 };
+
+template<int N1, int N2, int N3>
+std::vector<complex, aligned_allocator<complex>> ModalField<N1,N2,N3>::inputData;
 
 template<typename A, typename T, int N1, int N2, int N3>
 ScalarProduct<A, T, N1, N2, N3> operator*(T scalar,

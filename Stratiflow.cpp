@@ -7,6 +7,8 @@
 #include <fstream>
 #include <chrono>
 
+#include <omp.h>
+
 // will become unnecessary with C++17
 #define FullMatMul MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
 #define MatMul1D Dim3MatMul<Map<const Array<float, -1, 1>, Aligned16>, float, float, 1, 1, N3>
@@ -16,15 +18,15 @@ class IMEXRK
 public:
     static constexpr int N1 = 256;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 256;
+    static constexpr int N3 = 400;
 
     static constexpr int M1 = N1/2 + 1;
 
-    static constexpr float L1 = 32; // size of domain streamwise
+    static constexpr float L1 = 16.0f; // size of domain streamwise
     static constexpr float L2 = 4.0f;  // size of domain spanwise
-    static constexpr float L3 = 6.0f; // vertical scaling factor
+    static constexpr float L3 = 5.0f; // vertical scaling factor
 
-    float deltaT = 0.1;
+    float deltaT = 0.01f;
     const float Re = 1000;
     const float Pe = 1000;
     const float Ri = 0.1;
@@ -195,7 +197,7 @@ public:
         buoyancy.ToModal(b_);
     }
 
-    // gives an upper bound on cfl number - also updates if it's too high
+    // gives an upper bound on cfl number - also updates timestep
     float CFL()
     {
         static ArrayXf z = VerticalPoints(L3, N3);
@@ -213,12 +215,10 @@ public:
         float cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
 
+        // update timestep for target cfl
         constexpr float targetCFL = 0.4;
-        if (cfl>targetCFL)
-        {
-            deltaT *= targetCFL / cfl;
-            UpdateForTimestep();
-        }
+        deltaT *= targetCFL / cfl;
+        UpdateForTimestep();
 
         return cfl;
     }
@@ -499,7 +499,7 @@ private:
 int main()
 {
     fftwf_init_threads();
-    fftwf_plan_with_nthreads(maxthreads);
+    fftwf_plan_with_nthreads(omp_get_max_threads());
 
     IMEXRK solver;
 
@@ -552,7 +552,7 @@ int main()
         solver.TimeStep();
         totalTime += solver.deltaT;
 
-        solver.SaveFlow("snapshots/"+std::to_string(totalTime)+".fields");
+        //solver.SaveFlow("snapshots/"+std::to_string(totalTime)+".fields");
 
         if(step%50==0)
         {
