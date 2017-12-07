@@ -395,29 +395,14 @@ public:
 
     virtual void ParallelPerStack(std::function<void(int j1, int j2)> f) const
     {
-        int each = N1/maxthreads + 1;
-        for (int first=0; first<N1; first+=each)
+        #pragma omp parallel for
+        for (int j1=0; j1<N1; j1++)
         {
-            int last = first+each;
-            if(last>N1)
+            for (int j2=0; j2<N2; j2++)
             {
-                last = N1;
+                f(j1, j2);
             }
-
-            ThreadPool::Get().ExecuteAsync(
-                [&f,first,last]()
-                {
-                    for (int j1=first; j1<last; j1++)
-                    {
-                        for (int j2=0; j2<N2; j2++)
-                        {
-                            f(j1, j2);
-                        }
-                    }
-                });
         }
-
-        ThreadPool::Get().WaitAll();
     }
 
     void Save(std::ofstream& filestream)
@@ -1055,37 +1040,15 @@ public:
         int maxN1 = std::min(N1/2 + 1, 2*(N1/2 + 1)/3+1);
         int halfMaxN2 = N2/3+1;
 
-        int each = maxN1/maxthreads + 1;
-        for (int first=0; first<maxN1; first+=each)
+        #pragma omp parallel for
+        for (int j1=0; j1<maxN1; j1++)
         {
-            int last = first+each;
-            if(last>maxN1)
+            for (int j2=0; j2<halfMaxN2; j2++)
             {
-                last = maxN1;
+                f(j1, j2);
+                f(j1, N2-1-j2);
             }
-
-            ThreadPool::Get().ExecuteAsync(
-                [&f,first,last,halfMaxN2]()
-                {
-                    for (int j1=first; j1<last; j1++)
-                    {
-                        if (N2>1)
-                        {
-                            for (int j2=0; j2<halfMaxN2; j2++)
-                            {
-                                f(j1, j2);
-                                f(j1, N2-1-j2);
-                            }
-                        }
-                        else
-                        {
-                            f(j1, 0);
-                        }
-                    }
-                });
         }
-
-        ThreadPool::Get().WaitAll();
     }
 
 private:

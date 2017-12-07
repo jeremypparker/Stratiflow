@@ -8,6 +8,12 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
+
 find_package(Threads)
 
 include_directories(SYSTEM /home/jpp39/installs/include/eigen3/)
@@ -16,8 +22,7 @@ include_directories(SYSTEM /home/jpp39/installs/include)
 include_directories(SYSTEM /usr/include/python2.7)
 include_directories(SYSTEM external)
 link_libraries(python2.7)
-link_libraries(fftw3f fftw3f_threads m)
-link_libraries(${CMAKE_THREAD_LIBS_INIT})
+link_libraries(fftw3f fftw3f_omp m)
 
 if(CUDA)
     link_libraries(cufft cudart)
