@@ -7,8 +7,8 @@ constexpr std::complex<float> i(0, 1);
 
 enum class BoundaryCondition
 {
-    Dirichlet,
-    Neumann
+    Decaying,
+    Bounded
 };
 
 using complex = std::complex<float>;

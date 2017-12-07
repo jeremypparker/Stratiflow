@@ -76,13 +76,13 @@ public:
     }
     virtual BoundaryCondition BC() const override
     {
-        if(lhs->BC() == BoundaryCondition::Dirichlet && rhs->BC() == BoundaryCondition::Dirichlet)
+        if(lhs->BC() == BoundaryCondition::Decaying && rhs->BC() == BoundaryCondition::Decaying)
         {
-            return BoundaryCondition::Dirichlet;
+            return BoundaryCondition::Decaying;
         }
         else
         {
-            return BoundaryCondition::Neumann;
+            return BoundaryCondition::Bounded;
         }
     }
 private:
@@ -106,13 +106,13 @@ public:
     }
     virtual BoundaryCondition BC() const override
     {
-        if(lhs->BC() == BoundaryCondition::Dirichlet || rhs->BC() == BoundaryCondition::Dirichlet)
+        if(lhs->BC() == BoundaryCondition::Decaying || rhs->BC() == BoundaryCondition::Decaying)
         {
-            return BoundaryCondition::Dirichlet;
+            return BoundaryCondition::Decaying;
         }
         else
         {
-            return BoundaryCondition::Neumann;
+            return BoundaryCondition::Bounded;
         }
     }
 private:
@@ -246,7 +246,7 @@ public:
     template<typename A>
     const Field<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
-        //assert(BC() == BoundaryCondition::Neumann || other.BC() == BoundaryCondition::Dirichlet);
+        //assert(BC() == BoundaryCondition::Bounded || other.BC() == BoundaryCondition::Decaying);
 
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) = other.stack(j1,j2);
@@ -526,7 +526,7 @@ public:
         float* in = const_cast<float*>(this->Raw());
         float* out = other.Raw();
 
-        if (this->BC() == BoundaryCondition::Neumann)
+        if (this->BC() == BoundaryCondition::Bounded)
         {
             kind = FFTW_REDFT00;
             size = N3;
@@ -544,7 +544,7 @@ public:
         fftwf_execute(plan);
         fftwf_destroy_plan(plan);
 
-        if (this->BC() == BoundaryCondition::Dirichlet)
+        if (this->BC() == BoundaryCondition::Decaying)
         {
             other.Raw()[0] = 0.0f;
             other.Raw()[N3-1] = 0.0f;
@@ -567,7 +567,7 @@ public:
         float* in = const_cast<float*>(this->Raw());
         float* out = other.Raw();
 
-        if (this->BC() == BoundaryCondition::Neumann)
+        if (this->BC() == BoundaryCondition::Bounded)
         {
             kind = FFTW_REDFT00;
             size = N3;
@@ -587,7 +587,7 @@ public:
 
         other *= 1/static_cast<float>(2*(N3-1));
 
-        if (this->BC() == BoundaryCondition::Dirichlet)
+        if (this->BC() == BoundaryCondition::Decaying)
         {
             other.Raw()[0] = 0.0f;
             other.Raw()[N3-1] = 0.0f;
@@ -629,7 +629,7 @@ public:
             float* in = data0.data();
             float* out = data1.data();
 
-            if (this->BC() == BoundaryCondition::Neumann)
+            if (this->BC() == BoundaryCondition::Bounded)
             {
                 kind = FFTW_REDFT00;
                 dims = N3;
@@ -691,7 +691,7 @@ public:
             float* in = const_cast<float*>(this->Raw());
             float* out = intermediateData.data();
 
-            if (this->BC() == BoundaryCondition::Neumann)
+            if (this->BC() == BoundaryCondition::Bounded)
             {
                 kind = FFTW_REDFT00;
                 dims = N3;
@@ -777,7 +777,7 @@ public:
 
         other *= 1/static_cast<float>(N1*N2*2*(N3-1));
 
-        if (this->BC() == BoundaryCondition::Dirichlet)
+        if (this->BC() == BoundaryCondition::Decaying)
         {
             other.slice(0).setZero();
             other.slice(N3-1).setZero();
@@ -854,7 +854,7 @@ public:
             float* in = data0.data();
             float* out = data0.data();
 
-            if (this->BC() == BoundaryCondition::Neumann)
+            if (this->BC() == BoundaryCondition::Bounded)
             {
                 kind = FFTW_REDFT00;
                 dims = N3;
@@ -966,13 +966,15 @@ public:
             float* in = other.Raw();
             float* out = other.Raw();
 
-            if (this->BC() == BoundaryCondition::Neumann)
+            if (this->BC() == BoundaryCondition::Bounded)
             {
-                kind = FFTW_REDFT00;
+                kind = FFTW_REDFT00; // cosine transform
                 dims = N3;
             }
             else
             {
+                // for sine transform
+                //  we don't care about first and last values as these must be zero
                 kind = FFTW_RODFT00;
                 in += 1;
                 out += 1;
@@ -996,8 +998,9 @@ public:
             fftwf_destroy_plan(plan);
         }
 
-        if (this->BC() == BoundaryCondition::Dirichlet)
+        if (this->BC() == BoundaryCondition::Decaying)
         {
+            // now enforce zeros
             other.slice(0).setZero();
             other.slice(N3-1).setZero();
         }
