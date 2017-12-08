@@ -121,7 +121,7 @@ private:
 };
 
 template<typename A, typename T1, typename T2, int N1, int N2, int N3>
-class Dim1MatMul : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>, T2, N1, N2, N3>
+class Dim1MatMul : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T1, -1, 1>>, const A>, T2, N1, N2, N3>
 {
 public:
     Dim1MatMul(const DiagonalMatrix<T1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field)
@@ -130,7 +130,7 @@ public:
     {}
 
     virtual
-        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>
+        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T1, -1, 1>>, const A>
         stack(int n1, int n2) const override
     {
         return matrix.diagonal()(n1)*field.stack(n1, n2);
@@ -145,7 +145,7 @@ private:
 };
 
 template<typename A, typename T1, typename T2, int N1, int N2, int N3>
-class Dim2MatMul : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>, T2, N1, N2, N3>
+class Dim2MatMul : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T1, -1, 1>>, const A>, T2, N1, N2, N3>
 {
 public:
     Dim2MatMul(const DiagonalMatrix<T1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field)
@@ -154,7 +154,7 @@ public:
     {}
 
     virtual
-        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>
+        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T1, -1, 1>>, const A>
         stack(int n1, int n2) const override
     {
         return matrix.diagonal()(n2)*field.stack(n1, n2);
@@ -618,9 +618,9 @@ public:
     : Field<float, N1, N2, N3>(bc)
     {
         // do some ffts to find optimal method
-        std::vector<float> data0(N1*N2*N3);
-        std::vector<float> data1(N1*N2*N3);
-        std::vector<complex> data2((N1/2+1)*N2*N3);
+        std::vector<float, aligned_allocator<float>> data0(N1*N2*N3);
+        std::vector<float, aligned_allocator<float>> data1(N1*N2*N3);
+        std::vector<complex, aligned_allocator<complex>> data2((N1/2+1)*N2*N3);
 
         {
             int dims;
@@ -783,7 +783,7 @@ public:
             other.slice(N3-1).setZero();
         }
 
-        other.Filter();
+        //other.Filter();
     }
 
     float Max() const
@@ -847,7 +847,34 @@ public:
     : Field<complex, N1/2+1, N2, N3>(bc)
     {
         // do fft to measure time
-        std::vector<float> data0(N1*N2*N3);
+        std::vector<float, aligned_allocator<float>> data0(N1*N2*N3);
+
+        {
+            // make a copy of the input data as it is modified by the transform
+            if(inputData.size() == 0)
+            {
+                inputData.resize(actualN1*N2*N3);
+            }
+
+            int dims[] = {N2, N1};
+            int idims[] = {N2, actualN1};
+            auto plan = fftwf_plan_many_dft_c2r(2,
+                                            dims,
+                                            N3,
+                                            reinterpret_cast<fftwf_complex*>(inputData.data()),
+                                            idims,
+                                            N3,
+                                            1,
+                                            data0.data(),
+                                            dims,
+                                            N3,
+                                            1,
+                                            FFTW_PATIENT);
+            fftwf_execute(plan);
+            fftwf_destroy_plan(plan);
+
+        }
+
         {
             int dims;
             fftwf_r2r_kind kind;
@@ -927,10 +954,6 @@ public:
 #else
 
         // make a copy of the input data as it is modified by the transform
-        if(inputData.size() == 0)
-        {
-            inputData.resize(actualN1*N2*N3);
-        }
         for (unsigned int j=0; j<actualN1*N2*N3; j++)
         {
             inputData[j] = this->Raw()[j];
@@ -949,7 +972,7 @@ public:
                                         dims,
                                         N3,
                                         1,
-                                        FFTW_PATIENT);
+                                        FFTW_ESTIMATE);
         fftwf_execute(plan);
         fftwf_destroy_plan(plan);
 #endif

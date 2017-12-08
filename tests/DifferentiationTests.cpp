@@ -40,7 +40,7 @@ TEST_CASE("Simple derivatives Bounded")
     ModalField<N1,N2,N3> f2(BoundaryCondition::Bounded);
     f1.ToModal(f2);
     ModalField<N1,N2,N3> f3(BoundaryCondition::Decaying);
-    f2.Dim3MatMul(VerticalDerivativeMatrix(BoundaryCondition::Bounded, L, N3), f3);
+    f3 = Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>,float,complex,N1/2+1,N2,N3>(VerticalDerivativeMatrix(BoundaryCondition::Bounded, L, N3), f2);
     NodalField<N1,N2,N3> f4(BoundaryCondition::Decaying);
     f3.ToNodal(f4);
 
@@ -51,7 +51,7 @@ TEST_CASE("Simple derivatives Bounded")
 
     // also do second derviative
     ModalField<N1,N2,N3> f5(BoundaryCondition::Bounded);
-    f2.Dim3MatMul(VerticalSecondDerivativeMatrix(BoundaryCondition::Bounded, L, N3), f5);
+    f5 = Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>,float,complex,N1/2+1,N2,N3>(VerticalSecondDerivativeMatrix(BoundaryCondition::Bounded, L, N3), f2);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Bounded);
     f5.ToNodal(f6);
@@ -78,7 +78,7 @@ TEST_CASE("Simple derivatives Decaying")
     ModalField<N1,N2,N3> f2(BoundaryCondition::Decaying);
     f1.ToModal(f2);
     ModalField<N1,N2,N3> f3(BoundaryCondition::Bounded);
-    f2.Dim3MatMul(VerticalDerivativeMatrix(BoundaryCondition::Decaying, L, N3), f3);
+    f3 = Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>,float,complex,N1/2+1,N2,N3>(VerticalDerivativeMatrix(BoundaryCondition::Decaying, L, N3), f2);
     NodalField<N1,N2,N3> f4(BoundaryCondition::Bounded);
     f3.ToNodal(f4);
 
@@ -90,7 +90,7 @@ TEST_CASE("Simple derivatives Decaying")
 
     // also do second derviative
     ModalField<N1,N2,N3> f5(BoundaryCondition::Decaying);
-    f2.Dim3MatMul(VerticalSecondDerivativeMatrix(BoundaryCondition::Decaying, L, N3), f5);
+    f5 = Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>,float,complex,N1/2+1,N2,N3>(VerticalSecondDerivativeMatrix(BoundaryCondition::Decaying, L, N3), f2);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Decaying);
     f5.ToNodal(f6);
@@ -115,7 +115,7 @@ TEST_CASE("Dim 1 fourier derivatives")
     f1.ToModal(f2);
 
     ModalField<N1,N2,N3> f3(BoundaryCondition::Bounded);
-    f2.Dim1MatMul(FourierDerivativeMatrix(L, N1, 1), f3);
+    f3 = Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>,complex,complex,N1/2+1,N2,N3>(FourierDerivativeMatrix(L, N1, 1), f2);
 
     NodalField<N1,N2,N3> f4(BoundaryCondition::Bounded);
     f3.ToNodal(f4);
@@ -127,7 +127,7 @@ TEST_CASE("Dim 1 fourier derivatives")
     REQUIRE(f4 == expected);
 
     ModalField<N1,N2,N3> f5(BoundaryCondition::Bounded);
-    f2.Dim1MatMul(FourierSecondDerivativeMatrix(L, N1, 1), f5);
+    f5 = Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>,float,complex,N1/2+1,N2,N3>(FourierSecondDerivativeMatrix(L, N1, 1), f2);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Bounded);
     f5.ToNodal(f6);
@@ -153,7 +153,7 @@ TEST_CASE("Dim 2 fourier derivatives")
     f1.ToModal(f2);
 
     ModalField<N1,N2,N3> f3(BoundaryCondition::Bounded);
-    f2.Dim2MatMul(FourierDerivativeMatrix(L, N2, 2), f3);
+    f3 = Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>,complex,complex,N1/2+1,N2,N3>(FourierDerivativeMatrix(L, N2, 2), f2);
 
     NodalField<N1,N2,N3> f4(BoundaryCondition::Bounded);
     f3.ToNodal(f4);
@@ -164,7 +164,7 @@ TEST_CASE("Dim 2 fourier derivatives")
     REQUIRE(f4 == expected);
 
     ModalField<N1,N2,N3> f5(BoundaryCondition::Bounded);
-    f2.Dim2MatMul(FourierSecondDerivativeMatrix(L, N2, 2), f5);
+    f5 = Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>,float,complex,N1/2+1,N2,N3>(FourierSecondDerivativeMatrix(L, N2, 2), f2);
 
     NodalField<N1,N2,N3> f6(BoundaryCondition::Bounded);
     f5.ToNodal(f6);

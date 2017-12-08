@@ -64,7 +64,7 @@ TEST_CASE("Stackwise Matmul")
 
     DiagonalMatrix<float,-1> mat = VectorXf::Constant(8, 5.0f).asDiagonal();
 
-    f1.Dim3MatMul(mat, f2);
+    f2 = Dim3MatMul<Map<const Array<float, -1, 1>, Aligned16>,float,float,5,6,8>(mat, f1);
 
     f1 *= 5.0f;
     REQUIRE(f2 == f1);
@@ -89,7 +89,7 @@ TEST_CASE("Multiply Add")
 
 TEST_CASE("Decaying Modal/Nodal")
 {
-    constexpr int N1 = 2;
+    constexpr int N1 = 4;
     constexpr int N2 = 1;
     constexpr int N3 = 32;
     NodalField<N1, N2, N3> f1(BoundaryCondition::Decaying);
@@ -97,11 +97,11 @@ TEST_CASE("Decaying Modal/Nodal")
     {
         for (int j2=0; j2<N2; j2++)
         {
-            f1.stack(j1, j2).setRandom();
+            f1.stack(j1, j2).setConstant(j1);
         }
     }
 
-    // because it's homogenous decaying
+    // because it's decaying
     f1.slice(0).setZero();
     f1.slice(N3-1).setZero();
 
@@ -119,7 +119,7 @@ TEST_CASE("Bounded Modal/Nodal")
     NodalField<2, 8, 4> f1(BoundaryCondition::Bounded);
     for (int j=0; j<4; j++)
     {
-        f1.slice(j).setRandom();
+        f1.slice(j).setConstant(j);
     }
 
     ModalField<2, 8, 4> f2(BoundaryCondition::Bounded);
