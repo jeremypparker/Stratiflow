@@ -10,15 +10,17 @@
 #include <omp.h>
 
 // will become unnecessary with C++17
-#define FullMatMul MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
+#define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
+#define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
+#define MatMulDim3 Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
 #define MatMul1D Dim3MatMul<Map<const Array<float, -1, 1>, Aligned16>, float, float, 1, 1, N3>
 
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 256;
-    static constexpr int N2 = 1;
-    static constexpr int N3 = 400;
+    static constexpr int N1 = 288;
+    static constexpr int N2 = 72;
+    static constexpr int N3 = 440;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -28,7 +30,6 @@ public:
 
     float deltaT = 0.01f;
     const float Re = 1000;
-    const float Pe = 1000;
     const float Ri = 0.1;
 
     using NField = NodalField<N1,N2,N3>;
@@ -67,8 +68,10 @@ public:
     , ndTemp(BoundaryCondition::Decaying)
     , nnTemp(BoundaryCondition::Bounded)
     , divergence(boundedTemp)
-    , q(p)
+    , q(boundedTemp)
     {
+        std::cout << "Evaluating derivative matrices..." << std::endl;
+
         dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
         dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2, 2);
         dim3Derivative2Bounded = VerticalSecondDerivativeMatrix(BoundaryCondition::Bounded, L3, N3);
@@ -96,20 +99,6 @@ public:
                 }
 
                 solveLaplacian[j1*N2+j2].compute(laplacian);
-
-
-                // for viscous terms
-                explicitSolveDecaying[j1*N2+j2] = dim3Derivative2Decaying;
-                explicitSolveDecaying[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
-                explicitSolveDecaying[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
-                explicitSolveBuoyancy[j1*N2 + j2] = explicitSolveDecaying[j1*N2+j2];
-                explicitSolveBuoyancy[j1*N2+j2] /= Pe;
-                explicitSolveDecaying[j1*N2+j2] /= Re;
-
-                explicitSolveBounded[j1*N2+j2] = dim3Derivative2Bounded;
-                explicitSolveBounded[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
-                explicitSolveBounded[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
-                explicitSolveBounded[j1*N2+j2] /= Re;
             }
         }
 
@@ -334,15 +323,39 @@ private:
         }
     }
 
+    void CNSolve(MField solve, MField into, int k)
+    {
+        if (solve.BC() == BoundaryCondition::Bounded)
+        {
+            solve.Solve(implicitSolveBounded[k], into);
+        }
+        else
+        {
+            solve.Solve(implicitSolveDecaying[k], into);
+        }
+    }
+
+    void CNSolve1D(M1D solve, M1D into, int k)
+    {
+        if (solve.BC() == BoundaryCondition::Bounded)
+        {
+            solve.Solve(implicitSolveBounded[k][0], into);
+        }
+        else
+        {
+            solve.Solve(implicitSolveDecaying[k][0], into);
+        }
+    }
+
     void ImplicitUpdate(int k)
     {
-        R1.Solve(implicitSolveBounded[k], u1);
-        R2.Solve(implicitSolveBounded[k], u2);
-        R3.Solve(implicitSolveDecaying[k], u3);
-        RB.Solve(implicitSolveBuoyancy[k], b);
+        CNSolve(R1, u1, k);
+        CNSolve(R2, u2, k);
+        CNSolve(R3, u3, k);
+        CNSolve(RB, b, k);
 
-        RU_.Solve(implicitSolveBounded[k][0], u_);
-        RB_.Solve(implicitSolveBounded[k][0], b_); // todo: use buoyancy solver
+        CNSolve1D(RU_, u_, k);
+        CNSolve1D(RB_, b_, k);
     }
 
     void ExplicitUpdate(int k)
@@ -355,15 +368,14 @@ private:
         // build up right hand sides for the implicit solve in R
 
         //   old      last rk step         pressure         explicit CN
-        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + 0.5f*h[k]*FullMatMul(explicitSolveBounded, u1);
-        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + 0.5f*h[k]*FullMatMul(explicitSolveBounded, u2);
-        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + 0.5f*h[k]*FullMatMul(explicitSolveDecaying, u3);
-        RB = b  + (h[k]*zeta[k])*rB                  + 0.5f*h[k]*FullMatMul(explicitSolveDecaying, b);
+        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Bounded, u1));
+        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
+        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Decaying, b));
 
         // for the 1D variables u_ and b_ (background flow) we only use vertical derivative matrix
-        // which happens to be the same as the [0] element in the arrays
-        RU_ = u_ + 0.5f*h[k]*MatMul1D(explicitSolveBounded[0], u_);
-        RB_ = b_ + 0.5f*h[k]*MatMul1D(explicitSolveBounded[0], b_); // todo: use buoyancy matrix
+        RU_ = u_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, u_);
+        RB_ = b_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, b_);
 
         // now construct explicit terms
         r1.Zero();
@@ -436,26 +448,40 @@ private:
 
     void UpdateForTimestep()
     {
+        std::cout << "Solving matices..." << std::endl;
+
         h[0] = deltaT*8.0f/15.0f;
         h[1] = deltaT*2.0f/15.0f;
         h[2] = deltaT*5.0f/15.0f;
 
-        for (int j1=0; j1<M1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                for (int k=0; k<s; k++)
-                {
-                    implicitSolveDecaying[k][j1*N2+j2].compute(
-                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveDecaying[j1*N2+j2]);
-                    implicitSolveBounded[k][j1*N2+j2].compute(
-                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveBounded[j1*N2+j2]);
-                    implicitSolveBuoyancy[k][j1*N2+j2].compute(
-                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveBuoyancy[j1*N2+j2]);
-                }
+        // MatrixXf laplacian;
+        // for (int j1=0; j1<M1; j1++)
+        // {
+        //     std::cout << "     " << j1 << std::endl;
+        //     for (int j2=0; j2<N2; j2++)
+        //     {
+        //         for (int k=0; k<s; k++)
+        //         {
+        //             laplacian = dim3Derivative2Bounded;
+        //             laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
+        //             laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
 
-            }
-        }
+        //             implicitSolveBounded[k][j1*N2+j2].compute(
+        //                 MatrixXf::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
+
+
+
+
+        //             laplacian = dim3Derivative2Decaying;
+        //             laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
+        //             laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
+
+        //             implicitSolveDecaying[k][j1*N2+j2].compute(
+        //                 MatrixXf::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
+        //         }
+
+        //     }
+        // }
     }
 
 private:
@@ -481,7 +507,7 @@ private:
     mutable NField ndTemp, nnTemp;
     mutable MField decayingTemp, boundedTemp;
     MField& divergence; // reference to share memory
-    MField q;
+    MField& q;
 
     // these are precomputed matrices for performing and solving derivatives
     DiagonalMatrix<float, -1> dim1Derivative2;
@@ -489,60 +515,63 @@ private:
     MatrixXf dim3Derivative2Bounded;
     MatrixXf dim3Derivative2Decaying;
 
-    std::array<MatrixXf, M1*N2> explicitSolveDecaying;
-    std::array<MatrixXf, M1*N2> explicitSolveBounded;
-    std::array<MatrixXf, M1*N2> explicitSolveBuoyancy;
-    std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveBounded[3];
-    std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveDecaying[3];
-    std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveBuoyancy[3];
+    // std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveBounded[3];
+    // std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveDecaying[3];
     std::array<PartialPivLU<MatrixXf>, M1*N2> solveLaplacian;
 };
 
 int main()
 {
+    std::cout << "Initializing fftw..." << std::endl;
     fftwf_init_threads();
     fftwf_plan_with_nthreads(omp_get_max_threads());
 
+    std::cout << "Creating solver..." << std::endl;
     IMEXRK solver;
 
-    IMEXRK::NField initialU1(BoundaryCondition::Bounded);
-    IMEXRK::NField initialU2(BoundaryCondition::Bounded);
-    IMEXRK::NField initialU3(BoundaryCondition::Decaying);
-    IMEXRK::NField initialB(BoundaryCondition::Decaying);
-    auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
-
-    // nudge with something like the eigenmode
-    initialU3.SetValue([](float x, float y, float z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
-
-    // add a perturbation to allow secondary instabilities to develop
-
-    float bandmax = 4;
-    for (int j=0; j<IMEXRK::N3; j++)
+    std::cout << "Setting ICs..." << std::endl;
     {
-        if (x3(j) > -bandmax && x3(j) < bandmax)
+        IMEXRK::NField initialU1(BoundaryCondition::Bounded);
+        IMEXRK::NField initialU2(BoundaryCondition::Bounded);
+        IMEXRK::NField initialU3(BoundaryCondition::Decaying);
+        IMEXRK::NField initialB(BoundaryCondition::Decaying);
+        auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
+
+        // nudge with something like the eigenmode
+        initialU3.SetValue([](float x, float y, float z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
+
+        // add a perturbation to allow secondary instabilities to develop
+
+        float bandmax = 4;
+        for (int j=0; j<IMEXRK::N3; j++)
         {
-            initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+            if (x3(j) > -bandmax && x3(j) < bandmax)
+            {
+                initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                    * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+                initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                    * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+                initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                    * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+            }
         }
+        solver.SetInitial(initialU1, initialU2, initialU3, initialB);
+        solver.RemoveDivergence(0.0f);
     }
-    solver.SetInitial(initialU1, initialU2, initialU3, initialB);
 
     // add background flow
-    float R = 2;
+    std::cout << "Setting background..." << std::endl;
+    {
+        float R = 2;
 
-    IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
-    IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
-    IMEXRK::N1D dBdz(BoundaryCondition::Decaying);
-    Ubar.SetValue([](float z){return tanh(z);}, IMEXRK::L3);
-    Bbar.SetValue([R](float z){return tanh(R*z);}, IMEXRK::L3);
+        IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
+        IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
+        IMEXRK::N1D dBdz(BoundaryCondition::Decaying);
+        Ubar.SetValue([](float z){return tanh(z);}, IMEXRK::L3);
+        Bbar.SetValue([R](float z){return tanh(R*z);}, IMEXRK::L3);
 
-    solver.SetBackground(Ubar, Bbar);
-
-    solver.RemoveDivergence(0.0f);
+        solver.SetBackground(Ubar, Bbar);
+    }
 
     std::ofstream energyFile("energy.dat");
 

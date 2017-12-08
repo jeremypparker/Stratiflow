@@ -617,6 +617,8 @@ public:
     NodalField(BoundaryCondition bc)
     : Field<float, N1, N2, N3>(bc)
     {
+        std::cout << "  Creating Nodal Field..." << std::endl;
+
         // do some ffts to find optimal method
         std::vector<float, aligned_allocator<float>> data0(N1*N2*N3);
         std::vector<float, aligned_allocator<float>> data1(N1*N2*N3);
@@ -653,7 +655,7 @@ public:
                                            1,
                                            N3,
                                            &kind,
-                                           FFTW_PATIENT);
+                                           FFTW_MEASURE);
 
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
@@ -673,7 +675,7 @@ public:
                                         odims,
                                         N3,
                                         1,
-                                        FFTW_PATIENT | FFTW_DESTROY_INPUT);
+                                        FFTW_MEASURE | FFTW_DESTROY_INPUT);
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
         }
@@ -783,7 +785,7 @@ public:
             other.slice(N3-1).setZero();
         }
 
-        //other.Filter();
+        other.Filter();
     }
 
     float Max() const
@@ -846,6 +848,8 @@ public:
     ModalField(BoundaryCondition bc)
     : Field<complex, N1/2+1, N2, N3>(bc)
     {
+        std::cout << "  Creating Modal Field..." << std::endl;
+
         // do fft to measure time
         std::vector<float, aligned_allocator<float>> data0(N1*N2*N3);
 
@@ -869,7 +873,7 @@ public:
                                             dims,
                                             N3,
                                             1,
-                                            FFTW_PATIENT);
+                                            FFTW_MEASURE);
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
 
@@ -905,7 +909,7 @@ public:
                                            1,
                                            N3,
                                            &kind,
-                                           FFTW_PATIENT);
+                                           FFTW_MEASURE);
 
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
