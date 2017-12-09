@@ -3,6 +3,8 @@
 #include "Integration.h"
 #include "Graph.h"
 
+ #include<Eigen/SparseCholesky> 
+
 #include <iostream>
 #include <fstream>
 #include <chrono>
@@ -19,7 +21,7 @@ class IMEXRK
 {
 public:
     static constexpr int N1 = 288;
-    static constexpr int N2 = 72;
+    static constexpr int N2 = 1;
     static constexpr int N3 = 440;
 
     static constexpr int M1 = N1/2 + 1;
@@ -77,12 +79,15 @@ public:
         dim3Derivative2Bounded = VerticalSecondDerivativeMatrix(BoundaryCondition::Bounded, L3, N3);
         dim3Derivative2Decaying = VerticalSecondDerivativeMatrix(BoundaryCondition::Decaying, L3, N3);
 
+        MatrixXf laplacian;
+        SparseMatrix<float> solve;
+
         // we solve each vetical line separately, so N1*N2 total solves
         for (int j1=0; j1<M1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
             {
-                MatrixXf laplacian = dim3Derivative2Bounded;
+                laplacian = dim3Derivative2Bounded;
 
                 // add terms for horizontal derivatives
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
@@ -98,7 +103,9 @@ public:
                     laplacian(0,N3-1) = 2;
                 }
 
-                solveLaplacian[j1*N2+j2].compute(laplacian);
+                solve = laplacian.sparseView();
+
+                solveLaplacian[j1*N2+j2].compute(solve);
             }
         }
 
@@ -323,7 +330,7 @@ private:
         }
     }
 
-    void CNSolve(MField solve, MField into, int k)
+    void CNSolve(MField& solve, MField& into, int k)
     {
         if (solve.BC() == BoundaryCondition::Bounded)
         {
@@ -335,7 +342,7 @@ private:
         }
     }
 
-    void CNSolve1D(M1D solve, M1D into, int k)
+    void CNSolve1D(M1D& solve, M1D& into, int k)
     {
         if (solve.BC() == BoundaryCondition::Bounded)
         {
@@ -454,34 +461,35 @@ private:
         h[1] = deltaT*2.0f/15.0f;
         h[2] = deltaT*5.0f/15.0f;
 
-        // MatrixXf laplacian;
-        // for (int j1=0; j1<M1; j1++)
-        // {
-        //     std::cout << "     " << j1 << std::endl;
-        //     for (int j2=0; j2<N2; j2++)
-        //     {
-        //         for (int k=0; k<s; k++)
-        //         {
-        //             laplacian = dim3Derivative2Bounded;
-        //             laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
-        //             laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
+        MatrixXf laplacian;
+        SparseMatrix<float> solve;
+        for (int j1=0; j1<M1; j1++)
+        {
+            std::cout << "     " << j1 << std::endl;
+            for (int j2=0; j2<N2; j2++)
+            {
+                for (int k=0; k<s; k++)
+                {
+                    laplacian = dim3Derivative2Bounded;
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
 
-        //             implicitSolveBounded[k][j1*N2+j2].compute(
-        //                 MatrixXf::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
+                    solve = (MatrixXf::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
+
+                    implicitSolveBounded[k][j1*N2+j2].compute(solve);
 
 
+                    laplacian = dim3Derivative2Decaying;
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
 
+                    solve = (MatrixXf::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
 
-        //             laplacian = dim3Derivative2Decaying;
-        //             laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
-        //             laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
+                    implicitSolveDecaying[k][j1*N2+j2].compute(solve);
+                }
 
-        //             implicitSolveDecaying[k][j1*N2+j2].compute(
-        //                 MatrixXf::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
-        //         }
-
-        //     }
-        // }
+            }
+        }
     }
 
 private:
@@ -515,14 +523,14 @@ private:
     MatrixXf dim3Derivative2Bounded;
     MatrixXf dim3Derivative2Decaying;
 
-    // std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveBounded[3];
-    // std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveDecaying[3];
-    std::array<PartialPivLU<MatrixXf>, M1*N2> solveLaplacian;
+    std::array<SimplicialLDLT<SparseMatrix<float>>, M1*N2> implicitSolveBounded[3];
+    std::array<SimplicialLDLT<SparseMatrix<float>>, M1*N2> implicitSolveDecaying[3];
+    std::array<SimplicialLDLT<SparseMatrix<float>>, M1*N2> solveLaplacian;
 };
 
 int main()
 {
-    std::cout << "Initializing fftw..." << std::endl;
+    //std::cout << "Initializing fftw..." << std::endl;
     fftwf_init_threads();
     fftwf_plan_with_nthreads(omp_get_max_threads());
 
@@ -605,9 +613,9 @@ int main()
 
             solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
             solver.PlotBuoyancy("images/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            // solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            // solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            // solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
             energyFile << totalTime << " " << solver.KE() << " " << solver.PE() << std::endl;
         }

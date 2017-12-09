@@ -422,8 +422,8 @@ private:
     {
         assert(solver.rows() == N3);
 
-        Matrix<T, -1, 1> col = stack(j1, j2); // todo: don't allocate
-        Matrix<T, -1, 1> res = solver.solve(col);
+        Matrix<T, N3, 1> col = stack(j1, j2);
+        Matrix<T, N3, 1> res = solver.solve(col);
         result.stack(j1, j2) = res;
     }
 
