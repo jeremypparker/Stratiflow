@@ -466,12 +466,13 @@ private:
         h[1] = deltaT*2.0f/15.0f;
         h[2] = deltaT*5.0f/15.0f;
 
-        MatrixXf laplacian;
-        SparseMatrix<float> solve;
 
+        #pragma omp parallel for
         for (int j1=0; j1<M1; j1++)
         {
-            std::cout << "     " << j1 << std::endl;
+            MatrixXf laplacian;
+            SparseMatrix<float> solve;
+
             for (int j2=0; j2<N2; j2++)
             {
                 for (int k=0; k<s; k++)
