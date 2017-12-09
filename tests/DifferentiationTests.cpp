@@ -188,7 +188,7 @@ TEST_CASE("Inverse Laplacian")
     auto dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
     auto dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2, 2);
 
-    std::array<ColPivHouseholderQR<MatrixXcf>, (N1/2 + 1)*N2> solveLaplacian;
+    std::vector<ColPivHouseholderQR<MatrixXcf>> solveLaplacian((N1/2 + 1)*N2);
 
     // we solve each vetical line separately, so N1*N2 total solves
     for (int j1=0; j1<N1/2 + 1; j1++)

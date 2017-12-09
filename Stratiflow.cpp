@@ -21,7 +21,7 @@ class IMEXRK
 {
 public:
     static constexpr int N1 = 288;
-    static constexpr int N2 = 1;
+    static constexpr int N2 = 72;
     static constexpr int N3 = 440;
 
     static constexpr int M1 = N1/2 + 1;
@@ -71,6 +71,11 @@ public:
     , nnTemp(BoundaryCondition::Bounded)
     , divergence(boundedTemp)
     , q(boundedTemp)
+
+    , solveLaplacian(M1*N2)
+    , implicitSolveBounded{std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2)}
+    , implicitSolveDecaying{std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2)}
+
     {
         std::cout << "Evaluating derivative matrices..." << std::endl;
 
@@ -463,6 +468,7 @@ private:
 
         MatrixXf laplacian;
         SparseMatrix<float> solve;
+
         for (int j1=0; j1<M1; j1++)
         {
             std::cout << "     " << j1 << std::endl;
@@ -523,9 +529,9 @@ private:
     MatrixXf dim3Derivative2Bounded;
     MatrixXf dim3Derivative2Decaying;
 
-    std::array<SimplicialLDLT<SparseMatrix<float>>, M1*N2> implicitSolveBounded[3];
-    std::array<SimplicialLDLT<SparseMatrix<float>>, M1*N2> implicitSolveDecaying[3];
-    std::array<SimplicialLDLT<SparseMatrix<float>>, M1*N2> solveLaplacian;
+    std::vector<SimplicialLDLT<SparseMatrix<float>>> implicitSolveBounded[3];
+    std::vector<SimplicialLDLT<SparseMatrix<float>>> implicitSolveDecaying[3];
+    std::vector<SimplicialLDLT<SparseMatrix<float>>> solveLaplacian;
 };
 
 int main()
