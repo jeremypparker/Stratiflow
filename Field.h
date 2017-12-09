@@ -204,7 +204,7 @@ template<typename A, typename T1, typename T2, int N1, int N2, int N3>
 class MatMul : public StackContainer<ArrayWrapper<const Product<Matrix<T1,-1,-1>, MatrixWrapper<A>>>, T2, N1, N2, N3>
 {
 public:
-    MatMul(const std::array<Matrix<T1, -1, -1>, N1*N2>& matrices, const StackContainer<A, T2, N1, N2, N3>& field)
+    MatMul(const std::vector<Matrix<T1, -1, -1>>& matrices, const StackContainer<A, T2, N1, N2, N3>& field)
     : matrices(matrices)
     , field(field)
     , resultingBC(field.BC())
@@ -223,7 +223,7 @@ public:
     }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
-    const std::array<Matrix<T1, -1, -1>, N1*N2>& matrices;
+    const std::vector<Matrix<T1, -1, -1>>& matrices;
     BoundaryCondition resultingBC;
 };
 
@@ -383,8 +383,9 @@ public:
 
 
     template<typename Solver>
-    void Solve(std::array<Solver, N1*N2>& solvers, Field<T, N1, N2, N3>& result) const
+    void Solve(std::vector<Solver>& solvers, Field<T, N1, N2, N3>& result) const
     {
+        assert(solvers.size() == N1*N2);
         ParallelPerStack(
             [&solvers,&result,this](int j1, int j2)
             {
