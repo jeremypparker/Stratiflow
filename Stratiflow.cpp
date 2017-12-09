@@ -7,26 +7,29 @@
 #include <fstream>
 #include <chrono>
 
+#include <omp.h>
+
 // will become unnecessary with C++17
-#define FullMatMul MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
+#define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
+#define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
+#define MatMulDim3 Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
 #define MatMul1D Dim3MatMul<Map<const Array<float, -1, 1>, Aligned16>, float, float, 1, 1, N3>
 
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 256;
-    static constexpr int N2 = 1;
-    static constexpr int N3 = 256;
+    static constexpr int N1 = 288;
+    static constexpr int N2 = 72;
+    static constexpr int N3 = 440;
 
     static constexpr int M1 = N1/2 + 1;
 
-    static constexpr float L1 = 32; // size of domain streamwise
+    static constexpr float L1 = 16.0f; // size of domain streamwise
     static constexpr float L2 = 4.0f;  // size of domain spanwise
-    static constexpr float L3 = 6.0f; // vertical scaling factor
+    static constexpr float L3 = 5.0f; // vertical scaling factor
 
-    float deltaT = 0.1;
+    float deltaT = 0.01f;
     const float Re = 1000;
-    const float Pe = 1000;
     const float Ri = 0.1;
 
     using NField = NodalField<N1,N2,N3>;
@@ -40,44 +43,46 @@ public:
 
 public:
     IMEXRK()
-    : u1(BoundaryCondition::Neumann)
-    , u2(BoundaryCondition::Neumann)
-    , u3(BoundaryCondition::Dirichlet)
-    , p(BoundaryCondition::Neumann)
-    , b(BoundaryCondition::Dirichlet)
+    : u1(BoundaryCondition::Bounded)
+    , u2(BoundaryCondition::Bounded)
+    , u3(BoundaryCondition::Decaying)
+    , p(BoundaryCondition::Bounded)
+    , b(BoundaryCondition::Decaying)
 
-    , u_(BoundaryCondition::Neumann)
-    , b_(BoundaryCondition::Neumann)
-    , db_dz(BoundaryCondition::Dirichlet)
+    , u_(BoundaryCondition::Bounded)
+    , b_(BoundaryCondition::Bounded)
+    , db_dz(BoundaryCondition::Decaying)
 
     , R1(u1), R2(u2), R3(u3), RB(b)
     , RU_(u_), RB_(b_)
     , r1(u1), r2(u2), r3(u3), rB(b)
-    , U1(BoundaryCondition::Neumann)
-    , U2(BoundaryCondition::Neumann)
-    , U3(BoundaryCondition::Dirichlet)
-    , B(BoundaryCondition::Dirichlet)
-    , U_(BoundaryCondition::Neumann)
-    , B_(BoundaryCondition::Neumann)
-    , dB_dz(BoundaryCondition::Dirichlet)
-    , dirichletTemp(BoundaryCondition::Dirichlet)
-    , neumannTemp(BoundaryCondition::Neumann)
-    , ndTemp(BoundaryCondition::Dirichlet)
-    , nnTemp(BoundaryCondition::Neumann)
-    , divergence(neumannTemp)
-    , q(p)
+    , U1(BoundaryCondition::Bounded)
+    , U2(BoundaryCondition::Bounded)
+    , U3(BoundaryCondition::Decaying)
+    , B(BoundaryCondition::Decaying)
+    , U_(BoundaryCondition::Bounded)
+    , B_(BoundaryCondition::Bounded)
+    , dB_dz(BoundaryCondition::Decaying)
+    , decayingTemp(BoundaryCondition::Decaying)
+    , boundedTemp(BoundaryCondition::Bounded)
+    , ndTemp(BoundaryCondition::Decaying)
+    , nnTemp(BoundaryCondition::Bounded)
+    , divergence(boundedTemp)
+    , q(boundedTemp)
     {
+        std::cout << "Evaluating derivative matrices..." << std::endl;
+
         dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
         dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2, 2);
-        dim3Derivative2Neumann = VerticalSecondDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
-        dim3Derivative2Dirichlet = VerticalSecondDerivativeMatrix(BoundaryCondition::Dirichlet, L3, N3);
+        dim3Derivative2Bounded = VerticalSecondDerivativeMatrix(BoundaryCondition::Bounded, L3, N3);
+        dim3Derivative2Decaying = VerticalSecondDerivativeMatrix(BoundaryCondition::Decaying, L3, N3);
 
         // we solve each vetical line separately, so N1*N2 total solves
         for (int j1=0; j1<M1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
             {
-                MatrixXf laplacian = dim3Derivative2Neumann;
+                MatrixXf laplacian = dim3Derivative2Bounded;
 
                 // add terms for horizontal derivatives
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
@@ -94,20 +99,6 @@ public:
                 }
 
                 solveLaplacian[j1*N2+j2].compute(laplacian);
-
-
-                // for viscous terms
-                explicitSolveDirichlet[j1*N2+j2] = dim3Derivative2Dirichlet;
-                explicitSolveDirichlet[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
-                explicitSolveDirichlet[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
-                explicitSolveBuoyancy[j1*N2 + j2] = explicitSolveDirichlet[j1*N2+j2];
-                explicitSolveBuoyancy[j1*N2+j2] /= Pe;
-                explicitSolveDirichlet[j1*N2+j2] /= Re;
-
-                explicitSolveNeumann[j1*N2+j2] = dim3Derivative2Neumann;
-                explicitSolveNeumann[j1*N2+j2] += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
-                explicitSolveNeumann[j1*N2+j2] += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
-                explicitSolveNeumann[j1*N2+j2] /= Re;
             }
         }
 
@@ -153,8 +144,8 @@ public:
         b.ToNodal(B);
         b_.ToNodal(B_);
         nnTemp = B_ + B;
-        nnTemp.ToModal(neumannTemp);
-        HeatPlot(neumannTemp, L1, L3, j2, filename);
+        nnTemp.ToModal(boundedTemp);
+        HeatPlot(boundedTemp, L1, L3, j2, filename);
     }
 
     void PlotPressure(std::string filename, int j2) const
@@ -177,8 +168,8 @@ public:
         u1.ToNodal(U1);
         u_.ToNodal(U_);
         U1 += U_;
-        U1.ToModal(neumannTemp);
-        HeatPlot(neumannTemp, L1, L3, j2, filename);
+        U1.ToModal(boundedTemp);
+        HeatPlot(boundedTemp, L1, L3, j2, filename);
     }
 
     void SetInitial(NField velocity1, NField velocity2, NField velocity3, NField buoyancy)
@@ -195,7 +186,7 @@ public:
         buoyancy.ToModal(b_);
     }
 
-    // gives an upper bound on cfl number - also updates if it's too high
+    // gives an upper bound on cfl number - also updates timestep
     float CFL()
     {
         static ArrayXf z = VerticalPoints(L3, N3);
@@ -213,12 +204,10 @@ public:
         float cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
 
+        // update timestep for target cfl
         constexpr float targetCFL = 0.4;
-        if (cfl>targetCFL)
-        {
-            deltaT *= targetCFL / cfl;
-            UpdateForTimestep();
-        }
+        deltaT *= targetCFL / cfl;
+        UpdateForTimestep();
 
         return cfl;
     }
@@ -232,7 +221,7 @@ public:
         // hack for now: perturbation energy relative to frozen bg
         u_.ToNodal(U_);
         U1 += U_;
-        NField Uinitial(BoundaryCondition::Neumann);
+        NField Uinitial(BoundaryCondition::Bounded);
         Uinitial.SetValue([](float z){return tanh(z);}, L3);
         U1 -= Uinitial;
 
@@ -250,7 +239,7 @@ public:
         // hack for now: perturbation energy relative to frozen bg
         b_.ToNodal(B_);
         nnTemp = B_ + B;
-        N1D Binitial(BoundaryCondition::Neumann);
+        N1D Binitial(BoundaryCondition::Bounded);
         Binitial.SetValue([](float z){return tanh(2*z);}, L3);
         nnTemp -= Binitial;
 
@@ -321,28 +310,52 @@ private:
     template<typename A, typename T, int K1, int K2, int K3>
     Dim3MatMul<A, float, T, K1, K2, K3> ddz(const StackContainer<A, T, K1, K2, K3>& f) const
     {
-        static MatrixXf dim3DerivativeNeumann = VerticalDerivativeMatrix(BoundaryCondition::Neumann, L3, N3);
-        static MatrixXf dim3DerivativeDirichlet = VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L3, N3);
+        static MatrixXf dim3DerivativeBounded = VerticalDerivativeMatrix(BoundaryCondition::Bounded, L3, N3);
+        static MatrixXf dim3DerivativeDecaying = VerticalDerivativeMatrix(BoundaryCondition::Decaying, L3, N3);
 
-        if (f.BC() == BoundaryCondition::Dirichlet)
+        if (f.BC() == BoundaryCondition::Decaying)
         {
-            return Dim3MatMul<A, float, T, K1, K2, K3>(dim3DerivativeDirichlet, f, BoundaryCondition::Neumann);
+            return Dim3MatMul<A, float, T, K1, K2, K3>(dim3DerivativeDecaying, f, BoundaryCondition::Bounded);
         }
         else
         {
-            return Dim3MatMul<A, float, T, K1, K2, K3>(dim3DerivativeNeumann, f, BoundaryCondition::Dirichlet);
+            return Dim3MatMul<A, float, T, K1, K2, K3>(dim3DerivativeBounded, f, BoundaryCondition::Decaying);
+        }
+    }
+
+    void CNSolve(MField solve, MField into, int k)
+    {
+        if (solve.BC() == BoundaryCondition::Bounded)
+        {
+            solve.Solve(implicitSolveBounded[k], into);
+        }
+        else
+        {
+            solve.Solve(implicitSolveDecaying[k], into);
+        }
+    }
+
+    void CNSolve1D(M1D solve, M1D into, int k)
+    {
+        if (solve.BC() == BoundaryCondition::Bounded)
+        {
+            solve.Solve(implicitSolveBounded[k][0], into);
+        }
+        else
+        {
+            solve.Solve(implicitSolveDecaying[k][0], into);
         }
     }
 
     void ImplicitUpdate(int k)
     {
-        R1.Solve(implicitSolveNeumann[k], u1);
-        R2.Solve(implicitSolveNeumann[k], u2);
-        R3.Solve(implicitSolveDirichlet[k], u3);
-        RB.Solve(implicitSolveBuoyancy[k], b);
+        CNSolve(R1, u1, k);
+        CNSolve(R2, u2, k);
+        CNSolve(R3, u3, k);
+        CNSolve(RB, b, k);
 
-        RU_.Solve(implicitSolveNeumann[k][0], u_);
-        RB_.Solve(implicitSolveNeumann[k][0], b_); // todo: use buoyancy solver
+        CNSolve1D(RU_, u_, k);
+        CNSolve1D(RB_, b_, k);
     }
 
     void ExplicitUpdate(int k)
@@ -355,13 +368,14 @@ private:
         // build up right hand sides for the implicit solve in R
 
         //   old      last rk step         pressure         explicit CN
-        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + 0.5f*h[k]*FullMatMul(explicitSolveNeumann, u1);
-        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + 0.5f*h[k]*FullMatMul(explicitSolveNeumann, u2);
-        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + 0.5f*h[k]*FullMatMul(explicitSolveDirichlet, u3);
-        RB = b  + (h[k]*zeta[k])*rB                  + 0.5f*h[k]*FullMatMul(explicitSolveDirichlet, b);
+        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Bounded, u1));
+        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
+        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Decaying, b));
 
-        RU_ = u_ + 0.5f*h[k]*MatMul1D(explicitSolveNeumann[0], u_);
-        RB_ = b_ + 0.5f*h[k]*MatMul1D(explicitSolveNeumann[0], b_); // todo: use buoyancy matrix
+        // for the 1D variables u_ and b_ (background flow) we only use vertical derivative matrix
+        RU_ = u_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, u_);
+        RB_ = b_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, b_);
 
         // now construct explicit terms
         r1.Zero();
@@ -378,52 +392,52 @@ private:
         U1 += U_;
 
         nnTemp = U1*U1;
-        nnTemp.ToModal(neumannTemp);
-        r1 -= ddx(neumannTemp);
+        nnTemp.ToModal(boundedTemp);
+        r1 -= ddx(boundedTemp);
 
         ndTemp = U1*U3;
-        ndTemp.ToModal(dirichletTemp);
-        r3 -= ddx(dirichletTemp);
-        r1 -= ddz(dirichletTemp);
+        ndTemp.ToModal(decayingTemp);
+        r3 -= ddx(decayingTemp);
+        r1 -= ddz(decayingTemp);
 
         nnTemp = U2*U2;
-        nnTemp.ToModal(neumannTemp);
-        r2 -= ddy(neumannTemp);
+        nnTemp.ToModal(boundedTemp);
+        r2 -= ddy(boundedTemp);
 
         ndTemp = U2*U3;
-        ndTemp.ToModal(dirichletTemp);
-        r3 -= ddy(dirichletTemp);
-        r2 -= ddz(dirichletTemp);
+        ndTemp.ToModal(decayingTemp);
+        r3 -= ddy(decayingTemp);
+        r2 -= ddz(decayingTemp);
 
         nnTemp = U3*U3;
-        nnTemp.ToModal(neumannTemp);
-        r3 -= ddz(neumannTemp);
+        nnTemp.ToModal(boundedTemp);
+        r3 -= ddz(boundedTemp);
 
         nnTemp = U1*U2;
-        nnTemp.ToModal(neumannTemp);
-        r1 -= ddy(neumannTemp);
-        r2 -= ddx(neumannTemp);
+        nnTemp.ToModal(boundedTemp);
+        r1 -= ddy(boundedTemp);
+        r2 -= ddx(boundedTemp);
 
         // buoyancy nonlinear terms
         ndTemp = U1*B;
-        ndTemp.ToModal(dirichletTemp);
-        rB -= ddx(dirichletTemp);
+        ndTemp.ToModal(decayingTemp);
+        rB -= ddx(decayingTemp);
 
         ndTemp = U2*B;
-        ndTemp.ToModal(dirichletTemp);
-        rB -= ddy(dirichletTemp);
+        ndTemp.ToModal(decayingTemp);
+        rB -= ddy(decayingTemp);
 
         nnTemp = U3*B;
-        nnTemp.ToModal(neumannTemp);
-        rB -= ddz(neumannTemp);
+        nnTemp.ToModal(boundedTemp);
+        rB -= ddz(boundedTemp);
 
         // advection term from background buoyancy
         db_dz = ddz(b_);
         db_dz.ToNodal(dB_dz);
 
         ndTemp = U3*dB_dz;
-        ndTemp.ToModal(dirichletTemp);
-        rB -= dirichletTemp;
+        ndTemp.ToModal(decayingTemp);
+        rB -= decayingTemp;
 
         // now add on explicit terms to RHS
         R1 += (h[k]*beta[k])*r1;
@@ -434,26 +448,40 @@ private:
 
     void UpdateForTimestep()
     {
+        std::cout << "Solving matices..." << std::endl;
+
         h[0] = deltaT*8.0f/15.0f;
         h[1] = deltaT*2.0f/15.0f;
         h[2] = deltaT*5.0f/15.0f;
 
-        for (int j1=0; j1<M1; j1++)
-        {
-            for (int j2=0; j2<N2; j2++)
-            {
-                for (int k=0; k<s; k++)
-                {
-                    implicitSolveDirichlet[k][j1*N2+j2].compute(
-                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveDirichlet[j1*N2+j2]);
-                    implicitSolveNeumann[k][j1*N2+j2].compute(
-                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveNeumann[j1*N2+j2]);
-                    implicitSolveBuoyancy[k][j1*N2+j2].compute(
-                        MatrixXf::Identity(N3, N3)-0.5*h[k]*explicitSolveBuoyancy[j1*N2+j2]);
-                }
+        // MatrixXf laplacian;
+        // for (int j1=0; j1<M1; j1++)
+        // {
+        //     std::cout << "     " << j1 << std::endl;
+        //     for (int j2=0; j2<N2; j2++)
+        //     {
+        //         for (int k=0; k<s; k++)
+        //         {
+        //             laplacian = dim3Derivative2Bounded;
+        //             laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
+        //             laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
 
-            }
-        }
+        //             implicitSolveBounded[k][j1*N2+j2].compute(
+        //                 MatrixXf::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
+
+
+
+
+        //             laplacian = dim3Derivative2Decaying;
+        //             laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
+        //             laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
+
+        //             implicitSolveDecaying[k][j1*N2+j2].compute(
+        //                 MatrixXf::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
+        //         }
+
+        //     }
+        // }
     }
 
 private:
@@ -477,70 +505,73 @@ private:
     mutable NField U1, U2, U3, B;
     mutable N1D U_, B_, dB_dz;
     mutable NField ndTemp, nnTemp;
-    mutable MField dirichletTemp, neumannTemp;
+    mutable MField decayingTemp, boundedTemp;
     MField& divergence; // reference to share memory
-    MField q;
+    MField& q;
 
     // these are precomputed matrices for performing and solving derivatives
     DiagonalMatrix<float, -1> dim1Derivative2;
     DiagonalMatrix<float, -1> dim2Derivative2;
-    MatrixXf dim3Derivative2Neumann;
-    MatrixXf dim3Derivative2Dirichlet;
+    MatrixXf dim3Derivative2Bounded;
+    MatrixXf dim3Derivative2Decaying;
 
-    std::array<MatrixXf, M1*N2> explicitSolveDirichlet;
-    std::array<MatrixXf, M1*N2> explicitSolveNeumann;
-    std::array<MatrixXf, M1*N2> explicitSolveBuoyancy;
-    std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveNeumann[3];
-    std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveDirichlet[3];
-    std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveBuoyancy[3];
+    // std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveBounded[3];
+    // std::array<PartialPivLU<MatrixXf>, M1*N2> implicitSolveDecaying[3];
     std::array<PartialPivLU<MatrixXf>, M1*N2> solveLaplacian;
 };
 
 int main()
 {
+    std::cout << "Initializing fftw..." << std::endl;
     fftwf_init_threads();
-    fftwf_plan_with_nthreads(maxthreads);
+    fftwf_plan_with_nthreads(omp_get_max_threads());
 
+    std::cout << "Creating solver..." << std::endl;
     IMEXRK solver;
 
-    IMEXRK::NField initialU1(BoundaryCondition::Neumann);
-    IMEXRK::NField initialU2(BoundaryCondition::Neumann);
-    IMEXRK::NField initialU3(BoundaryCondition::Dirichlet);
-    IMEXRK::NField initialB(BoundaryCondition::Dirichlet);
-    auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
-
-    // nudge with something like the eigenmode
-    initialU3.SetValue([](float x, float y, float z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
-
-    // add a perturbation to allow secondary instabilities to develop
-
-    float bandmax = 4;
-    for (int j=0; j<IMEXRK::N3; j++)
+    std::cout << "Setting ICs..." << std::endl;
     {
-        if (x3(j) > -bandmax && x3(j) < bandmax)
+        IMEXRK::NField initialU1(BoundaryCondition::Bounded);
+        IMEXRK::NField initialU2(BoundaryCondition::Bounded);
+        IMEXRK::NField initialU3(BoundaryCondition::Decaying);
+        IMEXRK::NField initialB(BoundaryCondition::Decaying);
+        auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
+
+        // nudge with something like the eigenmode
+        initialU3.SetValue([](float x, float y, float z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
+
+        // add a perturbation to allow secondary instabilities to develop
+
+        float bandmax = 4;
+        for (int j=0; j<IMEXRK::N3; j++)
         {
-            initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-            initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+            if (x3(j) > -bandmax && x3(j) < bandmax)
+            {
+                initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                    * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+                initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                    * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+                initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                    * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+            }
         }
+        solver.SetInitial(initialU1, initialU2, initialU3, initialB);
+        solver.RemoveDivergence(0.0f);
     }
-    solver.SetInitial(initialU1, initialU2, initialU3, initialB);
 
     // add background flow
-    float R = 2;
+    std::cout << "Setting background..." << std::endl;
+    {
+        float R = 2;
 
-    IMEXRK::N1D Ubar(BoundaryCondition::Neumann);
-    IMEXRK::N1D Bbar(BoundaryCondition::Neumann);
-    IMEXRK::N1D dBdz(BoundaryCondition::Dirichlet);
-    Ubar.SetValue([](float z){return tanh(z);}, IMEXRK::L3);
-    Bbar.SetValue([R](float z){return tanh(R*z);}, IMEXRK::L3);
+        IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
+        IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
+        IMEXRK::N1D dBdz(BoundaryCondition::Decaying);
+        Ubar.SetValue([](float z){return tanh(z);}, IMEXRK::L3);
+        Bbar.SetValue([R](float z){return tanh(R*z);}, IMEXRK::L3);
 
-    solver.SetBackground(Ubar, Bbar);
-
-    solver.RemoveDivergence(0.0f);
+        solver.SetBackground(Ubar, Bbar);
+    }
 
     std::ofstream energyFile("energy.dat");
 
@@ -552,7 +583,7 @@ int main()
         solver.TimeStep();
         totalTime += solver.deltaT;
 
-        solver.SaveFlow("snapshots/"+std::to_string(totalTime)+".fields");
+        //solver.SaveFlow("snapshots/"+std::to_string(totalTime)+".fields");
 
         if(step%50==0)
         {

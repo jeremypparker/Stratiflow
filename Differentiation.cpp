@@ -15,7 +15,7 @@ MatrixXf VerticalDerivativeMatrix(BoundaryCondition originalBC, float L, int N)
         else if(j==1)
         {
             // use (anti)symmetry of basis function to replace missing mode
-            if (originalBC==BoundaryCondition::Neumann)
+            if (originalBC==BoundaryCondition::Bounded)
             {
                 D(j, j) = -3*j;
             }
@@ -38,7 +38,7 @@ MatrixXf VerticalDerivativeMatrix(BoundaryCondition originalBC, float L, int N)
     }
 
     D /= (4*L);
-    if (originalBC==BoundaryCondition::Neumann)
+    if (originalBC==BoundaryCondition::Bounded)
     {
         D = -D;
     }
@@ -54,15 +54,15 @@ MatrixXf VerticalDerivativeMatrix(BoundaryCondition originalBC, float L, int N)
 
 MatrixXf VerticalSecondDerivativeMatrix(BoundaryCondition bc, float L, int N)
 {
-    if (bc == BoundaryCondition::Neumann)
+    if (bc == BoundaryCondition::Bounded)
     {
-        return VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L, N)
-                * VerticalDerivativeMatrix(BoundaryCondition::Neumann, L, N);
+        return VerticalDerivativeMatrix(BoundaryCondition::Decaying, L, N)
+                * VerticalDerivativeMatrix(BoundaryCondition::Bounded, L, N);
     }
     else
     {
-        return VerticalDerivativeMatrix(BoundaryCondition::Neumann, L, N)
-                * VerticalDerivativeMatrix(BoundaryCondition::Dirichlet, L, N);
+        return VerticalDerivativeMatrix(BoundaryCondition::Bounded, L, N)
+                * VerticalDerivativeMatrix(BoundaryCondition::Decaying, L, N);
     }
 }
 

@@ -75,15 +75,15 @@ int main(int argc, char *argv[])
         }
     }
 
-    NodalField<N1,N2,N3> bAbove(BoundaryCondition::Neumann);
-    NodalField<N1,N2,N3> bBelow(BoundaryCondition::Neumann);
+    NodalField<N1,N2,N3> bAbove(BoundaryCondition::Bounded);
+    NodalField<N1,N2,N3> bBelow(BoundaryCondition::Bounded);
 
     LoadBuoyancy(filenameabove, bAbove);
     LoadBuoyancy(filenamebelow, bBelow);
 
-    
-    ModalField<N1,N2,N3> bModal(BoundaryCondition::Neumann);
-    NodalField<N1,N2,N3> bNodal(BoundaryCondition::Neumann);
+
+    ModalField<N1,N2,N3> bModal(BoundaryCondition::Bounded);
+    NodalField<N1,N2,N3> bNodal(BoundaryCondition::Bounded);
 
     bNodal = ((time-timebelow)/(timeabove-timebelow))*bAbove + ((timeabove-time)/(timeabove-timebelow))*bBelow;
 

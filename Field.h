@@ -76,13 +76,13 @@ public:
     }
     virtual BoundaryCondition BC() const override
     {
-        if(lhs->BC() == BoundaryCondition::Dirichlet && rhs->BC() == BoundaryCondition::Dirichlet)
+        if(lhs->BC() == BoundaryCondition::Decaying && rhs->BC() == BoundaryCondition::Decaying)
         {
-            return BoundaryCondition::Dirichlet;
+            return BoundaryCondition::Decaying;
         }
         else
         {
-            return BoundaryCondition::Neumann;
+            return BoundaryCondition::Bounded;
         }
     }
 private:
@@ -106,13 +106,13 @@ public:
     }
     virtual BoundaryCondition BC() const override
     {
-        if(lhs->BC() == BoundaryCondition::Dirichlet || rhs->BC() == BoundaryCondition::Dirichlet)
+        if(lhs->BC() == BoundaryCondition::Decaying || rhs->BC() == BoundaryCondition::Decaying)
         {
-            return BoundaryCondition::Dirichlet;
+            return BoundaryCondition::Decaying;
         }
         else
         {
-            return BoundaryCondition::Neumann;
+            return BoundaryCondition::Bounded;
         }
     }
 private:
@@ -121,7 +121,7 @@ private:
 };
 
 template<typename A, typename T1, typename T2, int N1, int N2, int N3>
-class Dim1MatMul : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>, T2, N1, N2, N3>
+class Dim1MatMul : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T1, -1, 1>>, const A>, T2, N1, N2, N3>
 {
 public:
     Dim1MatMul(const DiagonalMatrix<T1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field)
@@ -130,7 +130,7 @@ public:
     {}
 
     virtual
-        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>
+        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T1, -1, 1>>, const A>
         stack(int n1, int n2) const override
     {
         return matrix.diagonal()(n1)*field.stack(n1, n2);
@@ -145,7 +145,7 @@ private:
 };
 
 template<typename A, typename T1, typename T2, int N1, int N2, int N3>
-class Dim2MatMul : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>, T2, N1, N2, N3>
+class Dim2MatMul : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T1, -1, 1>>, const A>, T2, N1, N2, N3>
 {
 public:
     Dim2MatMul(const DiagonalMatrix<T1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field)
@@ -154,7 +154,7 @@ public:
     {}
 
     virtual
-        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T2, -1, 1>>, const A>
+        CwiseBinaryOp<internal::scalar_product_op<T1, T2>, const CwiseNullaryOp<internal::scalar_constant_op<T1>,const Array<T1, -1, 1>>, const A>
         stack(int n1, int n2) const override
     {
         return matrix.diagonal()(n2)*field.stack(n1, n2);
@@ -246,7 +246,7 @@ public:
     template<typename A>
     const Field<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
-        //assert(BC() == BoundaryCondition::Neumann || other.BC() == BoundaryCondition::Dirichlet);
+        //assert(BC() == BoundaryCondition::Bounded || other.BC() == BoundaryCondition::Decaying);
 
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) = other.stack(j1,j2);
@@ -395,29 +395,14 @@ public:
 
     virtual void ParallelPerStack(std::function<void(int j1, int j2)> f) const
     {
-        int each = N1/maxthreads + 1;
-        for (int first=0; first<N1; first+=each)
+        #pragma omp parallel for
+        for (int j1=0; j1<N1; j1++)
         {
-            int last = first+each;
-            if(last>N1)
+            for (int j2=0; j2<N2; j2++)
             {
-                last = N1;
+                f(j1, j2);
             }
-
-            ThreadPool::Get().ExecuteAsync(
-                [&f,first,last]()
-                {
-                    for (int j1=first; j1<last; j1++)
-                    {
-                        for (int j2=0; j2<N2; j2++)
-                        {
-                            f(j1, j2);
-                        }
-                    }
-                });
         }
-
-        ThreadPool::Get().WaitAll();
     }
 
     void Save(std::ofstream& filestream)
@@ -541,7 +526,7 @@ public:
         float* in = const_cast<float*>(this->Raw());
         float* out = other.Raw();
 
-        if (this->BC() == BoundaryCondition::Neumann)
+        if (this->BC() == BoundaryCondition::Bounded)
         {
             kind = FFTW_REDFT00;
             size = N3;
@@ -559,7 +544,7 @@ public:
         fftwf_execute(plan);
         fftwf_destroy_plan(plan);
 
-        if (this->BC() == BoundaryCondition::Dirichlet)
+        if (this->BC() == BoundaryCondition::Decaying)
         {
             other.Raw()[0] = 0.0f;
             other.Raw()[N3-1] = 0.0f;
@@ -582,7 +567,7 @@ public:
         float* in = const_cast<float*>(this->Raw());
         float* out = other.Raw();
 
-        if (this->BC() == BoundaryCondition::Neumann)
+        if (this->BC() == BoundaryCondition::Bounded)
         {
             kind = FFTW_REDFT00;
             size = N3;
@@ -602,7 +587,7 @@ public:
 
         other *= 1/static_cast<float>(2*(N3-1));
 
-        if (this->BC() == BoundaryCondition::Dirichlet)
+        if (this->BC() == BoundaryCondition::Decaying)
         {
             other.Raw()[0] = 0.0f;
             other.Raw()[N3-1] = 0.0f;
@@ -631,12 +616,13 @@ public:
 
     NodalField(BoundaryCondition bc)
     : Field<float, N1, N2, N3>(bc)
-    , intermediateData(N1*N2*N3, 0)
     {
+        std::cout << "  Creating Nodal Field..." << std::endl;
+
         // do some ffts to find optimal method
-        std::vector<float> data0(N1*N2*N3);
-        std::vector<float> data1(N1*N2*N3);
-        std::vector<complex> data2((N1/2+1)*N2*N3);
+        std::vector<float, aligned_allocator<float>> data0(N1*N2*N3);
+        std::vector<float, aligned_allocator<float>> data1(N1*N2*N3);
+        std::vector<complex, aligned_allocator<complex>> data2((N1/2+1)*N2*N3);
 
         {
             int dims;
@@ -645,7 +631,7 @@ public:
             float* in = data0.data();
             float* out = data1.data();
 
-            if (this->BC() == BoundaryCondition::Neumann)
+            if (this->BC() == BoundaryCondition::Bounded)
             {
                 kind = FFTW_REDFT00;
                 dims = N3;
@@ -669,7 +655,7 @@ public:
                                            1,
                                            N3,
                                            &kind,
-                                           FFTW_PATIENT);
+                                           FFTW_MEASURE);
 
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
@@ -689,7 +675,7 @@ public:
                                         odims,
                                         N3,
                                         1,
-                                        FFTW_PATIENT | FFTW_DESTROY_INPUT);
+                                        FFTW_MEASURE | FFTW_DESTROY_INPUT);
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
         }
@@ -707,7 +693,7 @@ public:
             float* in = const_cast<float*>(this->Raw());
             float* out = intermediateData.data();
 
-            if (this->BC() == BoundaryCondition::Neumann)
+            if (this->BC() == BoundaryCondition::Bounded)
             {
                 kind = FFTW_REDFT00;
                 dims = N3;
@@ -793,7 +779,7 @@ public:
 
         other *= 1/static_cast<float>(N1*N2*2*(N3-1));
 
-        if (this->BC() == BoundaryCondition::Dirichlet)
+        if (this->BC() == BoundaryCondition::Decaying)
         {
             other.slice(0).setZero();
             other.slice(N3-1).setZero();
@@ -846,8 +832,11 @@ public:
     }
 
 private:
-    mutable std::vector<float, aligned_allocator<float>> intermediateData;
+    static std::vector<float, aligned_allocator<float>> intermediateData;
 };
+
+template<int N1, int N2, int N3>
+std::vector<float, aligned_allocator<float>> NodalField<N1,N2,N3>::intermediateData(N1*N2*N3, 0);
 
 template<int N1, int N2, int N3>
 class ModalField : public Field<complex, N1/2+1, N2, N3>
@@ -859,15 +848,44 @@ public:
     ModalField(BoundaryCondition bc)
     : Field<complex, N1/2+1, N2, N3>(bc)
     {
+        std::cout << "  Creating Modal Field..." << std::endl;
+
         // do fft to measure time
-        std::vector<float> data0(N1*N2*N3);
+        std::vector<float, aligned_allocator<float>> data0(N1*N2*N3);
+
+        {
+            // make a copy of the input data as it is modified by the transform
+            if(inputData.size() == 0)
+            {
+                inputData.resize(actualN1*N2*N3);
+            }
+
+            int dims[] = {N2, N1};
+            int idims[] = {N2, actualN1};
+            auto plan = fftwf_plan_many_dft_c2r(2,
+                                            dims,
+                                            N3,
+                                            reinterpret_cast<fftwf_complex*>(inputData.data()),
+                                            idims,
+                                            N3,
+                                            1,
+                                            data0.data(),
+                                            dims,
+                                            N3,
+                                            1,
+                                            FFTW_MEASURE);
+            fftwf_execute(plan);
+            fftwf_destroy_plan(plan);
+
+        }
+
         {
             int dims;
             fftwf_r2r_kind kind;
             float* in = data0.data();
             float* out = data0.data();
 
-            if (this->BC() == BoundaryCondition::Neumann)
+            if (this->BC() == BoundaryCondition::Bounded)
             {
                 kind = FFTW_REDFT00;
                 dims = N3;
@@ -891,7 +909,7 @@ public:
                                            1,
                                            N3,
                                            &kind,
-                                           FFTW_PATIENT);
+                                           FFTW_MEASURE);
 
             fftwf_execute(plan);
             fftwf_destroy_plan(plan);
@@ -940,10 +958,6 @@ public:
 #else
 
         // make a copy of the input data as it is modified by the transform
-        if(inputData.size() == 0)
-        {
-            inputData.resize(actualN1*N2*N3);
-        }
         for (unsigned int j=0; j<actualN1*N2*N3; j++)
         {
             inputData[j] = this->Raw()[j];
@@ -962,7 +976,7 @@ public:
                                         dims,
                                         N3,
                                         1,
-                                        FFTW_PATIENT);
+                                        FFTW_ESTIMATE);
         fftwf_execute(plan);
         fftwf_destroy_plan(plan);
 #endif
@@ -979,13 +993,15 @@ public:
             float* in = other.Raw();
             float* out = other.Raw();
 
-            if (this->BC() == BoundaryCondition::Neumann)
+            if (this->BC() == BoundaryCondition::Bounded)
             {
-                kind = FFTW_REDFT00;
+                kind = FFTW_REDFT00; // cosine transform
                 dims = N3;
             }
             else
             {
+                // for sine transform
+                //  we don't care about first and last values as these must be zero
                 kind = FFTW_RODFT00;
                 in += 1;
                 out += 1;
@@ -1009,8 +1025,9 @@ public:
             fftwf_destroy_plan(plan);
         }
 
-        if (this->BC() == BoundaryCondition::Dirichlet)
+        if (this->BC() == BoundaryCondition::Decaying)
         {
+            // now enforce zeros
             other.slice(0).setZero();
             other.slice(N3-1).setZero();
         }
@@ -1055,42 +1072,30 @@ public:
         int maxN1 = std::min(N1/2 + 1, 2*(N1/2 + 1)/3+1);
         int halfMaxN2 = N2/3+1;
 
-        int each = maxN1/maxthreads + 1;
-        for (int first=0; first<maxN1; first+=each)
+        #pragma omp parallel for
+        for (int j1=0; j1<maxN1; j1++)
         {
-            int last = first+each;
-            if(last>maxN1)
+            if(N2>1)
             {
-                last = maxN1;
-            }
-
-            ThreadPool::Get().ExecuteAsync(
-                [&f,first,last,halfMaxN2]()
+                for (int j2=0; j2<halfMaxN2; j2++)
                 {
-                    for (int j1=first; j1<last; j1++)
-                    {
-                        if (N2>1)
-                        {
-                            for (int j2=0; j2<halfMaxN2; j2++)
-                            {
-                                f(j1, j2);
-                                f(j1, N2-1-j2);
-                            }
-                        }
-                        else
-                        {
-                            f(j1, 0);
-                        }
-                    }
-                });
+                    f(j1, j2);
+                    f(j1, N2-1-j2);
+                }
+            }
+            else
+            {
+                f(j1, 0);
+            }
         }
-
-        ThreadPool::Get().WaitAll();
     }
 
 private:
-    mutable std::vector<complex, aligned_allocator<complex>> inputData;
+    static std::vector<complex, aligned_allocator<complex>> inputData;
 };
+
+template<int N1, int N2, int N3>
+std::vector<complex, aligned_allocator<complex>> ModalField<N1,N2,N3>::inputData;
 
 template<typename A, typename T, int N1, int N2, int N3>
 ScalarProduct<A, T, N1, N2, N3> operator*(T scalar,

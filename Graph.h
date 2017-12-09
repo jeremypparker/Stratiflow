@@ -24,7 +24,7 @@ ArrayXf Evaluate(const ArrayXf& a, const ArrayXf& x, float L, BoundaryCondition 
         float c = 2;
         if (k==0 || k==a.size()-1)
         {
-            if (bc==BoundaryCondition::Neumann)
+            if (bc==BoundaryCondition::Bounded)
             {
                 c = 1;
             }
@@ -34,7 +34,7 @@ ArrayXf Evaluate(const ArrayXf& a, const ArrayXf& x, float L, BoundaryCondition 
             }
         }
 
-        if (bc==BoundaryCondition::Neumann)
+        if (bc==BoundaryCondition::Bounded)
         {
             y += c*a(k)*cos(k*theta);
         }
