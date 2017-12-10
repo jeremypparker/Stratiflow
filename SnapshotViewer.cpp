@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     const float L2 = 4;
     const float L3 = 8;
 
-    float time = strtof(argv[1], nullptr);
+    float time = 1.0f;//strtof(argv[1], nullptr);
 
     std::string filenameabove;
     std::string filenamebelow;
