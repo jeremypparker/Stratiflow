@@ -4,11 +4,11 @@
 
 TEST_CASE("Integration of gaussian")
 {
-    float L3 = 2.0f;
+    stratifloat L3 = 2.0f;
     NodalField<1, 1, 32> gaussian(BoundaryCondition::Decaying);
-    gaussian.SetValue([](float z){return exp(-z*z);}, L3);
+    gaussian.SetValue([](stratifloat z){return exp(-z*z);}, L3);
 
-    float integral = IntegrateAllSpace(gaussian, 1, 1, L3);
+    stratifloat integral = IntegrateAllSpace(gaussian, 1, 1, L3);
 
     REQUIRE(integral == Approx(sqrt(pi)));
 }

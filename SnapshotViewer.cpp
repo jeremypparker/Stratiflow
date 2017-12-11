@@ -15,24 +15,24 @@ void LoadBuoyancy(std::string filename, NodalField<N1,N2,N3>& buoyancy)
 
     std::ifstream filestream(filename, std::ios::in | std::ios::binary);
 
-    filestream.seekg(N1*N2*N3*3*sizeof(float));
+    filestream.seekg(N1*N2*N3*3*sizeof(stratifloat));
 
     buoyancy.Load(filestream);
 }
 
-std::map<float, std::string> BuildFilenameMap()
+std::map<stratifloat, std::string> BuildFilenameMap()
 {
     
-    std::map<float, std::string> ret;
+    std::map<stratifloat, std::string> ret;
     auto dir = opendir("snapshots");
     struct dirent* file = nullptr;
     while((file=readdir(dir)))
     {
         std::string foundfilename(file->d_name);
         int end = foundfilename.find(".fields");
-        float foundtime = strtof(foundfilename.substr(0, end).c_str(), nullptr);
+        stratifloat foundtime = strtof(foundfilename.substr(0, end).c_str(), nullptr);
 
-        ret.insert(std::pair<float, std::string>(foundtime, "snapshots/"+foundfilename));
+        ret.insert(std::pair<stratifloat, std::string>(foundtime, "snapshots/"+foundfilename));
     }
     closedir(dir);
 
@@ -47,16 +47,16 @@ int main(int argc, char *argv[])
     constexpr int N2 = 1;
     constexpr int N3 = 400;
 
-    const float L1 = 32;
-    const float L2 = 4;
-    const float L3 = 8;
+    const stratifloat L1 = 32;
+    const stratifloat L2 = 4;
+    const stratifloat L3 = 8;
 
-    float time = 1.0f;//strtof(argv[1], nullptr);
+    stratifloat time = 1.0f;//strtof(argv[1], nullptr);
 
     std::string filenameabove;
     std::string filenamebelow;
-    float timeabove;
-    float timebelow;
+    stratifloat timeabove;
+    stratifloat timebelow;
 
     auto filenamemap = BuildFilenameMap();
 

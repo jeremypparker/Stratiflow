@@ -267,6 +267,15 @@ namespace matplotlibcpp {
 		return varray;
 	}
 
+	PyObject* get_array(const std::vector<double>& v, int N1, int N2)
+	{
+		assert(N1*N2 == v.size());
+		detail::_interpreter::get();
+		npy_intp vsize[2] = {N1, N2};
+		PyObject* varray = PyArray_SimpleNewFromData(2, vsize, NPY_DOUBLE, (void*)(v.data()));
+		return varray;
+	}
+
 #else // fallback if we don't have numpy: copy every element of the given vector
 
 	template<typename Numeric>
@@ -311,7 +320,8 @@ namespace matplotlibcpp {
 		return res;
 	}
 
-	bool imshow(const std::vector<float> &x, int N1, int N2)
+	template<typename T>
+	bool imshow(const std::vector<T> &x, int N1, int N2)
 	{
 		assert(x.size() == N1*N2);
 

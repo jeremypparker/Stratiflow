@@ -3,8 +3,6 @@
 #include "Integration.h"
 #include "Graph.h"
 
- #include<Eigen/SparseCholesky> 
-
 #include <iostream>
 #include <fstream>
 #include <chrono>
@@ -12,27 +10,27 @@
 #include <omp.h>
 
 // will become unnecessary with C++17
-#define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
-#define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
-#define MatMulDim3 Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>, float, complex, M1, N2, N3>
-#define MatMul1D Dim3MatMul<Map<const Array<float, -1, 1>, Aligned16>, float, float, 1, 1, N3>
+#define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
+#define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
+#define MatMulDim3 Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
+#define MatMul1D Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, 1, 1, N3>
 
 class IMEXRK
 {
 public:
     static constexpr int N1 = 288;
-    static constexpr int N2 = 72;
+    static constexpr int N2 = 1;
     static constexpr int N3 = 440;
 
     static constexpr int M1 = N1/2 + 1;
 
-    static constexpr float L1 = 16.0f; // size of domain streamwise
-    static constexpr float L2 = 4.0f;  // size of domain spanwise
-    static constexpr float L3 = 5.0f; // vertical scaling factor
+    static constexpr stratifloat L1 = 16.0f; // size of domain streamwise
+    static constexpr stratifloat L2 = 4.0f;  // size of domain spanwise
+    static constexpr stratifloat L3 = 5.0f; // vertical scaling factor
 
-    float deltaT = 0.01f;
-    const float Re = 1000;
-    const float Ri = 0.1;
+    stratifloat deltaT = 0.01f;
+    const stratifloat Re = 1000;
+    const stratifloat Ri = 0.1;
 
     using NField = NodalField<N1,N2,N3>;
     using MField = ModalField<N1,N2,N3>;
@@ -73,8 +71,8 @@ public:
     , q(boundedTemp)
 
     , solveLaplacian(M1*N2)
-    , implicitSolveBounded{std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2)}
-    , implicitSolveDecaying{std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<float>>>(M1*N2)}
+    , implicitSolveBounded{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
+    , implicitSolveDecaying{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
 
     {
         std::cout << "Evaluating derivative matrices..." << std::endl;
@@ -84,8 +82,8 @@ public:
         dim3Derivative2Bounded = VerticalSecondDerivativeMatrix(BoundaryCondition::Bounded, L3, N3);
         dim3Derivative2Decaying = VerticalSecondDerivativeMatrix(BoundaryCondition::Decaying, L3, N3);
 
-        MatrixXf laplacian;
-        SparseMatrix<float> solve;
+        MatrixX laplacian;
+        SparseMatrix<stratifloat> solve;
 
         // we solve each vetical line separately, so N1*N2 total solves
         for (int j1=0; j1<M1; j1++)
@@ -95,8 +93,8 @@ public:
                 laplacian = dim3Derivative2Bounded;
 
                 // add terms for horizontal derivatives
-                laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
-                laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
+                laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
+                laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                 // prevent singularity - first row gives average value at infinity
                 if (j1 == 0 && j2 == 0)
@@ -199,9 +197,9 @@ public:
     }
 
     // gives an upper bound on cfl number - also updates timestep
-    float CFL()
+    stratifloat CFL()
     {
-        static ArrayXf z = VerticalPoints(L3, N3);
+        static ArrayX z = VerticalPoints(L3, N3);
         u1.ToNodal(U1);
         u2.ToNodal(U2);
         u3.ToNodal(U3);
@@ -209,22 +207,22 @@ public:
         u_.ToNodal(U_);
         U1 += U_;
 
-        float delta1 = L1/N1;
-        float delta2 = L2/N2;
-        float delta3 = z(N3/2) - z(N3/2+1); // smallest gap in middle
+        stratifloat delta1 = L1/N1;
+        stratifloat delta2 = L2/N2;
+        stratifloat delta3 = z(N3/2) - z(N3/2+1); // smallest gap in middle
 
-        float cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
+        stratifloat cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
 
         // update timestep for target cfl
-        constexpr float targetCFL = 0.4;
+        constexpr stratifloat targetCFL = 0.4;
         deltaT *= targetCFL / cfl;
         UpdateForTimestep();
 
         return cfl;
     }
 
-    float KE() const
+    stratifloat KE() const
     {
         u1.ToNodal(U1);
         u2.ToNodal(U2);
@@ -234,7 +232,7 @@ public:
         u_.ToNodal(U_);
         U1 += U_;
         NField Uinitial(BoundaryCondition::Bounded);
-        Uinitial.SetValue([](float z){return tanh(z);}, L3);
+        Uinitial.SetValue([](stratifloat z){return tanh(z);}, L3);
         U1 -= Uinitial;
 
         ndTemp = 0.5f*(U1*U1 + U2*U2 + U3*U3);
@@ -244,7 +242,7 @@ public:
         return 0.0f;
     }
 
-    float PE() const
+    stratifloat PE() const
     {
         b.ToNodal(B);
 
@@ -252,7 +250,7 @@ public:
         b_.ToNodal(B_);
         nnTemp = B_ + B;
         N1D Binitial(BoundaryCondition::Bounded);
-        Binitial.SetValue([](float z){return tanh(2*z);}, L3);
+        Binitial.SetValue([](stratifloat z){return tanh(2*z);}, L3);
         nnTemp -= Binitial;
 
         ndTemp = 0.5f*Ri*nnTemp*nnTemp;
@@ -260,7 +258,7 @@ public:
         return IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
     }
 
-    void RemoveDivergence(float pressureMultiplier=1.0f)
+    void RemoveDivergence(stratifloat pressureMultiplier=1.0f)
     {
         // construct the diverence of u
         divergence = ddx(u1) + ddy(u2) + ddz(u3);
@@ -320,18 +318,18 @@ private:
     }
 
     template<typename A, typename T, int K1, int K2, int K3>
-    Dim3MatMul<A, float, T, K1, K2, K3> ddz(const StackContainer<A, T, K1, K2, K3>& f) const
+    Dim3MatMul<A, stratifloat, T, K1, K2, K3> ddz(const StackContainer<A, T, K1, K2, K3>& f) const
     {
-        static MatrixXf dim3DerivativeBounded = VerticalDerivativeMatrix(BoundaryCondition::Bounded, L3, N3);
-        static MatrixXf dim3DerivativeDecaying = VerticalDerivativeMatrix(BoundaryCondition::Decaying, L3, N3);
+        static MatrixX dim3DerivativeBounded = VerticalDerivativeMatrix(BoundaryCondition::Bounded, L3, N3);
+        static MatrixX dim3DerivativeDecaying = VerticalDerivativeMatrix(BoundaryCondition::Decaying, L3, N3);
 
         if (f.BC() == BoundaryCondition::Decaying)
         {
-            return Dim3MatMul<A, float, T, K1, K2, K3>(dim3DerivativeDecaying, f, BoundaryCondition::Bounded);
+            return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(dim3DerivativeDecaying, f, BoundaryCondition::Bounded);
         }
         else
         {
-            return Dim3MatMul<A, float, T, K1, K2, K3>(dim3DerivativeBounded, f, BoundaryCondition::Decaying);
+            return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(dim3DerivativeBounded, f, BoundaryCondition::Decaying);
         }
     }
 
@@ -470,27 +468,27 @@ private:
         #pragma omp parallel for
         for (int j1=0; j1<M1; j1++)
         {
-            MatrixXf laplacian;
-            SparseMatrix<float> solve;
+            MatrixX laplacian;
+            SparseMatrix<stratifloat> solve;
 
             for (int j2=0; j2<N2; j2++)
             {
                 for (int k=0; k<s; k++)
                 {
                     laplacian = dim3Derivative2Bounded;
-                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
-                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
-                    solve = (MatrixXf::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
+                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
 
                     implicitSolveBounded[k][j1*N2+j2].compute(solve);
 
 
                     laplacian = dim3Derivative2Decaying;
-                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixXf::Identity(N3, N3);
-                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixXf::Identity(N3, N3);
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
-                    solve = (MatrixXf::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
+                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
 
                     implicitSolveDecaying[k][j1*N2+j2].compute(solve);
                 }
@@ -509,9 +507,9 @@ private:
 
     // parameters for the scheme
     const int s = 3;
-    float h[3];
-    const float beta[3] = {1.0f, 25.0f/8.0f, 9.0f/4.0f};
-    const float zeta[3] = {0, -17.0f/8.0f, -5.0f/4.0f};
+    stratifloat h[3];
+    const stratifloat beta[3] = {1.0f, 25.0f/8.0f, 9.0f/4.0f};
+    const stratifloat zeta[3] = {0, -17.0f/8.0f, -5.0f/4.0f};
 
     // these are intermediate variables used in the computation, preallocated for efficiency
     MField& R1,& R2,& R3,& RB;
@@ -525,21 +523,21 @@ private:
     MField& q;
 
     // these are precomputed matrices for performing and solving derivatives
-    DiagonalMatrix<float, -1> dim1Derivative2;
-    DiagonalMatrix<float, -1> dim2Derivative2;
-    MatrixXf dim3Derivative2Bounded;
-    MatrixXf dim3Derivative2Decaying;
+    DiagonalMatrix<stratifloat, -1> dim1Derivative2;
+    DiagonalMatrix<stratifloat, -1> dim2Derivative2;
+    MatrixX dim3Derivative2Bounded;
+    MatrixX dim3Derivative2Decaying;
 
-    std::vector<SimplicialLDLT<SparseMatrix<float>>> implicitSolveBounded[3];
-    std::vector<SimplicialLDLT<SparseMatrix<float>>> implicitSolveDecaying[3];
-    std::vector<PartialPivLU<MatrixXf>> solveLaplacian;
+    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveBounded[3];
+    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveDecaying[3];
+    std::vector<PartialPivLU<MatrixX>> solveLaplacian;
 };
 
 int main()
 {
     //std::cout << "Initializing fftw..." << std::endl;
-    fftwf_init_threads();
-    fftwf_plan_with_nthreads(omp_get_max_threads());
+    f3_init_threads();
+    f3_plan_with_nthreads(omp_get_max_threads());
 
     std::cout << "Creating solver..." << std::endl;
     IMEXRK solver;
@@ -553,21 +551,21 @@ int main()
         auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
 
         // nudge with something like the eigenmode
-        initialU3.SetValue([](float x, float y, float z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
+        initialU3.SetValue([](stratifloat x, stratifloat y, stratifloat z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
 
         // add a perturbation to allow secondary instabilities to develop
 
-        float bandmax = 4;
+        stratifloat bandmax = 4;
         for (int j=0; j<IMEXRK::N3; j++)
         {
             if (x3(j) > -bandmax && x3(j) < bandmax)
             {
                 initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+                    * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
                 initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+                    * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
                 initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<float, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+                    * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
             }
         }
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
@@ -577,21 +575,21 @@ int main()
     // add background flow
     std::cout << "Setting background..." << std::endl;
     {
-        float R = 2;
+        stratifloat R = 2;
 
         IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
         IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
         IMEXRK::N1D dBdz(BoundaryCondition::Decaying);
-        Ubar.SetValue([](float z){return tanh(z);}, IMEXRK::L3);
-        Bbar.SetValue([R](float z){return tanh(R*z);}, IMEXRK::L3);
+        Ubar.SetValue([](stratifloat z){return tanh(z);}, IMEXRK::L3);
+        Bbar.SetValue([R](stratifloat z){return tanh(R*z);}, IMEXRK::L3);
 
         solver.SetBackground(Ubar, Bbar);
     }
 
     std::ofstream energyFile("energy.dat");
 
-    float totalTime = 0.0f;
-    float saveEvery = 1.0f;
+    stratifloat totalTime = 0.0f;
+    stratifloat saveEvery = 1.0f;
     int lastFrame = -1;
     for (int step=0; step<500000; step++)
     {
@@ -602,7 +600,7 @@ int main()
 
         if(step%50==0)
         {
-            float cfl = solver.CFL();
+            stratifloat cfl = solver.CFL();
             std::cout << "Step " << step << ", time " << totalTime
                       << ", CFL number: " << cfl << std::endl;
 
@@ -628,7 +626,7 @@ int main()
         }
     }
 
-    fftwf_cleanup_threads();
+    f3_cleanup_threads();
 
     return 0;
 }

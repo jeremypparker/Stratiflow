@@ -4,11 +4,11 @@
 
 #include <matplotlib-cpp.h>
 
-ArrayXf Evaluate(const ArrayXf& a, const ArrayXf& x, float L, BoundaryCondition bc)
+ArrayX Evaluate(const ArrayX& a, const ArrayX& x, stratifloat L, BoundaryCondition bc)
 {
-    ArrayXf y = ArrayXf::Zero(x.size());
+    ArrayX y = ArrayX::Zero(x.size());
 
-    ArrayXf theta = atan(L/x);
+    ArrayX theta = atan(L/x);
 
     for (int j=0; j<theta.size(); j++)
     {
@@ -21,7 +21,7 @@ ArrayXf Evaluate(const ArrayXf& a, const ArrayXf& x, float L, BoundaryCondition 
 
     for (int k=0; k<a.size(); k++)
     {
-        float c = 2;
+        stratifloat c = 2;
         if (k==0 || k==a.size()-1)
         {
             if (bc==BoundaryCondition::Bounded)
@@ -48,7 +48,7 @@ ArrayXf Evaluate(const ArrayXf& a, const ArrayXf& x, float L, BoundaryCondition 
 }
 
 template<int N1, int N2, int N3>
-inline void HeatPlot(const ModalField<N1, N2, N3> &u, float L1, float L3, int j2, std::string filename)
+inline void HeatPlot(const ModalField<N1, N2, N3> &u, stratifloat L1, stratifloat L3, int j2, std::string filename)
 {
     NodalField<N1, N2, N3> U(u.BC());
     u.ToNodalHorizontal(U);
@@ -61,13 +61,13 @@ inline void HeatPlot(const ModalField<N1, N2, N3> &u, float L1, float L3, int j2
     int cols = N1*scale;
     int rows = N1*scale;
 
-    ArrayXf x = ArrayXf::LinSpaced(rows, -0.5*L1*scale, 0.5*L1*scale);
+    ArrayX x = ArrayX::LinSpaced(rows, -0.5*L1*scale, 0.5*L1*scale);
 
-    std::vector<float> imdata(rows*cols);
+    std::vector<stratifloat> imdata(rows*cols);
 
     for (int col=0; col<N1; col++)
     {
-        ArrayXf y = Evaluate(U.stack(col, j2), x, L3, U.BC());
+        ArrayX y = Evaluate(U.stack(col, j2), x, L3, U.BC());
 
         for (int row=0; row<rows; row++)
         {

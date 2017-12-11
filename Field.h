@@ -2,10 +2,7 @@
 
 #include "Constants.h"
 #include "ThreadPool.h"
-
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include <Eigen/StdVector>
+#include "Eigen.h"
 
 #include <cassert>
 
@@ -23,10 +20,11 @@
 #include <iterator>
 #include <fstream>
 
+
 using namespace Eigen;
 
-ArrayXf VerticalPoints(float L, int N);
-ArrayXf FourierPoints(float L, int N);
+ArrayX VerticalPoints(stratifloat L, int N);
+ArrayX FourierPoints(stratifloat L, int N);
 
 template<typename A, typename T, int N1, int N2, int N3>
 class StackContainer
@@ -513,19 +511,19 @@ template<int N1, int N2, int N3>
 class Nodal1D;
 
 template<int N1, int N2, int N3>
-class Modal1D : public Field1D<float, 1, 1, N3>
+class Modal1D : public Field1D<stratifloat, 1, 1, N3>
 {
 public:
-    using Field1D<float, 1, 1, N3>::Field1D;
-    using Field1D<float, 1, 1, N3>::operator=;
+    using Field1D<stratifloat, 1, 1, N3>::Field1D;
+    using Field1D<stratifloat, 1, 1, N3>::operator=;
 
     void ToNodal(Nodal1D<N1,N2,N3>& other) const
     {
         int size;
-        fftwf_r2r_kind kind;
+        f3_r2r_kind kind;
 
-        float* in = const_cast<float*>(this->Raw());
-        float* out = other.Raw();
+        stratifloat* in = const_cast<stratifloat*>(this->Raw());
+        stratifloat* out = other.Raw();
 
         if (this->BC() == BoundaryCondition::Bounded)
         {
@@ -540,10 +538,10 @@ public:
             size = N3-2;
         }
 
-        auto plan = fftwf_plan_many_r2r(1, &size, 1, in, nullptr, 1, 1, out, nullptr, 1, 1, &kind, FFTW_ESTIMATE);
+        auto plan = f3_plan_many_r2r(1, &size, 1, in, nullptr, 1, 1, out, nullptr, 1, 1, &kind, FFTW_ESTIMATE);
 
-        fftwf_execute(plan);
-        fftwf_destroy_plan(plan);
+        f3_execute(plan);
+        f3_destroy_plan(plan);
 
         if (this->BC() == BoundaryCondition::Decaying)
         {
@@ -554,19 +552,19 @@ public:
 };
 
 template<int N1, int N2, int N3>
-class Nodal1D : public Field1D<float, N1, N2, N3>
+class Nodal1D : public Field1D<stratifloat, N1, N2, N3>
 {
 public:
-    using Field1D<float, N1, N2, N3>::Field1D;
-    using Field1D<float, N1, N2, N3>::operator=;
+    using Field1D<stratifloat, N1, N2, N3>::Field1D;
+    using Field1D<stratifloat, N1, N2, N3>::operator=;
 
     void ToModal(Modal1D<N1,N2,N3>& other) const
     {
         int size;
-        fftwf_r2r_kind kind;
+        f3_r2r_kind kind;
 
-        float* in = const_cast<float*>(this->Raw());
-        float* out = other.Raw();
+        stratifloat* in = const_cast<stratifloat*>(this->Raw());
+        stratifloat* out = other.Raw();
 
         if (this->BC() == BoundaryCondition::Bounded)
         {
@@ -581,12 +579,12 @@ public:
             size = N3-2;
         }
 
-        auto plan = fftwf_plan_many_r2r(1, &size, 1, in, nullptr, 1, 1, out, nullptr, 1, 1, &kind, FFTW_ESTIMATE);
+        auto plan = f3_plan_many_r2r(1, &size, 1, in, nullptr, 1, 1, out, nullptr, 1, 1, &kind, FFTW_ESTIMATE);
 
-        fftwf_execute(plan);
-        fftwf_destroy_plan(plan);
+        f3_execute(plan);
+        f3_destroy_plan(plan);
 
-        other *= 1/static_cast<float>(2*(N3-1));
+        other *= 1/static_cast<stratifloat>(2*(N3-1));
 
         if (this->BC() == BoundaryCondition::Decaying)
         {
@@ -595,9 +593,9 @@ public:
         }
     }
 
-    void SetValue(std::function<float(float)> f, float L3)
+    void SetValue(std::function<stratifloat(stratifloat)> f, stratifloat L3)
     {
-        ArrayXf z = VerticalPoints(L3, N3);
+        ArrayX z = VerticalPoints(L3, N3);
         for (int j3=0; j3<N3; j3++)
         {
             this->Get()(j3) = f(z(j3));
@@ -610,27 +608,27 @@ template<int N1, int N2, int N3>
 class ModalField;
 
 template<int N1, int N2, int N3>
-class NodalField : public Field<float, N1, N2, N3>
+class NodalField : public Field<stratifloat, N1, N2, N3>
 {
 public:
-    using Field<float, N1, N2, N3>::operator=;
+    using Field<stratifloat, N1, N2, N3>::operator=;
 
     NodalField(BoundaryCondition bc)
-    : Field<float, N1, N2, N3>(bc)
+    : Field<stratifloat, N1, N2, N3>(bc)
     {
         std::cout << "  Creating Nodal Field..." << std::endl;
 
         // do some ffts to find optimal method
-        std::vector<float, aligned_allocator<float>> data0(N1*N2*N3);
-        std::vector<float, aligned_allocator<float>> data1(N1*N2*N3);
+        std::vector<stratifloat, aligned_allocator<stratifloat>> data0(N1*N2*N3);
+        std::vector<stratifloat, aligned_allocator<stratifloat>> data1(N1*N2*N3);
         std::vector<complex, aligned_allocator<complex>> data2((N1/2+1)*N2*N3);
 
         {
             int dims;
-            fftwf_r2r_kind kind;
+            f3_r2r_kind kind;
 
-            float* in = data0.data();
-            float* out = data1.data();
+            stratifloat* in = data0.data();
+            stratifloat* out = data1.data();
 
             if (this->BC() == BoundaryCondition::Bounded)
             {
@@ -644,7 +642,7 @@ public:
                 out += 1;
                 dims = N3-2;
             }
-            auto plan = fftwf_plan_many_r2r(1,
+            auto plan = f3_plan_many_r2r(1,
                                            &dims,
                                            N1*N2,
                                            in,
@@ -658,27 +656,27 @@ public:
                                            &kind,
                                            FFTW_MEASURE);
 
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
+            f3_execute(plan);
+            f3_destroy_plan(plan);
         }
 
         {
             int dims[] = {N2, N1};
             int odims[] = {N2, (N1/2+1)};
-            auto plan = fftwf_plan_many_dft_r2c(2,
+            auto plan = f3_plan_many_dft_r2c(2,
                                         dims,
                                         N3,
                                         data1.data(),
                                         dims,
                                         N3,
                                         1,
-                                        reinterpret_cast<fftwf_complex*>(data2.data()),
+                                        reinterpret_cast<f3_complex*>(data2.data()),
                                         odims,
                                         N3,
                                         1,
                                         FFTW_MEASURE | FFTW_DESTROY_INPUT);
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
+            f3_execute(plan);
+            f3_destroy_plan(plan);
         }
     }
 
@@ -689,10 +687,10 @@ public:
         // first do (co)sine transform in 3rd dimension
         {
             int dims;
-            fftwf_r2r_kind kind;
+            f3_r2r_kind kind;
 
-            float* in = const_cast<float*>(this->Raw());
-            float* out = intermediateData.data();
+            stratifloat* in = const_cast<stratifloat*>(this->Raw());
+            stratifloat* out = intermediateData.data();
 
             if (this->BC() == BoundaryCondition::Bounded)
             {
@@ -706,7 +704,7 @@ public:
                 out += 1;
                 dims = N3-2;
             }
-            auto plan = fftwf_plan_many_r2r(1,
+            auto plan = f3_plan_many_r2r(1,
                                            &dims,
                                            N1*N2,
                                            in,
@@ -720,8 +718,8 @@ public:
                                            &kind,
                                            FFTW_ESTIMATE);
 
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
+            f3_execute(plan);
+            f3_destroy_plan(plan);
         }
 
         // then do FFT in 1st and 2nd dimensions
@@ -761,24 +759,24 @@ public:
 #else
             int dims[] = {N2, N1};
             int odims[] = {N2, (N1/2+1)};
-            auto plan = fftwf_plan_many_dft_r2c(2,
+            auto plan = f3_plan_many_dft_r2c(2,
                                         dims,
                                         N3,
                                         intermediateData.data(),
                                         dims,
                                         N3,
                                         1,
-                                        reinterpret_cast<fftwf_complex*>(other.Raw()),
+                                        reinterpret_cast<f3_complex*>(other.Raw()),
                                         odims,
                                         N3,
                                         1,
                                         FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
+            f3_execute(plan);
+            f3_destroy_plan(plan);
 #endif
         }
 
-        other *= 1/static_cast<float>(N1*N2*2*(N3-1));
+        other *= 1/static_cast<stratifloat>(N1*N2*2*(N3-1));
 
         if (this->BC() == BoundaryCondition::Decaying)
         {
@@ -789,13 +787,13 @@ public:
         other.Filter();
     }
 
-    float Max() const
+    stratifloat Max() const
     {
-        float max = 0;
+        stratifloat max = 0;
 
         for (int j3=0; j3<N3; j3++)
         {
-            float norm = this->slice(j3).matrix().template lpNorm<Infinity>();
+            stratifloat norm = this->slice(j3).matrix().template lpNorm<Infinity>();
             if (norm > max)
             {
                 max = norm;
@@ -805,20 +803,20 @@ public:
         return max;
     }
 
-    void SetValue(std::function<float(float)> f, float L3)
+    void SetValue(std::function<stratifloat(stratifloat)> f, stratifloat L3)
     {
-        ArrayXf z = VerticalPoints(L3, N3);
+        ArrayX z = VerticalPoints(L3, N3);
         for (int j3=0; j3<N3; j3++)
         {
             this->slice(j3).setConstant(f(z(j3)));
         }
     }
 
-    void SetValue(std::function<float(float,float,float)> f, float L1, float L2, float L3)
+    void SetValue(std::function<stratifloat(stratifloat,stratifloat,stratifloat)> f, stratifloat L1, stratifloat L2, stratifloat L3)
     {
-        ArrayXf x = FourierPoints(L1, N1);
-        ArrayXf y = FourierPoints(L2, N2);
-        ArrayXf z = VerticalPoints(L3, N3);
+        ArrayX x = FourierPoints(L1, N1);
+        ArrayX y = FourierPoints(L2, N2);
+        ArrayX z = VerticalPoints(L3, N3);
 
         for (int j1=0; j1<N1; j1++)
         {
@@ -833,11 +831,11 @@ public:
     }
 
 private:
-    static std::vector<float, aligned_allocator<float>> intermediateData;
+    static std::vector<stratifloat, aligned_allocator<stratifloat>> intermediateData;
 };
 
 template<int N1, int N2, int N3>
-std::vector<float, aligned_allocator<float>> NodalField<N1,N2,N3>::intermediateData(N1*N2*N3, 0);
+std::vector<stratifloat, aligned_allocator<stratifloat>> NodalField<N1,N2,N3>::intermediateData(N1*N2*N3, 0);
 
 template<int N1, int N2, int N3>
 class ModalField : public Field<complex, N1/2+1, N2, N3>
@@ -852,7 +850,7 @@ public:
         std::cout << "  Creating Modal Field..." << std::endl;
 
         // do fft to measure time
-        std::vector<float, aligned_allocator<float>> data0(N1*N2*N3);
+        std::vector<stratifloat, aligned_allocator<stratifloat>> data0(N1*N2*N3);
 
         {
             // make a copy of the input data as it is modified by the transform
@@ -863,10 +861,10 @@ public:
 
             int dims[] = {N2, N1};
             int idims[] = {N2, actualN1};
-            auto plan = fftwf_plan_many_dft_c2r(2,
+            auto plan = f3_plan_many_dft_c2r(2,
                                             dims,
                                             N3,
-                                            reinterpret_cast<fftwf_complex*>(inputData.data()),
+                                            reinterpret_cast<f3_complex*>(inputData.data()),
                                             idims,
                                             N3,
                                             1,
@@ -875,16 +873,16 @@ public:
                                             N3,
                                             1,
                                             FFTW_MEASURE);
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
+            f3_execute(plan);
+            f3_destroy_plan(plan);
 
         }
 
         {
             int dims;
-            fftwf_r2r_kind kind;
-            float* in = data0.data();
-            float* out = data0.data();
+            f3_r2r_kind kind;
+            stratifloat* in = data0.data();
+            stratifloat* out = data0.data();
 
             if (this->BC() == BoundaryCondition::Bounded)
             {
@@ -898,7 +896,7 @@ public:
                 out += 1;
                 dims = N3-2;
             }
-            auto plan = fftwf_plan_many_r2r(1,
+            auto plan = f3_plan_many_r2r(1,
                                            &dims,
                                            N1*N2,
                                            in,
@@ -912,8 +910,8 @@ public:
                                            &kind,
                                            FFTW_MEASURE);
 
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
+            f3_execute(plan);
+            f3_destroy_plan(plan);
         }
     }
 
@@ -966,10 +964,10 @@ public:
 
         int dims[] = {N2, N1};
         int idims[] = {N2, actualN1};
-        auto plan = fftwf_plan_many_dft_c2r(2,
+        auto plan = f3_plan_many_dft_c2r(2,
                                         dims,
                                         N3,
-                                        reinterpret_cast<fftwf_complex*>(inputData.data()),
+                                        reinterpret_cast<f3_complex*>(inputData.data()),
                                         idims,
                                         N3,
                                         1,
@@ -978,8 +976,8 @@ public:
                                         N3,
                                         1,
                                         FFTW_ESTIMATE);
-        fftwf_execute(plan);
-        fftwf_destroy_plan(plan);
+        f3_execute(plan);
+        f3_destroy_plan(plan);
 #endif
     }
 
@@ -990,9 +988,9 @@ public:
         // then do (co)sine transform in 3rd dimension
         {
             int dims;
-            fftwf_r2r_kind kind;
-            float* in = other.Raw();
-            float* out = other.Raw();
+            f3_r2r_kind kind;
+            stratifloat* in = other.Raw();
+            stratifloat* out = other.Raw();
 
             if (this->BC() == BoundaryCondition::Bounded)
             {
@@ -1008,7 +1006,7 @@ public:
                 out += 1;
                 dims = N3-2;
             }
-            auto plan = fftwf_plan_many_r2r(1,
+            auto plan = f3_plan_many_r2r(1,
                                            &dims,
                                            N1*N2,
                                            in,
@@ -1022,8 +1020,8 @@ public:
                                            &kind,
                                            FFTW_ESTIMATE);
 
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
+            f3_execute(plan);
+            f3_destroy_plan(plan);
         }
 
         if (this->BC() == BoundaryCondition::Decaying)
@@ -1106,11 +1104,19 @@ ScalarProduct<A, T, N1, N2, N3> operator*(T scalar,
 }
 
 template<typename A, int N1, int N2, int N3>
-ScalarProduct<A, complex, N1, N2, N3> operator*(float scalar,
+ScalarProduct<A, complex, N1, N2, N3> operator*(stratifloat scalar,
                                        const StackContainer<A, complex, N1, N2, N3>& field)
 {
     return ScalarProduct<A, complex, N1, N2, N3>(scalar, &field);
 }
+
+template<typename A, typename T, int N1, int N2, int N3>
+ScalarProduct<A, T, N1, N2, N3> operator*(notstratifloat scalar,
+                                       const StackContainer<A, T, N1, N2, N3>& field)
+{
+    return ScalarProduct<A, T, N1, N2, N3>((stratifloat)scalar, &field);
+}
+
 
 template<typename A, typename B, typename T, int N1, int N2, int N3>
 ComponentwiseSum<A, B, T, N1, N2, N3> operator+(const StackContainer<A, T, N1, N2, N3>& lhs, const StackContainer<B, T, N1, N2, N3>& rhs)

@@ -1,9 +1,9 @@
 #include "Field.h"
 
-ArrayXf VerticalPoints(float L, int N)
+ArrayX VerticalPoints(stratifloat L, int N)
 {
     assert(N%4 == 0); // need for alignment
-    ArrayXf ret =  L/(tan(ArrayXf::LinSpaced(N, 0, pi)));
+    ArrayX ret =  L/(tan(ArrayX::LinSpaced(N, 0, pi)));
 
     // fix infinities
     ret(0) = 100000000000;
@@ -12,7 +12,7 @@ ArrayXf VerticalPoints(float L, int N)
     return ret;
 }
 
-ArrayXf FourierPoints(float L, int N)
+ArrayX FourierPoints(stratifloat L, int N)
 {
-    return ArrayXf::LinSpaced(N, 0, L - L/static_cast<float>(N));
+    return ArrayX::LinSpaced(N, 0, L - L/static_cast<stratifloat>(N));
 }

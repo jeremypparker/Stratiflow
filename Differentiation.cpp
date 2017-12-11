@@ -1,10 +1,10 @@
+
 #include "Differentiation.h"
+#include "Eigen.h"
 
-#include <Eigen/Dense>
-
-MatrixXf VerticalDerivativeMatrix(BoundaryCondition originalBC, float L, int N)
+MatrixX VerticalDerivativeMatrix(BoundaryCondition originalBC, stratifloat L, int N)
 {
-    MatrixXf D = MatrixXf::Zero(N,N);
+    MatrixX D = MatrixX::Zero(N,N);
 
     for (int j=0; j<N; j++)
     {
@@ -52,7 +52,7 @@ MatrixXf VerticalDerivativeMatrix(BoundaryCondition originalBC, float L, int N)
 }
 
 
-MatrixXf VerticalSecondDerivativeMatrix(BoundaryCondition bc, float L, int N)
+MatrixX VerticalSecondDerivativeMatrix(BoundaryCondition bc, stratifloat L, int N)
 {
     if (bc == BoundaryCondition::Bounded)
     {
@@ -67,29 +67,29 @@ MatrixXf VerticalSecondDerivativeMatrix(BoundaryCondition bc, float L, int N)
 }
 
 
-ArrayXf k(int n)
+ArrayX k(int n)
 {
     if (n==1)
     {
         // handle this separately for 2D
-        return ArrayXf::Zero(1);
+        return ArrayX::Zero(1);
     }
     assert(n % 2 == 0); // odd case not handled
     assert(n > 0);
 
-    ArrayXf k(n);
+    ArrayX k(n);
 
     // using this for k gives a result which matches the FT of the real
     // derivative
-    k << ArrayXf::LinSpaced(n / 2, 0, n / 2 - 1),
-         ArrayXf::LinSpaced(n / 2, -n / 2, -1);
+    k << ArrayX::LinSpaced(n / 2, 0, n / 2 - 1),
+         ArrayX::LinSpaced(n / 2, -n / 2, -1);
 
     return k;
 }
 
-DiagonalMatrix<float, -1> FourierSecondDerivativeMatrix(float L, int N, int dimension)
+DiagonalMatrix<stratifloat, -1> FourierSecondDerivativeMatrix(stratifloat L, int N, int dimension)
 {
-    VectorXf ret = -4*pi*pi*k(N)*k(N)/(L*L);
+    VectorX ret = -4*pi*pi*k(N)*k(N)/(L*L);
 
     if (dimension == 2)
     {
@@ -101,12 +101,12 @@ DiagonalMatrix<float, -1> FourierSecondDerivativeMatrix(float L, int N, int dime
     }
 
     assert(0);
-    return DiagonalMatrix<float, -1>();
+    return DiagonalMatrix<stratifloat, -1>();
 }
 
-DiagonalMatrix<complex, -1> FourierDerivativeMatrix(float L, int N, int dimension)
+DiagonalMatrix<complex, -1> FourierDerivativeMatrix(stratifloat L, int N, int dimension)
 {
-    VectorXcf ret = 2.0f*pi*i*k(N)/L;
+    VectorXc ret = 2.0f*pi*i*k(N)/L;
 
     if (dimension == 2)
     {

@@ -4,14 +4,14 @@
 
 TEST_CASE("Basic Field")
 {
-    Field<float, 3, 4, 5> f1(BoundaryCondition::Decaying); // constructor
+    Field<stratifloat, 3, 4, 5> f1(BoundaryCondition::Decaying); // constructor
 
     f1.slice(1).setRandom();
 
     auto f2 = f1; // copy constructor
     REQUIRE(f2 == f1);
 
-    Field<float, 3, 4, 5> f3(BoundaryCondition::Decaying);
+    Field<stratifloat, 3, 4, 5> f3(BoundaryCondition::Decaying);
     f3.slice(2).setRandom();
 
     f2 = f3; // assignment operator
@@ -37,16 +37,16 @@ TEST_CASE("Zero")
 
 TEST_CASE("Slice and stack")
 {
-    Field<float, 2, 2, 2> f1(BoundaryCondition::Decaying);
+    Field<stratifloat, 2, 2, 2> f1(BoundaryCondition::Decaying);
     f1.slice(0) << 1, 2,
                    3, 4;
     f1.slice(1) << 2, 3,
                    4, 5;
 
-    ArrayXf expected(2);
+    ArrayX expected(2);
     expected << 2, 3;
 
-    ArrayXf actual = f1.stack(0, 1);
+    ArrayX actual = f1.stack(0, 1);
     REQUIRE(actual.isApprox(expected));
 
     const auto& f2 = f1;
@@ -62,9 +62,9 @@ TEST_CASE("Stackwise Matmul")
     NodalField<5, 6, 8> f1(BoundaryCondition::Decaying);
     NodalField<5, 6, 8> f2(BoundaryCondition::Decaying);
 
-    DiagonalMatrix<float,-1> mat = VectorXf::Constant(8, 5.0f).asDiagonal();
+    DiagonalMatrix<stratifloat,-1> mat = VectorX::Constant(8, 5.0f).asDiagonal();
 
-    f2 = Dim3MatMul<Map<const Array<float, -1, 1>, Aligned16>,float,float,5,6,8>(mat, f1);
+    f2 = Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>,stratifloat,stratifloat,5,6,8>(mat, f1);
 
     f1 *= 5.0f;
     REQUIRE(f2 == f1);
