@@ -530,7 +530,7 @@ private:
 
     std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveBounded[3];
     std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveDecaying[3];
-    std::vector<PartialPivLU<MatrixX>> solveLaplacian;
+    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> solveLaplacian;
 };
 
 int main()
