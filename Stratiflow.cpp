@@ -303,11 +303,23 @@ public:
 
     stratifloat I()
     {
-        static N1D ave(BoundaryCondition::Bounded);
+        u1.ToNodal(U1);
+        u_.ToNodal(U_);
 
-        static N1D integrand(BoundaryCondition::Bounded);
-        integrand.SetValue([](stratifloat z){return 1;}, L3);
-        integrand = integrand - ave*ave;
+        nnTemp = U1+U_;
+        nnTemp.ToModal(boundedTemp);
+
+        static M1D ave(BoundaryCondition::Bounded);
+        HorizontalAverage(boundedTemp, ave);
+
+        static N1D aveN(BoundaryCondition::Bounded);
+        ave.ToNodal(aveN);
+
+        static N1D one(BoundaryCondition::Bounded);
+        one.SetValue([](stratifloat z){return 1;}, L3);
+
+        static N1D integrand(BoundaryCondition::Decaying);
+        integrand = one + (-1)*aveN*aveN;
 
         return IntegrateVertically(integrand, L3);
     }
@@ -634,7 +646,7 @@ int main()
             solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
             solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
-            energyFile << totalTime << " " << solver.KE() << " " << solver.PE() << std::endl;
+            energyFile << totalTime << " " << solver.KE() << " " << solver.PE() << " " << solver.I() << std::endl;
         }
     }
 

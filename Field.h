@@ -447,7 +447,7 @@ public:
     template<typename A>
     const Field1D<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
-        assert(other.BC() == BC());
+        //assert(other.BC() == BC());
 
         Get() = other.stack(0, 0);
 
@@ -1134,12 +1134,6 @@ template<typename A, typename B, typename T, int N1, int N2, int N3>
 ComponentwiseSum<A, B, T, N1, N2, N3> operator+(const StackContainer<A, T, N1, N2, N3>& lhs, const StackContainer<B, T, N1, N2, N3>& rhs)
 {
     return ComponentwiseSum<A, B, T, N1, N2, N3>(&lhs, &rhs);
-}
-
-template<typename A, typename B, typename T, int N1, int N2, int N3>
-auto operator-(const StackContainer<A, T, N1, N2, N3>& lhs, const StackContainer<B, T, N1, N2, N3>& rhs)
-{
-    return lhs + static_cast<T>(-1)*rhs;
 }
 
 template<typename A, typename B, typename T, int N1, int N2, int N3>

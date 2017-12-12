@@ -50,3 +50,10 @@ stratifloat IntegrateVertically(const Nodal1D<N1,N2,N3>& U, stratifloat L3)
     // the zero mode gives the contribution that remains after integration
     return J.Get()(0) * pi * L3;
 }
+
+template<int N1, int N2, int N3>
+void HorizontalAverage(const ModalField<N1,N2,N3>& integrand, Modal1D<N1,N2,N3>& into)
+{
+    // the zero mode gives the horizontal average (should always be real)
+    into.Get() = real(integrand.stack(0,0));
+}
