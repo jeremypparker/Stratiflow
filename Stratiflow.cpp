@@ -18,7 +18,7 @@
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 288;
+    static constexpr int N1 = 320;
     static constexpr int N2 = 1;
     static constexpr int N3 = 440;
 
@@ -238,8 +238,6 @@ public:
         ndTemp = 0.5f*(U1*U1 + U2*U2 + U3*U3);
 
         return IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
-
-        return 0.0f;
     }
 
     stratifloat PE() const
@@ -298,6 +296,17 @@ public:
 
         nnTemp = B + B_;
         nnTemp.Save(filestream);
+    }
+
+    stratifloat I()
+    {
+        static N1D ave(BoundaryCondition::Bounded);
+
+        static N1D integrand(BoundaryCondition::Bounded);
+        integrand.SetValue([](stratifloat z){return 1;}, L3);
+        integrand = integrand - ave*ave;
+
+        return IntegrateVertically(integrand, L3);
     }
 
 private:
@@ -618,9 +627,9 @@ int main()
 
             solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
             solver.PlotBuoyancy("images/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            // solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            // solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            // solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
             energyFile << totalTime << " " << solver.KE() << " " << solver.PE() << std::endl;
         }

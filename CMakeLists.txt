@@ -5,9 +5,9 @@ option(CUDA "Whether to enable CUDA acceleration of DFTs")
 option(DOUBLE "Use double precision floating point")
 
 set(CMAKE_CXX_COMPILER clang++)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -stdlib=libc++")
 
 find_package(OpenMP)
 if (OPENMP_FOUND)

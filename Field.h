@@ -1125,6 +1125,12 @@ ComponentwiseSum<A, B, T, N1, N2, N3> operator+(const StackContainer<A, T, N1, N
 }
 
 template<typename A, typename B, typename T, int N1, int N2, int N3>
+auto operator-(const StackContainer<A, T, N1, N2, N3>& lhs, const StackContainer<B, T, N1, N2, N3>& rhs)
+{
+    return lhs + static_cast<T>(-1)*rhs;
+}
+
+template<typename A, typename B, typename T, int N1, int N2, int N3>
 ComponentwiseProduct<A, B, T, N1, N2, N3> operator*(const StackContainer<A, T, N1, N2, N3>& lhs, const StackContainer<B, T, N1, N2, N3>& rhs)
 {
     return ComponentwiseProduct<A, B, T, N1, N2, N3>(&lhs, &rhs);
