@@ -147,6 +147,9 @@ public:
         u3.Filter();
         b.Filter();
         p.Filter();
+
+        u_.Filter();
+        b_.Filter();
     }
 
     void PlotBuoyancy(std::string filename, int j2) const

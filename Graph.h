@@ -48,11 +48,32 @@ ArrayX Evaluate(const ArrayX& a, const ArrayX& x, stratifloat L, BoundaryConditi
 }
 
 template<int N1, int N2, int N3>
-inline void HeatPlot(const ModalField<N1, N2, N3> &u, stratifloat L1, stratifloat L3, int j2, std::string filename)
+inline void HeatPlot1D(const Nodal1D<N1, N2, N3> &U, std::string filename)
 {
-    NodalField<N1, N2, N3> U(u.BC());
-    u.ToNodalHorizontal(U);
+    matplotlibcpp::figure();
 
+    int cols = N3;
+    int rows = N3;
+
+    std::vector<stratifloat> imdata(rows*cols);
+
+    for (int col=0; col<cols; col++)
+    {
+        for (int row=0; row<rows; row++)
+        {
+            imdata[row*cols + col] = U.Get()(row);
+        }
+    }
+
+    matplotlibcpp::imshow(imdata, rows, cols);
+
+    matplotlibcpp::save(filename);
+    matplotlibcpp::close();
+}
+
+template<int N1, int N2, int N3>
+inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloat L3, int j2, std::string filename)
+{
     matplotlibcpp::figure();
 
 
@@ -82,4 +103,13 @@ inline void HeatPlot(const ModalField<N1, N2, N3> &u, stratifloat L1, stratifloa
 
     matplotlibcpp::save(filename);
     matplotlibcpp::close();
+}
+
+template<int N1, int N2, int N3>
+inline void HeatPlot(const ModalField<N1, N2, N3> &u, stratifloat L1, stratifloat L3, int j2, std::string filename)
+{
+    NodalField<N1, N2, N3> U(u.BC());
+    u.ToNodalHorizontal(U);
+
+    HeatPlot(U, L1, L3, j2, filename);
 }

@@ -549,6 +549,18 @@ public:
             other.Raw()[N3-1] = 0.0f;
         }
     }
+
+    void Filter()
+    {
+        if (N3>2)
+        {
+            for (int j3=2*N3/3; j3<N3; j3++)
+            {
+                this->Raw()[j3] = 0;
+            }
+        }
+    }
+
 };
 
 template<int N1, int N2, int N3>
