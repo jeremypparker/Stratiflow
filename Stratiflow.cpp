@@ -6,6 +6,8 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <dirent.h>
+#include <map>
 
 #include <omp.h>
 
@@ -53,6 +55,17 @@ public:
     , b_(BoundaryCondition::Bounded)
     , db_dz(BoundaryCondition::Decaying)
 
+    , u1_tot(BoundaryCondition::Bounded)
+    , u2_tot(BoundaryCondition::Bounded)
+    , u3_tot(BoundaryCondition::Decaying)
+    , b_tot(BoundaryCondition::Bounded)
+
+    , U1_tot(BoundaryCondition::Bounded)
+    , U2_tot(BoundaryCondition::Bounded)
+    , U3_tot(BoundaryCondition::Decaying)
+    , B_tot(BoundaryCondition::Bounded)
+
+
     , R1(u1), R2(u2), R3(u3), RB(b)
     , RU_(u_), RB_(b_)
     , r1(u1), r2(u2), r3(u3), rB(b)
@@ -65,10 +78,20 @@ public:
     , dB_dz(BoundaryCondition::Decaying)
     , decayingTemp(BoundaryCondition::Decaying)
     , boundedTemp(BoundaryCondition::Bounded)
+    , decayingTemp1D(BoundaryCondition::Decaying)
+    , boundedTemp1D(BoundaryCondition::Bounded)
+    , ndTemp1D(BoundaryCondition::Decaying)
+    , nnTemp1D(BoundaryCondition::Bounded)
     , ndTemp(BoundaryCondition::Decaying)
     , nnTemp(BoundaryCondition::Bounded)
+    , ndTemp2(BoundaryCondition::Decaying)
+    , nnTemp2(BoundaryCondition::Bounded)
     , divergence(boundedTemp)
     , q(boundedTemp)
+
+    , u1Forcing(u1)
+    , u3Forcing(u3)
+    , bForcing(b)
 
     , solveLaplacian(M1*N2)
     , implicitSolveBounded{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
@@ -315,7 +338,7 @@ public:
         return IntegrateVertically(integrand, L3);
     }
 
-    stratifloat JoverK() const
+    stratifloat JoverK()
     {
         static MField u1_total(BoundaryCondition::Bounded);
         static MField b_total(BoundaryCondition::Bounded);
@@ -332,13 +355,15 @@ public:
         nnTemp = B + B_;
         nnTemp.ToModal(b_total);
 
-        return JoverK(u1_total, u2, u3, b_total);
+        UpdateAdjointVariables(u1_total, u2, u3, b_total);
+
+        return J/K;
     }
 
-    stratifloat JoverK(const MField& u1_total,
-                      const MField& u2_total,
-                      const MField& u3_total,
-                      const MField& b_total) const
+    void UpdateAdjointVariables(const MField& u1_total,
+                                       const MField& u2_total,
+                                       const MField& u3_total,
+                                       const MField& b_total)
     {
         // calculate length scale of the flow
         stratifloat I = this->I(u1_total);
@@ -367,7 +392,7 @@ public:
         bwAve.ToNodal(Jintegrand);
         Jintegrand = -1*Jintegrand*varpi;
 
-        stratifloat J = IntegrateVertically(Jintegrand, L3);
+        J = IntegrateVertically(Jintegrand, L3);
 
         // work out average buoyancy gradient
         static M1D dbdz(BoundaryCondition::Decaying);
@@ -378,23 +403,107 @@ public:
         dbdz.ToNodal(Kintegrand);
         Kintegrand = Kintegrand*varpi;
 
-        stratifloat K = IntegrateVertically(Kintegrand, L3);
+        K = IntegrateVertically(Kintegrand, L3);
 
         // also calculate other things needed for DAL
         static N1D varpiDerivative(BoundaryCondition::Bounded);
         varpiDerivative.SetValue([I](stratifloat z){return 2*z*z/I/I/I;}, L3);
 
         Jintegrand = Jintegrand*varpiDerivative;
-        stratifloat Jderivative = IntegrateVertically(Jintegrand);
+        stratifloat Jderivative = IntegrateVertically(Jintegrand, L3);
 
         Kintegrand = Kintegrand*varpiDerivative;
-        stratifloat Kderivative = IntegrateVertically(Kintegrand);
+        stratifloat Kderivative = IntegrateVertically(Kintegrand, L3);
 
+        // lagrange multiplier for value of I
         stratifloat lambda = J*Kderivative/K/K - Jderivative/K; // quotient rule for -J/K
 
-        return J/K;
+        // forcing term for u1
+        HorizontalAverage(u1_total, boundedTemp1D);
+        boundedTemp1D.ToNodal(nnTemp1D);
+        ndTemp1D = -2*lambda*nnTemp1D;
+        nnTemp = ndTemp1D;
+        nnTemp.ToModal(u1Forcing);
+
+        // forcing term for u3
+        b_total.ToNodal(nnTemp);
+        ndTemp = (1/K)*varpi*(nnTemp+(-1)*bAveNodal);
+        ndTemp.ToModal(u3Forcing);
+
+        // forcing term for b
+        varpiDerivative.SetValue([I](stratifloat z){return 2*z/I/I;}, L3);
+        ndTemp = (J/K/K)*varpiDerivative*varpi;
+        ndTemp.ToModal(bForcing);
     }
 
+    void BuildFilenameMap()
+    {
+        auto dir = opendir(snapshotdir.c_str());
+        struct dirent* file = nullptr;
+        while((file=readdir(dir)))
+        {
+            std::string foundfilename(file->d_name);
+            int end = foundfilename.find(".fields");
+            stratifloat foundtime = strtof(foundfilename.substr(0, end).c_str(), nullptr);
+
+            filenames.insert(std::pair<stratifloat, std::string>(foundtime, snapshotdir+foundfilename));
+        }
+        closedir(dir);
+    }
+
+    void LoadVariable(std::string filename, NField& into, int index)
+    {
+        std::ifstream filestream(filename, std::ios::in | std::ios::binary);
+
+        filestream.seekg(N1*N2*N3*index*sizeof(stratifloat));
+        into.Load(filestream);
+    }
+
+    void LoadAtTime(stratifloat time)
+    {
+        std::string filenameabove;
+        std::string filenamebelow;
+        stratifloat timeabove;
+        stratifloat timebelow;
+
+        for (auto entry = filenames.begin(); entry != filenames.end(); entry++)
+        {
+            if(entry->first>=time)
+            {
+                timeabove = entry->first;
+                filenameabove = entry->second;
+
+                entry--;
+                timebelow = entry->first;
+                filenamebelow = entry->second;
+
+                break;
+            }
+        }
+
+        std::cout << timebelow << " < " << time << " < " << timeabove << std::endl;
+
+        // linearly interpolate the variables between each snapshot
+        LoadVariable(filenameabove, nnTemp, 0);
+        LoadVariable(filenamebelow, nnTemp2, 0);
+        U1_tot = ((time-timebelow)/(timeabove-timebelow))*nnTemp + ((timeabove-time)/(timeabove-timebelow))*nnTemp2;
+        U1_tot.ToModal(u1_tot);
+
+        LoadVariable(filenameabove, nnTemp, 1);
+        LoadVariable(filenamebelow, nnTemp2, 1);
+        U2_tot = ((time-timebelow)/(timeabove-timebelow))*nnTemp + ((timeabove-time)/(timeabove-timebelow))*nnTemp2;
+        U2_tot.ToModal(u2_tot);
+
+        LoadVariable(filenameabove, ndTemp, 2);
+        LoadVariable(filenamebelow, ndTemp2, 2);
+        U3_tot = ((time-timebelow)/(timeabove-timebelow))*ndTemp + ((timeabove-time)/(timeabove-timebelow))*ndTemp2;
+        U3_tot.ToModal(u3_tot);
+
+        LoadVariable(filenameabove, nnTemp, 3);
+        LoadVariable(filenamebelow, nnTemp2, 3);
+        B_tot = ((time-timebelow)/(timeabove-timebelow))*nnTemp + ((timeabove-time)/(timeabove-timebelow))*nnTemp2;
+        B_tot.ToModal(b_tot);
+    }
 
 private:
     template<typename T>
@@ -552,6 +661,137 @@ private:
         RB += (h[k]*beta[k])*rB;
     }
 
+
+    void ExplicitUpdateAdjoint(int k)
+    {
+        u1.ToNodal(U1);
+        u2.ToNodal(U2);
+        u3.ToNodal(U3);
+        b.ToNodal(B);
+
+        u1_tot.ToNodal(U1_tot);
+        u2_tot.ToNodal(U2_tot);
+        u3_tot.ToNodal(U3_tot);
+        b_tot.ToNodal(B_tot);
+
+        // build up right hand sides for the implicit solve in R
+
+        //   old      last rk step         pressure         explicit CN
+        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Bounded, u1));
+        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
+        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Decaying, b));
+
+        // now construct explicit terms
+        r1 = u1Forcing;
+        r2.Zero();
+        r3 = u3Forcing;
+        rB = bForcing + -Ri*u3;
+
+        //////// NONLINEAR TERMS ////////
+        // advection of adjoint quantities by the direct flow
+        nnTemp = U1*U1_tot;
+        nnTemp.ToModal(boundedTemp);
+        r1 += ddx(boundedTemp);
+        nnTemp = U1*U2_tot;
+        nnTemp.ToModal(boundedTemp);
+        r1 += ddy(boundedTemp);
+        ndTemp = U1*U3_tot;
+        ndTemp.ToModal(decayingTemp);
+        r1 += ddz(decayingTemp);
+
+        nnTemp = U2*U1_tot;
+        nnTemp.ToModal(boundedTemp);
+        r2 += ddx(boundedTemp);
+        nnTemp = U2*U2_tot;
+        nnTemp.ToModal(boundedTemp);
+        r2 += ddy(boundedTemp);
+        ndTemp = U2*U3_tot;
+        ndTemp.ToModal(decayingTemp);
+        r2 += ddz(decayingTemp);
+
+        ndTemp = U3*U1_tot;
+        ndTemp.ToModal(decayingTemp);
+        r3 += ddx(decayingTemp);
+        ndTemp = U3*U2_tot;
+        ndTemp.ToModal(decayingTemp);
+        r3 += ddy(decayingTemp);
+        nnTemp = U3*U3_tot;
+        nnTemp.ToModal(boundedTemp);
+        r3 += ddz(boundedTemp);
+
+        ndTemp = B*U1_tot;
+        ndTemp.ToModal(decayingTemp);
+        rB += ddx(decayingTemp);
+        ndTemp = B*U2_tot;
+        ndTemp.ToModal(decayingTemp);
+        rB += ddy(decayingTemp);
+        nnTemp = B*U3_tot;
+        nnTemp.ToModal(boundedTemp);
+        rB += ddz(boundedTemp);
+
+        // extra adjoint nonlinear terms
+        boundedTemp = ddx(u1_tot);
+        boundedTemp.ToNodal(nnTemp);
+        nnTemp2 = nnTemp*U1;
+        boundedTemp = ddx(u2_tot);
+        boundedTemp.ToNodal(nnTemp);
+        nnTemp2 += nnTemp*U2;
+        decayingTemp = ddx(u3_tot);
+        decayingTemp.ToNodal(ndTemp);
+        nnTemp2 += ndTemp*U3;
+        nnTemp2.ToModal(boundedTemp);
+        r1 -= boundedTemp;
+
+        boundedTemp = ddy(u1_tot);
+        boundedTemp.ToNodal(nnTemp);
+        nnTemp2 = nnTemp*U1;
+        boundedTemp = ddy(u2_tot);
+        boundedTemp.ToNodal(nnTemp);
+        nnTemp2 += nnTemp*U2;
+        decayingTemp = ddy(u3_tot);
+        decayingTemp.ToNodal(ndTemp);
+        nnTemp2 += ndTemp*U3;
+        nnTemp2.ToModal(boundedTemp);
+        r2 -= boundedTemp;
+
+        decayingTemp = ddz(u1_tot);
+        decayingTemp.ToNodal(ndTemp);
+        ndTemp2 = ndTemp*U1;
+        decayingTemp = ddz(u2_tot);
+        decayingTemp.ToNodal(ndTemp);
+        ndTemp2 += ndTemp*U2;
+        boundedTemp = ddz(u3_tot);
+        boundedTemp.ToNodal(nnTemp);
+        ndTemp2 += nnTemp*U3;
+        ndTemp2.ToModal(decayingTemp);
+        r3 -= decayingTemp;
+
+        boundedTemp = ddx(b_tot);
+        boundedTemp.ToNodal(nnTemp);
+        nnTemp2 = nnTemp*B;
+        nnTemp2.ToModal(boundedTemp);
+        r1 -= boundedTemp;
+
+        boundedTemp = ddy(b_tot);
+        boundedTemp.ToNodal(nnTemp);
+        nnTemp2 = nnTemp*B;
+        nnTemp2.ToModal(boundedTemp);
+        r2 -= boundedTemp;
+
+        decayingTemp = ddz(b_tot);
+        decayingTemp.ToNodal(ndTemp);
+        ndTemp2 = ndTemp*B;
+        ndTemp2.ToModal(decayingTemp);
+        r3 -= decayingTemp;
+
+        // now add on explicit terms to RHS
+        R1 += (h[k]*beta[k])*r1;
+        R2 += (h[k]*beta[k])*r2;
+        R3 += (h[k]*beta[k])*r3;
+        RB += (h[k]*beta[k])*rB;
+    }
+
     void UpdateForTimestep()
     {
         std::cout << "Solving matices..." << std::endl;
@@ -601,6 +841,16 @@ private:
     // background flow
     M1D u_, b_, db_dz;
 
+    // direct flow (used for adjoint evolution)
+    MField u1_tot, u2_tot, u3_tot, b_tot;
+
+    // extra variables required for adjoint forcing
+    stratifloat J, K;
+
+    MField u1Forcing;
+    MField u3Forcing;
+    MField bForcing;
+
     // parameters for the scheme
     const int s = 3;
     stratifloat h[3];
@@ -608,13 +858,17 @@ private:
     const stratifloat zeta[3] = {0, -17.0f/8.0f, -5.0f/4.0f};
 
     // these are intermediate variables used in the computation, preallocated for efficiency
-    MField& R1,& R2,& R3,& RB;
+    MField R1, R2, R3, RB;
     M1D RU_, RB_;
     MField r1, r2, r3, rB;
     mutable NField U1, U2, U3, B;
+    mutable NField U1_tot, U2_tot, U3_tot, B_tot;
     mutable N1D U_, B_, dB_dz;
     mutable NField ndTemp, nnTemp;
+    mutable NField ndTemp2, nnTemp2;
     mutable MField decayingTemp, boundedTemp;
+    mutable M1D decayingTemp1D, boundedTemp1D;
+    mutable N1D ndTemp1D, nnTemp1D;
     MField& divergence; // reference to share memory
     MField& q;
 
@@ -627,6 +881,10 @@ private:
     std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveBounded[3];
     std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveDecaying[3];
     std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> solveLaplacian;
+
+    // for flow saving/loading
+    std::map<stratifloat, std::string> filenames;
+    const std::string snapshotdir = "/local/scratch/public/jpp39/snapshots/";
 };
 
 int main()
@@ -692,7 +950,7 @@ int main()
         solver.TimeStep();
         totalTime += solver.deltaT;
 
-        //solver.SaveFlow("snapshots/"+std::to_string(totalTime)+".fields");
+        solver.SaveFlow("/local/scratch/public/jpp39/snapshots/"+std::to_string(totalTime)+".fields");
 
         if(step%50==0)
         {
