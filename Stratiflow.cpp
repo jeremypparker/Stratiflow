@@ -298,51 +298,103 @@ public:
         nnTemp.Save(filestream);
     }
 
-    stratifloat I()
+    stratifloat I(const MField& u_total) const
     {
+        static M1D ave(BoundaryCondition::Bounded);
+        HorizontalAverage(u_total, ave);
+
+        static N1D aveN(BoundaryCondition::Bounded);
+        ave.ToNodal(aveN);
+
+        static N1D one(BoundaryCondition::Bounded);
+        one.SetValue([](stratifloat z){return 1;}, L3);
+
+        static N1D integrand(BoundaryCondition::Decaying);
+        integrand = one + (-1)*aveN*aveN;
+
+        return IntegrateVertically(integrand, L3);
+    }
+
+    stratifloat JoverK() const
+    {
+        static MField u1_total(BoundaryCondition::Bounded);
+        static MField b_total(BoundaryCondition::Bounded);
+
         u1.ToNodal(U1);
         u_.ToNodal(U_);
 
-        nnTemp = U1+U_;
-        nnTemp.ToModal(boundedTemp);
-
-        static M1D ave(BoundaryCondition::Bounded);
-        HorizontalAverage(boundedTemp, ave);
-
-        static N1D aveN(BoundaryCondition::Bounded);
-        ave.ToNodal(aveN);
-
-        static N1D one(BoundaryCondition::Bounded);
-        one.SetValue([](stratifloat z){return 1;}, L3);
-
-        static N1D integrand(BoundaryCondition::Decaying);
-        integrand = one + (-1)*aveN*aveN;
-
-        return IntegrateVertically(integrand, L3);
-    }
-
-    stratifloat Irho()
-    {
         b.ToNodal(B);
         b_.ToNodal(B_);
 
-        nnTemp = B+B_;
-        nnTemp.ToModal(boundedTemp);
+        nnTemp = U1 + U_;
+        nnTemp.ToModal(u1_total);
 
-        static M1D ave(BoundaryCondition::Bounded);
-        HorizontalAverage(boundedTemp, ave);
+        nnTemp = B + B_;
+        nnTemp.ToModal(b_total);
 
-        static N1D aveN(BoundaryCondition::Bounded);
-        ave.ToNodal(aveN);
-
-        static N1D one(BoundaryCondition::Bounded);
-        one.SetValue([](stratifloat z){return 1;}, L3);
-
-        static N1D integrand(BoundaryCondition::Decaying);
-        integrand = one + (-1)*aveN*aveN;
-
-        return IntegrateVertically(integrand, L3);
+        return JoverK(u1_total, u2, u3, b_total);
     }
+
+    stratifloat JoverK(const MField& u1_total,
+                      const MField& u2_total,
+                      const MField& u3_total,
+                      const MField& b_total) const
+    {
+        // calculate length scale of the flow
+        stratifloat I = this->I(u1_total);
+
+        // calculate weight function for integrals
+        static N1D varpi(BoundaryCondition::Decaying);
+        varpi.SetValue([I](stratifloat z){return exp(-z*z/I/I);}, L3);
+
+        // work out variation of buoyancy from average
+        static M1D bAveModal(BoundaryCondition::Bounded);
+        HorizontalAverage(b_total, bAveModal);
+        static N1D bAveNodal(BoundaryCondition::Bounded);
+        bAveModal.ToNodal(bAveNodal);
+        b_total.ToNodal(nnTemp);
+        nnTemp = nnTemp + -1*bAveNodal;
+
+        // (b-<b>)*w
+        u3_total.ToNodal(U3);
+        ndTemp = nnTemp*U3;
+        ndTemp.ToModal(decayingTemp);
+
+        // construct integrand for J
+        static M1D bwAve(BoundaryCondition::Decaying);
+        HorizontalAverage(decayingTemp, bwAve);
+        static N1D Jintegrand(BoundaryCondition::Decaying);
+        bwAve.ToNodal(Jintegrand);
+        Jintegrand = -1*Jintegrand*varpi;
+
+        stratifloat J = IntegrateVertically(Jintegrand, L3);
+
+        // work out average buoyancy gradient
+        static M1D dbdz(BoundaryCondition::Decaying);
+        dbdz = ddz(bAveModal);
+
+        // construct integrand for K
+        static N1D Kintegrand(BoundaryCondition::Decaying);
+        dbdz.ToNodal(Kintegrand);
+        Kintegrand = Kintegrand*varpi;
+
+        stratifloat K = IntegrateVertically(Kintegrand, L3);
+
+        // also calculate other things needed for DAL
+        static N1D varpiDerivative(BoundaryCondition::Bounded);
+        varpiDerivative.SetValue([I](stratifloat z){return 2*z*z/I/I/I;}, L3);
+
+        Jintegrand = Jintegrand*varpiDerivative;
+        stratifloat Jderivative = IntegrateVertically(Jintegrand);
+
+        Kintegrand = Kintegrand*varpiDerivative;
+        stratifloat Kderivative = IntegrateVertically(Kintegrand);
+
+        stratifloat lambda = J*Kderivative/K/K - Jderivative/K; // quotient rule for -J/K
+
+        return J/K;
+    }
+
 
 private:
     template<typename T>
@@ -666,7 +718,11 @@ int main()
             solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
             solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
-            energyFile << totalTime << " " << solver.KE() << " " << solver.PE() << " " << solver.I() << " " << solver.Irho() << std::endl;
+            energyFile << totalTime
+                       << " " << solver.KE()
+                       << " " << solver.PE()
+                       << " " << solver.JoverK()
+                       << std::endl;
         }
     }
 
