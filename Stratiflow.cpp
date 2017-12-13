@@ -324,6 +324,29 @@ public:
         return IntegrateVertically(integrand, L3);
     }
 
+    stratifloat Irho()
+    {
+        b.ToNodal(B);
+        b_.ToNodal(B_);
+
+        nnTemp = B+B_;
+        nnTemp.ToModal(boundedTemp);
+
+        static M1D ave(BoundaryCondition::Bounded);
+        HorizontalAverage(boundedTemp, ave);
+
+        static N1D aveN(BoundaryCondition::Bounded);
+        ave.ToNodal(aveN);
+
+        static N1D one(BoundaryCondition::Bounded);
+        one.SetValue([](stratifloat z){return 1;}, L3);
+
+        static N1D integrand(BoundaryCondition::Decaying);
+        integrand = one + (-1)*aveN*aveN;
+
+        return IntegrateVertically(integrand, L3);
+    }
+
 private:
     template<typename T>
     Dim1MatMul<T, complex, complex, M1, N2, N3> ddx(const StackContainer<T, complex, M1, N2, N3>& f) const
@@ -646,7 +669,7 @@ int main()
             solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
             solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
-            energyFile << totalTime << " " << solver.KE() << " " << solver.PE() << " " << solver.I() << std::endl;
+            energyFile << totalTime << " " << solver.KE() << " " << solver.PE() << " " << solver.I() << " " << solver.Irho() << std::endl;
         }
     }
 

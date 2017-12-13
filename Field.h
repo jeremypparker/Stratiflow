@@ -454,6 +454,16 @@ public:
         return *this;
     }
 
+    bool operator==(const Field1D<T, N1, N2, N3>& other) const
+    {
+        if (other.BC() != BC())
+        {
+            return false;
+        }
+
+        return Get().isApprox(other.Get(), 0.05);
+    }
+
     const Field1D<T, N1, N2, N3>& operator*=(T mult)
     {
         Get() *= mult;
