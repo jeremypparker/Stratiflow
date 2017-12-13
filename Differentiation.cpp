@@ -28,11 +28,15 @@ MatrixX VerticalDerivativeMatrix(BoundaryCondition originalBC, stratifloat L, in
         else
         {
             D(j, j-2) = j-2;
-            D(j,j) = -2*j;
 
-            if(j+2 < N) // we have lost some terms here
+            if(j+2 < N)
             {
+                D(j,j) = -2*j;
                 D(j,j+2) = j+2;
+            }
+            else // have lost some terms, modify others to keep consistency at infinity
+            {
+                D(j,j) = -j;
             }
         }
     }

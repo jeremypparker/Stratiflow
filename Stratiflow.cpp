@@ -147,9 +147,6 @@ public:
         u3.Filter();
         b.Filter();
         p.Filter();
-
-        u_.Filter();
-        b_.Filter();
     }
 
     void PlotBuoyancy(std::string filename, int j2) const
@@ -411,8 +408,8 @@ private:
         CNSolve(R3, u3, k);
         CNSolve(RB, b, k);
 
-        CNSolve1D(RU_, u_, k);
-        CNSolve1D(RB_, b_, k);
+        // CNSolve1D(RU_, u_, k);
+        // CNSolve1D(RB_, b_, k);
     }
 
     void ExplicitUpdate(int k)
@@ -430,9 +427,9 @@ private:
         R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
         RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Decaying, b));
 
-        // for the 1D variables u_ and b_ (background flow) we only use vertical derivative matrix
-        RU_ = u_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, u_);
-        RB_ = b_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, b_);
+        // // for the 1D variables u_ and b_ (background flow) we only use vertical derivative matrix
+        // RU_ = u_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, u_);
+        // RB_ = b_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, b_);
 
         // now construct explicit terms
         r1.Zero();
