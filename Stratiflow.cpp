@@ -11,6 +11,25 @@
 
 #include <omp.h>
 
+#include <cstdio>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <array>
+
+std::string exec(const char* cmd) {
+    std::array<char, 128> buffer;
+    std::string result;
+    std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) throw std::runtime_error("popen() failed!");
+    while (!feof(pipe.get())) {
+        if (fgets(buffer.data(), 128, pipe.get()) != nullptr)
+            result += buffer.data();
+    }
+    return result;
+}
+
 // will become unnecessary with C++17
 #define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
 #define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
@@ -172,6 +191,43 @@ public:
         p.Filter();
     }
 
+    void TimeStepAdjoint(stratifloat time)
+    {
+        for (int k=0; k<s; k++)
+        {
+            LoadAtTime(time);
+            UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
+
+            auto t0 = std::chrono::high_resolution_clock::now();
+
+            ExplicitUpdateAdjoint(k);
+
+            auto t1 = std::chrono::high_resolution_clock::now();
+
+            ImplicitUpdate(k);
+
+            auto t2 = std::chrono::high_resolution_clock::now();
+
+            RemoveDivergence(1/h[k]);
+
+            auto t3 = std::chrono::high_resolution_clock::now();
+
+            totalExplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
+            totalImplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
+            totalDivergence += std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count();
+
+            time -= h[k];
+        }
+
+        // To prevent anything dodgy accumulating in the unused coefficients
+        u1.Filter();
+        u2.Filter();
+        u3.Filter();
+        b.Filter();
+        p.Filter();
+    }
+
+
     void PlotBuoyancy(std::string filename, int j2) const
     {
         b.ToNodal(B);
@@ -251,12 +307,12 @@ public:
         u2.ToNodal(U2);
         u3.ToNodal(U3);
 
-        // hack for now: perturbation energy relative to frozen bg
-        u_.ToNodal(U_);
-        U1 += U_;
-        NField Uinitial(BoundaryCondition::Bounded);
-        Uinitial.SetValue([](stratifloat z){return tanh(z);}, L3);
-        U1 -= Uinitial;
+        // // hack for now: perturbation energy relative to frozen bg
+        // u_.ToNodal(U_);
+        // U1 += U_;
+        // NField Uinitial(BoundaryCondition::Bounded);
+        // Uinitial.SetValue([](stratifloat z){return tanh(z);}, L3);
+        // U1 -= Uinitial;
 
         ndTemp = 0.5f*(U1*U1 + U2*U2 + U3*U3);
 
@@ -266,15 +322,21 @@ public:
     stratifloat PE() const
     {
         b.ToNodal(B);
+        db_dz = ddz(b_);
+        db_dz.ToNodal(dB_dz);
+        ndTemp = 0.5f*Ri*B*B;
 
-        // hack for now: perturbation energy relative to frozen bg
-        b_.ToNodal(B_);
-        nnTemp = B_ + B;
-        N1D Binitial(BoundaryCondition::Bounded);
-        Binitial.SetValue([](stratifloat z){return tanh(2*z);}, L3);
-        nnTemp -= Binitial;
-
-        ndTemp = 0.5f*Ri*nnTemp*nnTemp;
+        for (int j=0; j<N3; j++)
+        {
+            if(dB_dz.Get()(j)>-0.00001 && dB_dz.Get()(j)<0.00001)
+            {
+                ndTemp.slice(j) = 0;
+            }
+            else
+            {
+                ndTemp.slice(j) /= dB_dz.Get()(j);
+            }
+        }
 
         return IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
     }
@@ -451,6 +513,125 @@ public:
         closedir(dir);
     }
 
+    void UpdateForTimestep()
+    {
+        std::cout << "Solving matices..." << std::endl;
+
+        h[0] = deltaT*8.0f/15.0f;
+        h[1] = deltaT*2.0f/15.0f;
+        h[2] = deltaT*5.0f/15.0f;
+
+
+        #pragma omp parallel for
+        for (int j1=0; j1<M1; j1++)
+        {
+            MatrixX laplacian;
+            SparseMatrix<stratifloat> solve;
+
+            for (int j2=0; j2<N2; j2++)
+            {
+                for (int k=0; k<s; k++)
+                {
+                    laplacian = dim3Derivative2Bounded;
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
+
+                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
+
+                    implicitSolveBounded[k][j1*N2+j2].compute(solve);
+
+
+                    laplacian = dim3Derivative2Decaying;
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
+
+                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
+
+                    implicitSolveDecaying[k][j1*N2+j2].compute(solve);
+                }
+
+            }
+        }
+    }
+
+    void Optimise(stratifloat epsilon,
+                  stratifloat E_0,
+                  MField& oldu1,
+                  MField& oldu2,
+                  MField& oldu3,
+                  MField& oldb,
+                  M1D& backgroundB)
+    {
+        u1.ToNodal(U1);
+        u2.ToNodal(U2);
+        u3.ToNodal(U3);
+        b.ToNodal(B);
+
+        MField& scaledvarrho = decayingTemp; // share memory
+        db_dz = ddz(backgroundB);
+        db_dz.ToNodal(dB_dz);
+        ndTemp = (1/Ri)*B*dB_dz;
+        ndTemp.ToModal(scaledvarrho);
+
+        ndTemp = ndTemp*B;
+        stratifloat varrhodotvarrho = IntegrateAllSpace(ndTemp, L1, L2, L3);
+
+        ndTemp = U1*U1;
+        stratifloat vdotv = IntegrateAllSpace(ndTemp, L1, L2, L3);
+        ndTemp = U2*U2;
+        vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
+        ndTemp = U3*U3;
+        vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
+        ndTemp = B*B;
+        vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
+
+
+        oldu1.ToNodal(nnTemp);
+        ndTemp = nnTemp*U1;
+        stratifloat udotv = IntegrateAllSpace(ndTemp, L1, L2, L3);
+
+        oldu2.ToNodal(nnTemp);
+        ndTemp = nnTemp*U2;
+        udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
+
+        oldu3.ToNodal(ndTemp);
+        ndTemp = ndTemp*U3;
+        udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
+
+        oldb.ToNodal(ndTemp);
+        ndTemp = ndTemp*B;
+        udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
+
+        stratifloat mag = sqrt(vdotv + varrhodotvarrho - udotv*udotv/2*E_0);
+        stratifloat alpha = epsilon * mag;
+
+        std::cout << alpha << " " << udotv << " " << vdotv << " " << varrhodotvarrho << " " << E_0;
+
+        // store the new values in old (which we no longer need after this)
+        oldu1 = cos(alpha)*oldu1 + (sqrt(2*E_0)*sin(alpha)/mag)*(udotv*oldu1 + -1.0*u1);
+        oldu2 = cos(alpha)*oldu2 + (sqrt(2*E_0)*sin(alpha)/mag)*(udotv*oldu2 + -1.0*u2);
+        oldu3 = cos(alpha)*oldu3 + (sqrt(2*E_0)*sin(alpha)/mag)*(udotv*oldu3 + -1.0*u3);
+        oldb = cos(alpha)*oldb + (sqrt(2*E_0)*sin(alpha)/mag)*(udotv*oldb + -1.0*scaledvarrho);
+
+        // now swap everything over
+        boundedTemp = oldu1;
+        oldu1 = u1;
+        u1 = boundedTemp;
+
+        boundedTemp = oldu2;
+        oldu2 = u2;
+        u2 = boundedTemp;
+
+        decayingTemp = oldu3;
+        oldu3 = u3;
+        u3 = decayingTemp;
+
+        decayingTemp = oldb;
+        oldb = b;
+        b = decayingTemp;
+    }
+
+private:
     void LoadVariable(std::string filename, NField& into, int index)
     {
         std::ifstream filestream(filename, std::ios::in | std::ios::binary);
@@ -466,7 +647,9 @@ public:
         stratifloat timeabove;
         stratifloat timebelow;
 
-        for (auto entry = filenames.begin(); entry != filenames.end(); entry++)
+        auto entry = filenames.begin();
+        entry++;
+        for (; entry != filenames.end(); entry++)
         {
             if(entry->first>=time)
             {
@@ -480,8 +663,6 @@ public:
                 break;
             }
         }
-
-        std::cout << timebelow << " < " << time << " < " << timeabove << std::endl;
 
         // linearly interpolate the variables between each snapshot
         LoadVariable(filenameabove, nnTemp, 0);
@@ -505,7 +686,6 @@ public:
         B_tot.ToModal(b_tot);
     }
 
-private:
     template<typename T>
     Dim1MatMul<T, complex, complex, M1, N2, N3> ddx(const StackContainer<T, complex, M1, N2, N3>& f) const
     {
@@ -739,7 +919,7 @@ private:
         nnTemp2 += nnTemp*U2;
         decayingTemp = ddx(u3_tot);
         decayingTemp.ToNodal(ndTemp);
-        nnTemp2 += ndTemp*U3;
+        nnTemp2 = nnTemp2 + ndTemp*U3;
         nnTemp2.ToModal(boundedTemp);
         r1 -= boundedTemp;
 
@@ -751,7 +931,7 @@ private:
         nnTemp2 += nnTemp*U2;
         decayingTemp = ddy(u3_tot);
         decayingTemp.ToNodal(ndTemp);
-        nnTemp2 += ndTemp*U3;
+        nnTemp2 = nnTemp2 + ndTemp*U3;
         nnTemp2.ToModal(boundedTemp);
         r2 -= boundedTemp;
 
@@ -763,7 +943,7 @@ private:
         ndTemp2 += ndTemp*U2;
         boundedTemp = ddz(u3_tot);
         boundedTemp.ToNodal(nnTemp);
-        ndTemp2 += nnTemp*U3;
+        ndTemp2 = ndTemp2 + nnTemp*U3;
         ndTemp2.ToModal(decayingTemp);
         r3 -= decayingTemp;
 
@@ -792,54 +972,14 @@ private:
         RB += (h[k]*beta[k])*rB;
     }
 
-    void UpdateForTimestep()
-    {
-        std::cout << "Solving matices..." << std::endl;
-
-        h[0] = deltaT*8.0f/15.0f;
-        h[1] = deltaT*2.0f/15.0f;
-        h[2] = deltaT*5.0f/15.0f;
-
-
-        #pragma omp parallel for
-        for (int j1=0; j1<M1; j1++)
-        {
-            MatrixX laplacian;
-            SparseMatrix<stratifloat> solve;
-
-            for (int j2=0; j2<N2; j2++)
-            {
-                for (int k=0; k<s; k++)
-                {
-                    laplacian = dim3Derivative2Bounded;
-                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
-                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
-
-                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
-
-                    implicitSolveBounded[k][j1*N2+j2].compute(solve);
-
-
-                    laplacian = dim3Derivative2Decaying;
-                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
-                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
-
-                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
-
-                    implicitSolveDecaying[k][j1*N2+j2].compute(solve);
-                }
-
-            }
-        }
-    }
-
-private:
+public:
     // these are the actual variables we care about
     MField u1, u2, u3, b;
     MField p;
-
+private:
     // background flow
-    M1D u_, b_, db_dz;
+    M1D u_, b_;
+    mutable M1D db_dz;
 
     // direct flow (used for adjoint evolution)
     MField u1_tot, u2_tot, u3_tot, b_tot;
@@ -889,12 +1029,21 @@ private:
 
 int main()
 {
+    stratifloat targetTime = 10.0;
+
     //std::cout << "Initializing fftw..." << std::endl;
     f3_init_threads();
     f3_plan_with_nthreads(omp_get_max_threads());
 
     std::cout << "Creating solver..." << std::endl;
     IMEXRK solver;
+
+    IMEXRK::MField oldu1(BoundaryCondition::Bounded);
+    IMEXRK::MField oldu2(BoundaryCondition::Bounded);
+    IMEXRK::MField oldu3(BoundaryCondition::Decaying);
+    IMEXRK::MField oldb(BoundaryCondition::Decaying);
+
+    IMEXRK::M1D backgroundB(BoundaryCondition::Bounded);
 
     std::cout << "Setting ICs..." << std::endl;
     {
@@ -904,10 +1053,7 @@ int main()
         IMEXRK::NField initialB(BoundaryCondition::Decaying);
         auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
 
-        // nudge with something like the eigenmode
-        initialU3.SetValue([](stratifloat x, stratifloat y, stratifloat z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
-
-        // add a perturbation to allow secondary instabilities to develop
+        // add a perturbation to allow instabilities to develop
 
         stratifloat bandmax = 4;
         for (int j=0; j<IMEXRK::N3; j++)
@@ -924,64 +1070,177 @@ int main()
         }
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
         solver.RemoveDivergence(0.0f);
+
+        oldu1 = solver.u1;
+        oldu2 = solver.u2;
+        oldu3 = solver.u3;
+        oldb = solver.b;
     }
 
-    // add background flow
-    std::cout << "Setting background..." << std::endl;
+    for (int p=0; p<3; p++) // Direct-adjoint loop
     {
-        stratifloat R = 2;
+        exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
+        exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
+        exec("rm -rf /local/scratch/public/jpp39/snapshots/*");
+        exec("mkdir -p images/u1 images/u2 images/u3 images/buoyancy images/pressure");
+        exec("mkdir -p imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
 
-        IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
-        IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
-        IMEXRK::N1D dBdz(BoundaryCondition::Decaying);
-        Ubar.SetValue([](stratifloat z){return tanh(z);}, IMEXRK::L3);
-        Bbar.SetValue([R](stratifloat z){return tanh(R*z);}, IMEXRK::L3);
+        // add background flow
+        std::cout << "Setting background..." << std::endl;
+        {
+            stratifloat R = 2;
 
-        solver.SetBackground(Ubar, Bbar);
-    }
+            IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
+            IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
+            IMEXRK::N1D dBdz(BoundaryCondition::Decaying);
+            Ubar.SetValue([](stratifloat z){return tanh(z);}, IMEXRK::L3);
+            Bbar.SetValue([R](stratifloat z){return tanh(R*z);}, IMEXRK::L3);
 
-    std::ofstream energyFile("energy.dat");
+            solver.SetBackground(Ubar, Bbar);
 
-    stratifloat totalTime = 0.0f;
-    stratifloat saveEvery = 1.0f;
-    int lastFrame = -1;
-    for (int step=0; step<500000; step++)
-    {
-        solver.TimeStep();
-        totalTime += solver.deltaT;
+            Bbar.ToModal(backgroundB);
+        }
 
+        stratifloat E0 = solver.KE() + solver.PE();
+
+        std::cout << "E0: " << E0 << std::endl;
+
+
+        std::ofstream energyFile("energy.dat");
+
+        stratifloat totalTime = 0.0f;
         solver.SaveFlow("/local/scratch/public/jpp39/snapshots/"+std::to_string(totalTime)+".fields");
 
-        if(step%50==0)
-        {
-            stratifloat cfl = solver.CFL();
-            std::cout << "Step " << step << ", time " << totalTime
-                      << ", CFL number: " << cfl << std::endl;
+        solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+        solver.PlotBuoyancy("images/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+        solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+        solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+        solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
-            std::cout << "Average timings: " << solver.totalExplicit / (step+1)
-                      << ", " << solver.totalImplicit / (step+1)
-                      << ", " << solver.totalDivergence / (step+1)
-                      << std::endl;
+        stratifloat saveEvery = 1.0f;
+        int lastFrame = -1;
+        int step = 0;
+        bool done = false;
+        while (totalTime < targetTime)
+        {
+            // on last step, arrive exactly
+            if (totalTime + solver.deltaT > targetTime)
+            {
+                solver.deltaT = targetTime - totalTime;
+                solver.UpdateForTimestep();
+                done = true;
+            }
+
+            solver.TimeStep();
+            totalTime += solver.deltaT;
+
+            solver.SaveFlow("/local/scratch/public/jpp39/snapshots/"+std::to_string(totalTime)+".fields");
+
+            if(step%50==0)
+            {
+                stratifloat cfl = solver.CFL();
+                std::cout << "Step " << step << ", time " << totalTime
+                        << ", CFL number: " << cfl << std::endl;
+
+                std::cout << "Average timings: " << solver.totalExplicit / (step+1)
+                        << ", " << solver.totalImplicit / (step+1)
+                        << ", " << solver.totalDivergence / (step+1)
+                        << std::endl;
+            }
+
+            int frame = static_cast<int>(totalTime / saveEvery);
+
+            if (frame>lastFrame)
+            {
+                lastFrame=frame;
+
+                solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotBuoyancy("images/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+
+                energyFile << totalTime
+                        << " " << solver.KE()
+                        << " " << solver.PE()
+                        << " " << solver.JoverK()
+                        << std::endl;
+            }
+
+            step++;
+
+            if (done)
+            {
+                break;
+            }
         }
 
-        int frame = static_cast<int>(totalTime / saveEvery);
-
-        if (frame>lastFrame)
+        // clear everything for adjoint loop
         {
-            lastFrame=frame;
-
-            solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            solver.PlotBuoyancy("images/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-
-            energyFile << totalTime
-                       << " " << solver.KE()
-                       << " " << solver.PE()
-                       << " " << solver.JoverK()
-                       << std::endl;
+            IMEXRK::NField initialU1(BoundaryCondition::Bounded);
+            IMEXRK::NField initialU2(BoundaryCondition::Bounded);
+            IMEXRK::NField initialU3(BoundaryCondition::Decaying);
+            IMEXRK::NField initialB(BoundaryCondition::Decaying);
+            solver.SetInitial(initialU1, initialU2, initialU3, initialB);
         }
+        {
+            IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
+            IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
+            solver.SetBackground(Ubar, Bbar);
+        }
+
+        totalTime = targetTime;
+        lastFrame = 10000;
+
+        solver.BuildFilenameMap();
+
+        step = 0;
+        done = false;
+        while (totalTime > 0)
+        {
+            // on last step, arrive exactly
+            if (totalTime + solver.deltaT < 0)
+            {
+                solver.deltaT = totalTime;
+                solver.UpdateForTimestep();
+                done = true;
+            }
+
+            solver.TimeStepAdjoint(totalTime);
+            totalTime -= solver.deltaT;
+
+            if(step%50==0)
+            {
+                std::cout << "Step " << step << ", time " << totalTime << std::endl;
+
+                std::cout << "Average timings: " << solver.totalExplicit / (step+1)
+                        << ", " << solver.totalImplicit / (step+1)
+                        << ", " << solver.totalDivergence / (step+1)
+                        << std::endl;
+            }
+
+            int frame = static_cast<int>(totalTime / saveEvery);
+
+            if (frame<lastFrame)
+            {
+                lastFrame=frame;
+
+                solver.PlotPressure("imagesadj/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotBuoyancy("imagesadj/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotVerticalVelocity("imagesadj/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotSpanwiseVelocity("imagesadj/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotStreamwiseVelocity("imagesadj/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            }
+
+            step++;
+
+            if (done)
+            {
+                break;
+            }
+        }
+
+        solver.Optimise(0.1, E0, oldu1, oldu2, oldu3, oldb, backgroundB);
     }
 
     f3_cleanup_threads();
