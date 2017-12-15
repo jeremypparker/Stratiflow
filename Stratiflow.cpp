@@ -604,7 +604,7 @@ public:
         ndTemp = (1/Ri)*B*dB_dz;
         ndTemp.ToModal(scaledvarrho);
 
-        ndTemp = ndTemp*B;
+
         stratifloat varrhodotvarrho = IntegrateAllSpace(ndTemp, L1, L2, L3);
         varrhodotvarrho /= L1*L2;
 
@@ -614,54 +614,42 @@ public:
         vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
         ndTemp = U3*U3;
         vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
+        ndTemp = (1/Ri)*B*B*dB_dz;
+        vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
         vdotv /= L1*L2;
 
 
         oldu1.ToNodal(nnTemp);
         ndTemp = nnTemp*U1;
         stratifloat udotv = IntegrateAllSpace(ndTemp, L1, L2, L3);
-
         oldu2.ToNodal(nnTemp);
         ndTemp = nnTemp*U2;
         udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
-
         oldu3.ToNodal(ndTemp);
         ndTemp = ndTemp*U3;
         udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
-
         oldb.ToNodal(ndTemp);
         ndTemp = ndTemp*B;
         udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
-
         udotv /= L1*L2;
 
-        stratifloat mag = sqrt(vdotv + varrhodotvarrho - udotv*udotv/2*E_0);
+        stratifloat mag = sqrt(vdotv - udotv*udotv/(2*E_0));
         stratifloat alpha = epsilon * mag;
 
-        std::cout << alpha << " " << udotv << " " << vdotv << " " << varrhodotvarrho << " " << E_0;
+        std::cout << alpha << " " << udotv << " " << vdotv << " " << E_0 << std::endl;
 
         // store the new values in old (which we no longer need after this)
-        oldu1 = cos(alpha)*oldu1 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/2*E_0)*oldu1 + -1.0*u1);
-        oldu2 = cos(alpha)*oldu2 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/2*E_0)*oldu2 + -1.0*u2);
-        oldu3 = cos(alpha)*oldu3 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/2*E_0)*oldu3 + -1.0*u3);
-        oldb = cos(alpha)*oldb   + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/2*E_0)*oldb + -1.0*scaledvarrho);
+        oldu1 = cos(alpha)*oldu1 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/(2*E_0))*oldu1 + -1.0*u1);
+        oldu2 = cos(alpha)*oldu2 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/(2*E_0))*oldu2 + -1.0*u2);
+        oldu3 = cos(alpha)*oldu3 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/(2*E_0))*oldu3 + -1.0*u3);
+        oldb = cos(alpha)*oldb   + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/(2*E_0))*oldb + -1.0*scaledvarrho);
 
-        // now swap everything over
-        boundedTemp = oldu1;
-        oldu1 = u1;
-        u1 = boundedTemp;
-
-        boundedTemp = oldu2;
-        oldu2 = u2;
-        u2 = boundedTemp;
-
-        decayingTemp = oldu3;
-        oldu3 = u3;
-        u3 = decayingTemp;
-
-        decayingTemp = oldb;
-        oldb = b;
-        b = decayingTemp;
+        // now actually update the values for the next step
+        u1 = oldu1;
+        u2 = oldu2;
+        u3 = oldu3;
+        b = oldb;
+        p.Zero();
     }
 
 private:
@@ -1123,6 +1111,7 @@ int main()
         oldb = solver.b;
     }
 
+    std::ofstream energyFile("energy.dat");
     for (int p=0; p<10; p++) // Direct-adjoint loop
     {
         exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
@@ -1138,7 +1127,6 @@ int main()
 
             IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
             IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
-            IMEXRK::N1D dBdz(BoundaryCondition::Decaying);
             Ubar.SetValue([](stratifloat z){return tanh(z);}, IMEXRK::L3);
             Bbar.SetValue([R](stratifloat z){return tanh(R*z);}, IMEXRK::L3);
 
@@ -1150,9 +1138,6 @@ int main()
         stratifloat E0 = solver.KE() + solver.PE();
 
         std::cout << "E0: " << E0 << std::endl;
-
-
-        std::ofstream energyFile("energy.dat");
 
         stratifloat totalTime = 0.0f;
         solver.SaveFlow("/local/scratch/public/jpp39/snapshots/"+std::to_string(totalTime)+".fields");
@@ -1185,10 +1170,10 @@ int main()
             if(step%50==0)
             {
                 stratifloat cfl = solver.CFL();
-                std::cout << "Step " << step << ", time " << totalTime
+                std::cout << "  Step " << step << ", time " << totalTime
                         << ", CFL number: " << cfl << std::endl;
 
-                std::cout << "Average timings: " << solver.totalExplicit / (step+1)
+                std::cout << "  Average timings: " << solver.totalExplicit / (step+1)
                         << ", " << solver.totalImplicit / (step+1)
                         << ", " << solver.totalDivergence / (step+1)
                         << std::endl;
@@ -1223,11 +1208,11 @@ int main()
 
         // clear everything for adjoint loop
         {
-            IMEXRK::NField initialU1(BoundaryCondition::Bounded);
-            IMEXRK::NField initialU2(BoundaryCondition::Bounded);
-            IMEXRK::NField initialU3(BoundaryCondition::Decaying);
-            IMEXRK::NField initialB(BoundaryCondition::Decaying);
-            solver.SetInitial(initialU1, initialU2, initialU3, initialB);
+            solver.u1.Zero();
+            solver.u2.Zero();
+            solver.u3.Zero();
+            solver.b.Zero();
+            solver.p.Zero();
         }
         {
             IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
