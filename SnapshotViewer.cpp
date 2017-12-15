@@ -39,7 +39,46 @@ std::map<stratifloat, std::string> BuildFilenameMap()
     return ret;
 }
 
+template<int N1, int N2, int N3>
+NodalField<N1,N2,N3> GetBuoyancy(stratifloat time)
+{
+    static auto filenamemap = BuildFilenameMap();
+    static auto entry = filenamemap.end();
+    entry--;
 
+    while(entry->first > time && entry != filenamemap.begin())
+    {
+        entry--;
+    }
+
+    static stratifloat timeabove = -1;
+    static stratifloat timebelow = -1;
+
+    static NodalField<N1,N2,N3> bAbove(BoundaryCondition::Neumann);
+    static NodalField<N1,N2,N3> bBelow(BoundaryCondition::Neumann);
+
+    if (timebelow != entry->first)
+    {
+        if (timebelow == std::next(entry)->first)
+        {
+            bAbove = bBelow;
+        }   
+        else
+        {
+            LoadBuoyancy(entry->second, bAbove);
+        }
+        LoadBuoyancy(std::next(entry)->second, bBelow);
+
+        timeabove = entry->first;
+        timebelow = std::next(entry)->first;
+    }
+
+    NodalField<N1,N2,N3> bNodal(BoundaryCondition::Neumann);
+
+    bNodal = ((time-timebelow)/(timeabove-timebelow))*bAbove + ((timeabove-time)/(timeabove-timebelow))*bBelow;
+
+    return bNodal;
+}
 
 int main(int argc, char *argv[])
 {
@@ -51,45 +90,18 @@ int main(int argc, char *argv[])
     const stratifloat L2 = 4;
     const stratifloat L3 = 8;
 
-    stratifloat time = 1.0f;//strtof(argv[1], nullptr);
+    //stratifloat time = strtof(argv[1], nullptr);
 
-    std::string filenameabove;
-    std::string filenamebelow;
-    stratifloat timeabove;
-    stratifloat timebelow;
+    ModalField<N1,N2,N3> bModal(BoundaryCondition::Neumann);
 
-    auto filenamemap = BuildFilenameMap();
+    matplotlibcpp::figure();
 
-    for (auto entry = filenamemap.begin(); entry != filenamemap.end(); entry++)
-    {
-        if(entry->first>=time)
-        {
-            timeabove = entry->first;
-            filenameabove = entry->second;
+    for (stratifloat time = 20.0f; time>0.5f; time -= 0.5f)
+    {    
+        GetBuoyancy<N1,N2,N3>(time).ToModal(bModal);
 
-            entry--;
-            timebelow = entry->first;
-            filenamebelow = entry->second;
-
-            break;
-        }
+        HeatPlot(bModal, L1, L3, 0);
     }
-
-    NodalField<N1,N2,N3> bAbove(BoundaryCondition::Bounded);
-    NodalField<N1,N2,N3> bBelow(BoundaryCondition::Bounded);
-
-    LoadBuoyancy(filenameabove, bAbove);
-    LoadBuoyancy(filenamebelow, bBelow);
-
-
-    ModalField<N1,N2,N3> bModal(BoundaryCondition::Bounded);
-    NodalField<N1,N2,N3> bNodal(BoundaryCondition::Bounded);
-
-    bNodal = ((time-timebelow)/(timeabove-timebelow))*bAbove + ((timeabove-time)/(timeabove-timebelow))*bBelow;
-
-    bNodal.ToModal(bModal);
-
-    HeatPlot(bModal, L1, L3, 0, "output.png");
 
     return 0;
 }
