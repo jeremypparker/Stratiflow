@@ -39,9 +39,9 @@ std::string exec(const char* cmd) {
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 320;
+    static constexpr int N1 = 160;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 440;
+    static constexpr int N3 = 220;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -301,6 +301,32 @@ public:
         return cfl;
     }
 
+    stratifloat CFLadjoint()
+    {
+        static ArrayX z = VerticalPoints(L3, N3);
+        u1.ToNodal(U1);
+        u2.ToNodal(U2);
+        u3.ToNodal(U3);
+
+        U1 += U1_tot;
+        U2 += U2_tot;
+        U3 += U3_tot;
+
+        stratifloat delta1 = L1/N1;
+        stratifloat delta2 = L2/N2;
+        stratifloat delta3 = z(N3/2) - z(N3/2+1); // smallest gap in middle
+
+        stratifloat cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
+        cfl *= deltaT;
+
+        // update timestep for target cfl
+        constexpr stratifloat targetCFL = 0.4;
+        deltaT *= targetCFL / cfl;
+        UpdateForTimestep();
+
+        return cfl;
+    }
+
     stratifloat KE() const
     {
         u1.ToNodal(U1);
@@ -494,12 +520,14 @@ public:
 
         // forcing term for b
         varpiDerivative.SetValue([I](stratifloat z){return 2*z/I/I;}, L3);
-        ndTemp = (J/K/K)*varpiDerivative*varpi;
+        ndTemp = (-J/K/K)*varpiDerivative*varpi;
         ndTemp.ToModal(bForcing);
     }
 
     void BuildFilenameMap()
     {
+        filenames.clear();
+
         auto dir = opendir(snapshotdir.c_str());
         struct dirent* file = nullptr;
         while((file=readdir(dir)))
@@ -511,6 +539,9 @@ public:
             filenames.insert(std::pair<stratifloat, std::string>(foundtime, snapshotdir+foundfilename));
         }
         closedir(dir);
+
+        lastFilenameAbove = filenames.end();
+        lastFilenameAbove--;
     }
 
     void UpdateForTimestep()
@@ -575,6 +606,7 @@ public:
 
         ndTemp = ndTemp*B;
         stratifloat varrhodotvarrho = IntegrateAllSpace(ndTemp, L1, L2, L3);
+        varrhodotvarrho /= L1*L2;
 
         ndTemp = U1*U1;
         stratifloat vdotv = IntegrateAllSpace(ndTemp, L1, L2, L3);
@@ -582,8 +614,7 @@ public:
         vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
         ndTemp = U3*U3;
         vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
-        ndTemp = B*B;
-        vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
+        vdotv /= L1*L2;
 
 
         oldu1.ToNodal(nnTemp);
@@ -602,16 +633,18 @@ public:
         ndTemp = ndTemp*B;
         udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
 
+        udotv /= L1*L2;
+
         stratifloat mag = sqrt(vdotv + varrhodotvarrho - udotv*udotv/2*E_0);
         stratifloat alpha = epsilon * mag;
 
         std::cout << alpha << " " << udotv << " " << vdotv << " " << varrhodotvarrho << " " << E_0;
 
         // store the new values in old (which we no longer need after this)
-        oldu1 = cos(alpha)*oldu1 + (sqrt(2*E_0)*sin(alpha)/mag)*(udotv*oldu1 + -1.0*u1);
-        oldu2 = cos(alpha)*oldu2 + (sqrt(2*E_0)*sin(alpha)/mag)*(udotv*oldu2 + -1.0*u2);
-        oldu3 = cos(alpha)*oldu3 + (sqrt(2*E_0)*sin(alpha)/mag)*(udotv*oldu3 + -1.0*u3);
-        oldb = cos(alpha)*oldb + (sqrt(2*E_0)*sin(alpha)/mag)*(udotv*oldb + -1.0*scaledvarrho);
+        oldu1 = cos(alpha)*oldu1 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/2*E_0)*oldu1 + -1.0*u1);
+        oldu2 = cos(alpha)*oldu2 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/2*E_0)*oldu2 + -1.0*u2);
+        oldu3 = cos(alpha)*oldu3 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/2*E_0)*oldu3 + -1.0*u3);
+        oldb = cos(alpha)*oldb   + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/2*E_0)*oldb + -1.0*scaledvarrho);
 
         // now swap everything over
         boundedTemp = oldu1;
@@ -642,47 +675,59 @@ private:
 
     void LoadAtTime(stratifloat time)
     {
-        std::string filenameabove;
-        std::string filenamebelow;
-        stratifloat timeabove;
-        stratifloat timebelow;
-
-        auto entry = filenames.begin();
-        entry++;
-        for (; entry != filenames.end(); entry++)
+        while(lastFilenameAbove->first > time && std::prev(lastFilenameAbove) != filenames.begin())
         {
-            if(entry->first>=time)
-            {
-                timeabove = entry->first;
-                filenameabove = entry->second;
-
-                entry--;
-                timebelow = entry->first;
-                filenamebelow = entry->second;
-
-                break;
-            }
+            lastFilenameAbove--;
         }
 
-        // linearly interpolate the variables between each snapshot
-        LoadVariable(filenameabove, nnTemp, 0);
-        LoadVariable(filenamebelow, nnTemp2, 0);
-        U1_tot = ((time-timebelow)/(timeabove-timebelow))*nnTemp + ((timeabove-time)/(timeabove-timebelow))*nnTemp2;
+        static stratifloat timeabove = -1;
+        static stratifloat timebelow = -1;
+
+        static NField u1Above(BoundaryCondition::Bounded);
+        static NField u1Below(BoundaryCondition::Bounded);
+
+        static NField u2Above(BoundaryCondition::Bounded);
+        static NField u2Below(BoundaryCondition::Bounded);
+
+        static NField u3Above(BoundaryCondition::Decaying);
+        static NField u3Below(BoundaryCondition::Decaying);
+
+        static NField bAbove(BoundaryCondition::Bounded);
+        static NField bBelow(BoundaryCondition::Bounded);
+
+        if (timeabove != lastFilenameAbove->first)
+        {
+            if (timebelow == lastFilenameAbove->first)
+            {
+                bAbove = bBelow;
+            }
+            else
+            {
+                LoadVariable(lastFilenameAbove->second, u1Above, 0);
+                LoadVariable(lastFilenameAbove->second, u2Above, 1);
+                LoadVariable(lastFilenameAbove->second, u3Above, 2);
+                LoadVariable(lastFilenameAbove->second, bAbove, 3);
+            }
+            LoadVariable(std::prev(lastFilenameAbove)->second, u1Below, 0);
+            LoadVariable(std::prev(lastFilenameAbove)->second, u2Below, 1);
+            LoadVariable(std::prev(lastFilenameAbove)->second, u3Below, 2);
+            LoadVariable(std::prev(lastFilenameAbove)->second, bBelow, 3);
+
+
+            timeabove = lastFilenameAbove->first;
+            timebelow = std::prev(lastFilenameAbove)->first;
+        }
+
+        U1_tot = ((time-timebelow)/(timeabove-timebelow))*u1Above + ((timeabove-time)/(timeabove-timebelow))*u1Below;
         U1_tot.ToModal(u1_tot);
 
-        LoadVariable(filenameabove, nnTemp, 1);
-        LoadVariable(filenamebelow, nnTemp2, 1);
-        U2_tot = ((time-timebelow)/(timeabove-timebelow))*nnTemp + ((timeabove-time)/(timeabove-timebelow))*nnTemp2;
+        U2_tot = ((time-timebelow)/(timeabove-timebelow))*u2Above + ((timeabove-time)/(timeabove-timebelow))*u2Below;
         U2_tot.ToModal(u2_tot);
 
-        LoadVariable(filenameabove, ndTemp, 2);
-        LoadVariable(filenamebelow, ndTemp2, 2);
-        U3_tot = ((time-timebelow)/(timeabove-timebelow))*ndTemp + ((timeabove-time)/(timeabove-timebelow))*ndTemp2;
+        U3_tot = ((time-timebelow)/(timeabove-timebelow))*u3Above + ((timeabove-time)/(timeabove-timebelow))*u3Below;
         U3_tot.ToModal(u3_tot);
 
-        LoadVariable(filenameabove, nnTemp, 3);
-        LoadVariable(filenamebelow, nnTemp2, 3);
-        B_tot = ((time-timebelow)/(timeabove-timebelow))*nnTemp + ((timeabove-time)/(timeabove-timebelow))*nnTemp2;
+        B_tot = ((time-timebelow)/(timeabove-timebelow))*bAbove + ((timeabove-time)/(timeabove-timebelow))*bBelow;
         B_tot.ToModal(b_tot);
     }
 
@@ -1024,6 +1069,7 @@ private:
 
     // for flow saving/loading
     std::map<stratifloat, std::string> filenames;
+    std::map<stratifloat, std::string>::iterator lastFilenameAbove;
     const std::string snapshotdir = "/local/scratch/public/jpp39/snapshots/";
 };
 
@@ -1077,7 +1123,7 @@ int main()
         oldb = solver.b;
     }
 
-    for (int p=0; p<3; p++) // Direct-adjoint loop
+    for (int p=0; p<10; p++) // Direct-adjoint loop
     {
         exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
         exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
@@ -1211,7 +1257,9 @@ int main()
 
             if(step%50==0)
             {
-                std::cout << "Step " << step << ", time " << totalTime << std::endl;
+                stratifloat cfl = solver.CFLadjoint();
+                std::cout << "Step " << step << ", time " << totalTime
+                        << ", CFL number: " << cfl << std::endl;
 
                 std::cout << "Average timings: " << solver.totalExplicit / (step+1)
                         << ", " << solver.totalImplicit / (step+1)
