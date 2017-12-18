@@ -71,7 +71,7 @@ public:
     , u2(BoundaryCondition::Bounded)
     , u3(BoundaryCondition::Decaying)
     , p(BoundaryCondition::Bounded)
-    , b(BoundaryCondition::Decaying)
+    , b(BoundaryCondition::Bounded)
 
     , u_(BoundaryCondition::Bounded)
     , b_(BoundaryCondition::Bounded)
@@ -94,7 +94,7 @@ public:
     , U1(BoundaryCondition::Bounded)
     , U2(BoundaryCondition::Bounded)
     , U3(BoundaryCondition::Decaying)
-    , B(BoundaryCondition::Decaying)
+    , B(BoundaryCondition::Bounded)
     , U_(BoundaryCondition::Bounded)
     , B_(BoundaryCondition::Bounded)
     , dB_dz(BoundaryCondition::Decaying)
@@ -111,7 +111,6 @@ public:
     , divergence(boundedTemp)
     , q(boundedTemp)
 
-    , u1Forcing(u1)
     , u3Forcing(u3)
     , bForcing(b)
 
@@ -421,10 +420,10 @@ public:
         nnTemp.Save(filestream);
     }
 
-    stratifloat I(const MField& u_total) const
+    stratifloat I(const MField& b_total) const
     {
         static M1D ave(BoundaryCondition::Bounded);
-        HorizontalAverage(u_total, ave);
+        HorizontalAverage(b_total, ave);
 
         static N1D aveN(BoundaryCondition::Bounded);
         ave.ToNodal(aveN);
@@ -466,7 +465,7 @@ public:
                                        const MField& b_total)
     {
         // calculate length scale of the flow
-        stratifloat I = this->I(u1_total);
+        stratifloat I = this->I(b_total);
 
         // calculate weight function for integrals
         static N1D varpi(BoundaryCondition::Decaying);
@@ -518,13 +517,6 @@ public:
         // lagrange multiplier for value of I
         stratifloat lambda = J*Kderivative/K/K - Jderivative/K; // quotient rule for -J/K
 
-        // forcing term for u1
-        HorizontalAverage(u1_total, boundedTemp1D);
-        boundedTemp1D.ToNodal(nnTemp1D);
-        ndTemp1D = -2*lambda*nnTemp1D;
-        nnTemp = ndTemp1D;
-        nnTemp.ToModal(u1Forcing);
-
         // forcing term for u3
         b_total.ToNodal(nnTemp);
         ndTemp = (1/K)*varpi*(nnTemp+(-1)*bAveNodal);
@@ -532,8 +524,12 @@ public:
 
         // forcing term for b
         varpiDerivative.SetValue([I](stratifloat z){return 2*z/I/I;}, L3);
-        ndTemp = (-J/K/K)*varpiDerivative*varpi;
-        ndTemp.ToModal(bForcing);
+        nnTemp = (-J/K/K)*varpiDerivative*varpi;
+
+        HorizontalAverage(b_total, boundedTemp1D);
+        boundedTemp1D.ToNodal(nnTemp1D);
+        nnTemp += -2*lambda*nnTemp1D;
+        nnTemp.ToModal(bForcing);
     }
 
     void BuildFilenameMap()
@@ -610,15 +606,11 @@ public:
         u3.ToNodal(U3);
         b.ToNodal(B);
 
-        MField& scaledvarrho = decayingTemp; // share memory
+        MField& scaledvarrho = boundedTemp; // share memory
         db_dz = ddz(backgroundB);
         db_dz.ToNodal(dB_dz);
-        ndTemp = (1/Ri)*B*dB_dz;
-        ndTemp.ToModal(scaledvarrho);
-
-
-        stratifloat varrhodotvarrho = IntegrateAllSpace(ndTemp, L1, L2, L3);
-        varrhodotvarrho /= L1*L2;
+        nnTemp = (1/Ri)*B*dB_dz;
+        nnTemp.ToModal(scaledvarrho);
 
         ndTemp = U1*U1;
         stratifloat vdotv = IntegrateAllSpace(ndTemp, L1, L2, L3);
@@ -640,8 +632,8 @@ public:
         oldu3.ToNodal(ndTemp);
         ndTemp = ndTemp*U3;
         udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
-        oldb.ToNodal(ndTemp);
-        ndTemp = ndTemp*B;
+        oldb.ToNodal(nnTemp);
+        ndTemp = nnTemp*B;
         udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
         udotv /= L1*L2;
 
@@ -820,7 +812,7 @@ private:
         R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Bounded, u1));
         R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
         R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
-        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Decaying, b));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
 
         // // for the 1D variables u_ and b_ (background flow) we only use vertical derivative matrix
         RU_ = u_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, u_);
@@ -829,8 +821,12 @@ private:
         // now construct explicit terms
         r1.Zero();
         r2.Zero();
-        r3 = Ri*b; // buoyancy force - z goes down
+        r3.Zero();
         rB.Zero();
+
+        ndTemp = Ri*B;// buoyancy force
+        ndTemp.ToModal(decayingTemp);
+        r3 += decayingTemp; // z goes down
 
         //////// NONLINEAR TERMS ////////
 
@@ -868,25 +864,25 @@ private:
         r2 -= ddx(boundedTemp);
 
         // buoyancy nonlinear terms
-        ndTemp = U1*B;
-        ndTemp.ToModal(decayingTemp);
-        rB -= ddx(decayingTemp);
-
-        ndTemp = U2*B;
-        ndTemp.ToModal(decayingTemp);
-        rB -= ddy(decayingTemp);
-
-        nnTemp = U3*B;
+        nnTemp = U1*B;
         nnTemp.ToModal(boundedTemp);
-        rB -= ddz(boundedTemp);
+        rB -= ddx(boundedTemp);
+
+        nnTemp = U2*B;
+        nnTemp.ToModal(boundedTemp);
+        rB -= ddy(boundedTemp);
+
+        ndTemp = U3*B;
+        ndTemp.ToModal(decayingTemp);
+        rB -= ddz(decayingTemp);
 
         // advection term from background buoyancy
         db_dz = ddz(b_);
         db_dz.ToNodal(dB_dz);
 
-        ndTemp = U3*dB_dz;
-        ndTemp.ToModal(decayingTemp);
-        rB -= decayingTemp;
+        nnTemp = U3*dB_dz;
+        nnTemp.ToModal(boundedTemp);
+        rB -= boundedTemp;
 
         // now add on explicit terms to RHS
         R1 += (h[k]*beta[k])*r1;
@@ -914,13 +910,18 @@ private:
         R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Bounded, u1));
         R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
         R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
-        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Decaying, b));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
 
         // now construct explicit terms
-        r1 = u1Forcing;
+        r1.Zero();
         r2.Zero();
         r3 = u3Forcing;
-        rB = bForcing + -Ri*u3;
+        rB = bForcing;
+
+        // adjoint buoyancy
+        nnTemp = Ri*U3;
+        nnTemp.ToModal(boundedTemp);
+        rB -= boundedTemp;
 
         //////// NONLINEAR TERMS ////////
         // advection of adjoint quantities by the direct flow
@@ -954,15 +955,15 @@ private:
         nnTemp.ToModal(boundedTemp);
         r3 += ddz(boundedTemp);
 
-        ndTemp = B*U1_tot;
-        ndTemp.ToModal(decayingTemp);
-        rB += ddx(decayingTemp);
-        ndTemp = B*U2_tot;
-        ndTemp.ToModal(decayingTemp);
-        rB += ddy(decayingTemp);
-        nnTemp = B*U3_tot;
+        nnTemp = B*U1_tot;
         nnTemp.ToModal(boundedTemp);
-        rB += ddz(boundedTemp);
+        rB += ddx(boundedTemp);
+        nnTemp = B*U2_tot;
+        nnTemp.ToModal(boundedTemp);
+        rB += ddy(boundedTemp);
+        ndTemp = B*U3_tot;
+        ndTemp.ToModal(decayingTemp);
+        rB += ddz(decayingTemp);
 
         // extra adjoint nonlinear terms
         boundedTemp = ddx(u1_tot);
@@ -1041,7 +1042,6 @@ private:
     // extra variables required for adjoint forcing
     stratifloat J, K;
 
-    MField u1Forcing;
     MField u3Forcing;
     MField bForcing;
 

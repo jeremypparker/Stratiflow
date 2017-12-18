@@ -13,7 +13,7 @@ int main()
     IMEXRK::MField oldu1(BoundaryCondition::Bounded);
     IMEXRK::MField oldu2(BoundaryCondition::Bounded);
     IMEXRK::MField oldu3(BoundaryCondition::Decaying);
-    IMEXRK::MField oldb(BoundaryCondition::Decaying);
+    IMEXRK::MField oldb(BoundaryCondition::Bounded);
 
     IMEXRK::M1D backgroundB(BoundaryCondition::Bounded);
 
@@ -22,7 +22,7 @@ int main()
         IMEXRK::NField initialU1(BoundaryCondition::Bounded);
         IMEXRK::NField initialU2(BoundaryCondition::Bounded);
         IMEXRK::NField initialU3(BoundaryCondition::Decaying);
-        IMEXRK::NField initialB(BoundaryCondition::Decaying);
+        IMEXRK::NField initialB(BoundaryCondition::Bounded);
         auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
 
         // nudge with something like the eigenmode
