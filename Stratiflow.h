@@ -60,6 +60,7 @@ public:
     using M1D = Modal1D<N1,N2,N3>;
     using N1D = Nodal1D<N1,N2,N3>;
 
+    long totalForcing = 0;
     long totalExplicit = 0;
     long totalImplicit = 0;
     long totalDivergence = 0;
@@ -191,12 +192,27 @@ public:
         u3.Filter();
         b.Filter();
         p.Filter();
+
+        // correct for instability in scheme towards infinity
+        u_.ToNodal(U_);
+        b_.ToNodal(B_);
+        for (int j=0; j<50; j++)
+        {
+            U_.Get()(j) = 1;
+            B_.Get()(j) = 1;
+            U_.Get()(N3-1-j) = -1;
+            B_.Get()(N3-1-j) = -1;
+        }
+        U_.ToModal(u_);
+        B_.ToModal(b_);
     }
 
     void TimeStepAdjoint(stratifloat time)
     {
         for (int k=0; k<s; k++)
         {
+            auto t4 = std::chrono::high_resolution_clock::now();
+
             LoadAtTime(time);
             UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
 
@@ -206,7 +222,7 @@ public:
 
             auto t1 = std::chrono::high_resolution_clock::now();
 
-            ImplicitUpdate(k);
+            ImplicitUpdateAdjoint(k);
 
             auto t2 = std::chrono::high_resolution_clock::now();
 
@@ -214,6 +230,7 @@ public:
 
             auto t3 = std::chrono::high_resolution_clock::now();
 
+            totalForcing += std::chrono::duration_cast<std::chrono::milliseconds>(t0-t4).count();
             totalExplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
             totalImplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
             totalDivergence += std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count();
@@ -306,19 +323,12 @@ public:
     stratifloat CFLadjoint()
     {
         static ArrayX z = VerticalPoints(L3, N3);
-        u1.ToNodal(U1);
-        u2.ToNodal(U2);
-        u3.ToNodal(U3);
-
-        U1 += U1_tot;
-        U2 += U2_tot;
-        U3 += U3_tot;
 
         stratifloat delta1 = L1/N1;
         stratifloat delta2 = L2/N2;
         stratifloat delta3 = z(N3/2) - z(N3/2+1); // smallest gap in middle
 
-        stratifloat cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
+        stratifloat cfl = U1_tot.Max()/delta1 + U2_tot.Max()/delta2 + U3_tot.Max()/delta3;
         cfl *= deltaT;
 
         // update timestep for target cfl
@@ -785,8 +795,16 @@ private:
         CNSolve(R3, u3, k);
         CNSolve(RB, b, k);
 
-        // CNSolve1D(RU_, u_, k);
-        // CNSolve1D(RB_, b_, k);
+        CNSolve1D(RU_, u_, k);
+        CNSolve1D(RB_, b_, k);
+    }
+
+    void ImplicitUpdateAdjoint(int k)
+    {
+        CNSolve(R1, u1, k);
+        CNSolve(R2, u2, k);
+        CNSolve(R3, u3, k);
+        CNSolve(RB, b, k);
     }
 
     void ExplicitUpdate(int k)
@@ -805,8 +823,8 @@ private:
         RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Decaying, b));
 
         // // for the 1D variables u_ and b_ (background flow) we only use vertical derivative matrix
-        // RU_ = u_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, u_);
-        // RB_ = b_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, b_);
+        RU_ = u_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, u_);
+        RB_ = b_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, b_);
 
         // now construct explicit terms
         r1.Zero();
@@ -885,10 +903,10 @@ private:
         u3.ToNodal(U3);
         b.ToNodal(B);
 
-        u1_tot.ToNodal(U1_tot);
-        u2_tot.ToNodal(U2_tot);
-        u3_tot.ToNodal(U3_tot);
-        b_tot.ToNodal(B_tot);
+        // u1_tot.ToNodal(U1_tot);
+        // u2_tot.ToNodal(U2_tot);
+        // u3_tot.ToNodal(U3_tot);
+        // b_tot.ToNodal(B_tot);
 
         // build up right hand sides for the implicit solve in R
 

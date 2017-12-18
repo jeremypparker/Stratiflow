@@ -51,7 +51,7 @@ int main()
     }
 
     std::ofstream energyFile("energy.dat");
-    for (int p=0; p<30; p++) // Direct-adjoint loop
+    for (int p=0; p<50; p++) // Direct-adjoint loop
     {
         exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
         exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
@@ -93,6 +93,7 @@ int main()
         solver.totalExplicit = 0;
         solver.totalImplicit = 0;
         solver.totalDivergence = 0;
+        solver.totalForcing = 0;
         bool done = false;
         while (totalTime < targetTime)
         {
@@ -171,6 +172,8 @@ int main()
         solver.totalExplicit = 0;
         solver.totalImplicit = 0;
         solver.totalDivergence = 0;
+        solver.totalForcing = 0;
+
         done = false;
         while (totalTime > 0)
         {
@@ -191,7 +194,8 @@ int main()
                 std::cout << "  Step " << step << ", time " << totalTime
                         << ", CFL number: " << cfl << std::endl;
 
-                std::cout << "  Average timings: " << solver.totalExplicit / (step+1)
+                std::cout << "  Average timings: " << solver.totalForcing / (step+1)
+                        << ", " << solver.totalExplicit / (step+1)
                         << ", " << solver.totalImplicit / (step+1)
                         << ", " << solver.totalDivergence / (step+1)
                         << std::endl;

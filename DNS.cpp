@@ -2,7 +2,7 @@
 
 int main()
 {
-    stratifloat targetTime = 50.0;
+    stratifloat targetTime = 150.0;
 
     f3_init_threads();
     f3_plan_with_nthreads(omp_get_max_threads());
@@ -24,6 +24,9 @@ int main()
         IMEXRK::NField initialU3(BoundaryCondition::Decaying);
         IMEXRK::NField initialB(BoundaryCondition::Decaying);
         auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
+
+        // nudge with something like the eigenmode
+        initialU3.SetValue([](stratifloat x, stratifloat y, stratifloat z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
 
         // add a perturbation to allow instabilities to develop
 
