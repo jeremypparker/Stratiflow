@@ -638,8 +638,6 @@ public:
     NodalField(BoundaryCondition bc)
     : Field<stratifloat, N1, N2, N3>(bc)
     {
-        std::cout << "  Creating Nodal Field..." << std::endl;
-
         // do some ffts to find optimal method
         std::vector<stratifloat, aligned_allocator<stratifloat>> data0(N1*N2*N3);
         std::vector<stratifloat, aligned_allocator<stratifloat>> data1(N1*N2*N3);
@@ -869,8 +867,6 @@ public:
     ModalField(BoundaryCondition bc)
     : Field<complex, N1/2+1, N2, N3>(bc)
     {
-        std::cout << "  Creating Modal Field..." << std::endl;
-
         // do fft to measure time
         std::vector<stratifloat, aligned_allocator<stratifloat>> data0(N1*N2*N3);
 
