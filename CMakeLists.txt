@@ -39,8 +39,11 @@ add_library(StratiLib Differentiation.cpp Field.cpp Graph.cpp)
 
 add_subdirectory(tests)
 
-add_executable(Stratiflow Stratiflow.cpp)
-target_link_libraries(Stratiflow StratiLib)
+add_executable(DAL DAL.cpp)
+target_link_libraries(DAL StratiLib)
+
+add_executable(DNS DNS.cpp)
+target_link_libraries(DNS StratiLib)
 
 add_executable(SnapshotViewer SnapshotViewer.cpp)
 target_link_libraries(SnapshotViewer StratiLib)
