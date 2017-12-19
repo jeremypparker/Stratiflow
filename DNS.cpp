@@ -1,6 +1,6 @@
 #include "Stratiflow.h"
 
-int main()
+int main(int argc, char *argv[])
 {
     stratifloat targetTime = 150.0;
 
@@ -10,15 +10,14 @@ int main()
     std::cout << "Creating solver..." << std::endl;
     IMEXRK solver;
 
-    IMEXRK::MField oldu1(BoundaryCondition::Bounded);
-    IMEXRK::MField oldu2(BoundaryCondition::Bounded);
-    IMEXRK::MField oldu3(BoundaryCondition::Decaying);
-    IMEXRK::MField oldb(BoundaryCondition::Bounded);
-
-    IMEXRK::M1D backgroundB(BoundaryCondition::Bounded);
-
-    std::cout << "Setting ICs..." << std::endl;
+    if (argc == 2)
     {
+        std::cout << "Loading ICs..." << std::endl;
+        solver.LoadFlow(argv[1]);
+    }
+    else
+    {
+        std::cout << "Setting ICs..." << std::endl;
         IMEXRK::NField initialU1(BoundaryCondition::Bounded);
         IMEXRK::NField initialU2(BoundaryCondition::Bounded);
         IMEXRK::NField initialU3(BoundaryCondition::Decaying);
@@ -44,21 +43,14 @@ int main()
             }
         }
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
-        solver.RemoveDivergence(0.0f);
-
-        oldu1 = solver.u1;
-        oldu2 = solver.u2;
-        oldu3 = solver.u3;
-        oldb = solver.b;
     }
+
+    solver.RemoveDivergence(0.0f);
 
     std::ofstream energyFile("energy.dat");
 
     exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
-    exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
-    exec("rm -rf /local/scratch/public/jpp39/snapshots/*");
     exec("mkdir -p images/u1 images/u2 images/u3 images/buoyancy images/pressure");
-    exec("mkdir -p imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
 
     // add background flow
     std::cout << "Setting background..." << std::endl;
@@ -71,16 +63,9 @@ int main()
         Bbar.SetValue([R](stratifloat z){return tanh(R*z);}, IMEXRK::L3);
 
         solver.SetBackground(Ubar, Bbar);
-
-        Bbar.ToModal(backgroundB);
     }
 
-    stratifloat E0 = solver.KE() + solver.PE();
-
-    std::cout << "E0: " << E0 << std::endl;
-
     stratifloat totalTime = 0.0f;
-    solver.SaveFlow("/local/scratch/public/jpp39/snapshots/"+std::to_string(totalTime)+".fields");
 
     solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
     solver.PlotBuoyancy("images/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);

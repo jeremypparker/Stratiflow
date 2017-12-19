@@ -4,7 +4,6 @@ int main()
 {
     stratifloat targetTime = 10.0;
 
-    //std::cout << "Initializing fftw..." << std::endl;
     f3_init_threads();
     f3_plan_with_nthreads(omp_get_max_threads());
 
@@ -50,13 +49,15 @@ int main()
         oldb = solver.b;
     }
 
+    stratifloat E0 = -1;
+
     std::ofstream energyFile("energy.dat");
     for (int p=0; p<50; p++) // Direct-adjoint loop
     {
         exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
         exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
         exec("rm -rf /local/scratch/public/jpp39/snapshots/*");
-        exec("mkdir -p images/u1 images/u2 images/u3 images/buoyancy images/pressure");
+        exec("mkdir -p images/u1 images/u2 images/u3 images/buoyancy images/pressure ICs");
         exec("mkdir -p imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
 
         // add background flow
@@ -74,13 +75,19 @@ int main()
             Bbar.ToModal(backgroundB);
         }
 
-        stratifloat E0 = solver.KE() + solver.PE();
-
-        std::cout << "E0: " << E0 << std::endl;
+        if (E0 == -1)
+        {
+            E0 = solver.KE() + solver.PE();
+        }
+        std::cout << "E0: " << (solver.KE() + solver.PE()) << std::endl;
 
         stratifloat totalTime = 0.0f;
         solver.SaveFlow("/local/scratch/public/jpp39/snapshots/"+std::to_string(totalTime)+".fields");
 
+        // save initial condition
+        solver.SaveFlow("ICs/"+std::to_string(p)+".fields", false);
+
+        // also save images for animation
         solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
         solver.PlotBuoyancy("images/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
         solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
@@ -222,7 +229,9 @@ int main()
             }
         }
 
-        solver.Optimise(0.1, E0, oldu1, oldu2, oldu3, oldb, backgroundB);
+        energyFile << "STEP " << p << " , Residual: "
+                   << solver.Optimise(0.01, E0, oldu1, oldu2, oldu3, oldb, backgroundB)
+                   << std::endl;
     }
 
     f3_cleanup_threads();

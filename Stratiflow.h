@@ -41,9 +41,9 @@ std::string exec(const char* cmd) {
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 160;
+    static constexpr int N1 = 384;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 220;
+    static constexpr int N3 = 440;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -400,24 +400,43 @@ public:
         p += pressureMultiplier*q;
     }
 
-    void SaveFlow(const std::string& filename)
+    void SaveFlow(const std::string& filename, bool includeBackground = true) const
     {
         u1.ToNodal(U1);
         u2.ToNodal(U2);
         u3.ToNodal(U3);
         b.ToNodal(B);
 
-        u_.ToNodal(U_);
-        b_.ToNodal(B_);
+        if (includeBackground)
+        {
+            u_.ToNodal(U_);
+            b_.ToNodal(B_);
+
+            U1 += U_;
+            B += B_;
+        }
 
         std::ofstream filestream(filename, std::ios::out | std::ios::binary);
-        U1 += U_;
+
         U1.Save(filestream);
         U2.Save(filestream);
         U3.Save(filestream);
+        B.Save(filestream);
+    }
 
-        nnTemp = B + B_;
-        nnTemp.Save(filestream);
+    void LoadFlow(const std::string& filename)
+    {
+        std::ifstream filestream(filename, std::ios::in | std::ios::binary);
+
+        U1.Load(filestream);
+        U2.Load(filestream);
+        U3.Load(filestream);
+        B.Load(filestream);
+
+        U1.ToModal(u1);
+        U2.ToModal(u2);
+        U3.ToModal(u3);
+        B.ToModal(b);
     }
 
     stratifloat I(const MField& b_total) const
@@ -593,13 +612,13 @@ public:
         }
     }
 
-    void Optimise(stratifloat epsilon,
-                  stratifloat E_0,
-                  MField& oldu1,
-                  MField& oldu2,
-                  MField& oldu3,
-                  MField& oldb,
-                  M1D& backgroundB)
+    stratifloat Optimise(stratifloat epsilon,
+                         stratifloat E_0,
+                         MField& oldu1,
+                         MField& oldu2,
+                         MField& oldu3,
+                         MField& oldb,
+                         M1D& backgroundB)
     {
         u1.ToNodal(U1);
         u2.ToNodal(U2);
@@ -641,7 +660,7 @@ public:
         stratifloat alpha = epsilon * mag;
 
         std::cout << alpha << " " << udotv << " " << vdotv << " " << E_0 << std::endl;
-        std::cout << "RESIDUAL: " << (mag*mag/vdotv) << std::endl;
+        stratifloat residual = (mag*mag/vdotv);
 
         // store the new values in old (which we no longer need after this)
         oldu1 = cos(alpha)*oldu1 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/(2*E_0))*oldu1 + -1.0*u1);
@@ -655,6 +674,8 @@ public:
         u3 = oldu3;
         b = oldb;
         p.Zero();
+
+        return residual;
     }
 
 private:
