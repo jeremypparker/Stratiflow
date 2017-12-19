@@ -41,9 +41,9 @@ std::string exec(const char* cmd) {
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 384;
+    static constexpr int N1 = 192;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 440;
+    static constexpr int N3 = 220;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -620,16 +620,24 @@ public:
                          MField& oldb,
                          M1D& backgroundB)
     {
+        db_dz = ddz(backgroundB);
+        db_dz.ToNodal(dB_dz);
+
         u1.ToNodal(U1);
         u2.ToNodal(U2);
         u3.ToNodal(U3);
         b.ToNodal(B);
 
+        nnTemp2 = (1/Ri)*dB_dz;
+
+        // first get rid of any net mass change in the density
+        stratifloat mu = IntegrateAllSpace(nnTemp, L1, L2, L3)/IntegrateAllSpace(nnTemp2, L1, L2, L3);
+        B -= mu;
+
         MField& scaledvarrho = boundedTemp; // share memory
-        db_dz = ddz(backgroundB);
-        db_dz.ToNodal(dB_dz);
         nnTemp = (1/Ri)*B*dB_dz;
         nnTemp.ToModal(scaledvarrho);
+
 
         ndTemp = U1*U1;
         stratifloat vdotv = IntegrateAllSpace(ndTemp, L1, L2, L3);

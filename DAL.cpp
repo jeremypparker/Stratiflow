@@ -51,13 +51,17 @@ int main()
 
     stratifloat E0 = -1;
 
+    exec("rm -rf ICs");
+    exec("mkdir -p ICs");
+
+
     std::ofstream energyFile("energy.dat");
     for (int p=0; p<50; p++) // Direct-adjoint loop
     {
         exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
         exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
         exec("rm -rf /local/scratch/public/jpp39/snapshots/*");
-        exec("mkdir -p images/u1 images/u2 images/u3 images/buoyancy images/pressure ICs");
+        exec("mkdir -p images/u1 images/u2 images/u3 images/buoyancy images/pressure");
         exec("mkdir -p imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
 
         // add background flow
@@ -229,8 +233,8 @@ int main()
             }
         }
 
-        energyFile << "STEP " << p << " , Residual: "
-                   << solver.Optimise(0.01, E0, oldu1, oldu2, oldu3, oldb, backgroundB)
+        energyFile << "STEP " << p << " and residual= "
+                   << solver.Optimise(0.02, E0, oldu1, oldu2, oldu3, oldb, backgroundB)
                    << std::endl;
     }
 

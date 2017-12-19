@@ -850,6 +850,15 @@ public:
         }
     }
 
+    NodalField& operator-=(stratifloat other)
+    {
+        this->ParallelPerStack([other,this](int j1, int j2){
+            this->stack(j1, j2) -= other;
+        });
+
+        return *this;
+    }
+
 private:
     static std::vector<stratifloat, aligned_allocator<stratifloat>> intermediateData;
 };
