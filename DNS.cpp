@@ -2,7 +2,7 @@
 
 int main(int argc, char *argv[])
 {
-    stratifloat targetTime = 150.0;
+    stratifloat targetTime = 100.0;
 
     f3_init_threads();
     f3_plan_with_nthreads(omp_get_max_threads());

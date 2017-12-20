@@ -495,8 +495,14 @@ public:
         HorizontalAverage(b_total, bAveModal);
         static N1D bAveNodal(BoundaryCondition::Bounded);
         bAveModal.ToNodal(bAveNodal);
-        b_total.ToNodal(nnTemp);
-        nnTemp = nnTemp + -1*bAveNodal;
+
+        static M1D wAveModal(BoundaryCondition::Decaying);
+        HorizontalAverage(u3_total, wAveModal);
+        static N1D wAveNodal(BoundaryCondition::Decaying);
+        wAveModal.ToNodal(wAveNodal);
+
+        b_total.ToNodal(B);
+        nnTemp = B + -1*bAveNodal;
 
         // (b-<b>)*w
         u3_total.ToNodal(U3);
@@ -508,7 +514,7 @@ public:
         HorizontalAverage(decayingTemp, bwAve);
         static N1D Jintegrand(BoundaryCondition::Decaying);
         bwAve.ToNodal(Jintegrand);
-        Jintegrand = -1*Jintegrand*varpi;
+        Jintegrand = Jintegrand*varpi;
 
         J = IntegrateVertically(Jintegrand, L3);
 
@@ -519,7 +525,7 @@ public:
         // construct integrand for K
         static N1D Kintegrand(BoundaryCondition::Decaying);
         dbdz.ToNodal(Kintegrand);
-        Kintegrand = Kintegrand*varpi;
+        Kintegrand = -1*Kintegrand*varpi;
 
         K = IntegrateVertically(Kintegrand, L3);
 
@@ -537,17 +543,14 @@ public:
         stratifloat lambda = J*Kderivative/K/K - Jderivative/K; // quotient rule for -J/K
 
         // forcing term for u3
-        b_total.ToNodal(nnTemp);
-        ndTemp = (1/K)*varpi*(nnTemp+(-1)*bAveNodal);
+        ndTemp = (-1/K)*varpi*(B+(-1)*bAveNodal);
         ndTemp.ToModal(u3Forcing);
 
         // forcing term for b
         varpiDerivative.SetValue([I](stratifloat z){return 2*z/I/I;}, L3);
-        nnTemp = (-J/K/K)*varpiDerivative*varpi;
 
-        HorizontalAverage(b_total, boundedTemp1D);
-        boundedTemp1D.ToNodal(nnTemp1D);
-        nnTemp += -2*lambda*nnTemp1D;
+        nnTemp = (J/K/K)*varpiDerivative*varpi + (-1/K)*varpi*(U3+(-1)*wAveNodal) + -2*lambda*bAveNodal;
+
         nnTemp.ToModal(bForcing);
     }
 
@@ -628,6 +631,7 @@ public:
         u3.ToNodal(U3);
         b.ToNodal(B);
 
+        nnTemp = (1/Ri)*B*dB_dz;
         nnTemp2 = (1/Ri)*dB_dz;
 
         // first get rid of any net mass change in the density
@@ -639,16 +643,8 @@ public:
         nnTemp.ToModal(scaledvarrho);
 
 
-        ndTemp = U1*U1;
-        stratifloat vdotv = IntegrateAllSpace(ndTemp, L1, L2, L3);
-        ndTemp = U2*U2;
-        vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
-        ndTemp = U3*U3;
-        vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
-        ndTemp = (1/Ri)*B*B*dB_dz;
-        vdotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
-        vdotv /= L1*L2;
-
+        ndTemp = U1*U1 + U2*U2 + U3*U3 + (1/Ri)*B*B*dB_dz;
+        stratifloat vdotv = IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
 
         oldu1.ToNodal(nnTemp);
         ndTemp = nnTemp*U1;

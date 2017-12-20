@@ -98,7 +98,7 @@ int main()
         solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
         solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
-        stratifloat saveEvery = 1.0f;
+        stratifloat saveEvery = 0.4f;
         int lastFrame = -1;
         int step = 0;
         solver.totalExplicit = 0;
