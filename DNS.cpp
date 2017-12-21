@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
         IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
         IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
         Ubar.SetValue([](stratifloat z){return tanh(z);}, IMEXRK::L3);
-        Bbar.SetValue([R](stratifloat z){return tanh(R*z);}, IMEXRK::L3);
+        Bbar.SetValue([R](stratifloat z){return -tanh(R*z);}, IMEXRK::L3);
 
         solver.SetBackground(Ubar, Bbar);
     }

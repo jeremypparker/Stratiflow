@@ -82,7 +82,7 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
     int cols = N1*scale;
     int rows = N1*scale;
 
-    ArrayX x = ArrayX::LinSpaced(rows, -0.5*L1*scale, 0.5*L1*scale);
+    ArrayX x = ArrayX::LinSpaced(rows, 0.5*L1*scale, -0.5*L1*scale);
 
     std::vector<stratifloat> imdata(rows*cols);
 

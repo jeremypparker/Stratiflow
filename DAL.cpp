@@ -1,6 +1,6 @@
 #include "Stratiflow.h"
 
-int main()
+int main(int argc, char *argv[])
 {
     stratifloat targetTime = 10.0;
 
@@ -17,8 +17,24 @@ int main()
 
     IMEXRK::M1D backgroundB(BoundaryCondition::Bounded);
 
-    std::cout << "Setting ICs..." << std::endl;
+    int p; // which DAL step we are on
+
+    if (argc == 2)
     {
+        std::cout << "Loading ICs..." << std::endl;
+
+        p = std::stoi(argv[1]);
+        solver.LoadFlow("ICs/"+std::to_string(p)+".fields");
+    }
+    else
+    {
+        std::cout << "Setting ICs..." << std::endl;
+
+        exec("rm -rf ICs");
+        exec("mkdir -p ICs");
+
+        p = 0;
+
         IMEXRK::NField initialU1(BoundaryCondition::Bounded);
         IMEXRK::NField initialU2(BoundaryCondition::Bounded);
         IMEXRK::NField initialU3(BoundaryCondition::Decaying);
@@ -41,22 +57,19 @@ int main()
             }
         }
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
-        solver.RemoveDivergence(0.0f);
-
-        oldu1 = solver.u1;
-        oldu2 = solver.u2;
-        oldu3 = solver.u3;
-        oldb = solver.b;
     }
+
+    solver.RemoveDivergence(0.0f);
+
+    oldu1 = solver.u1;
+    oldu2 = solver.u2;
+    oldu3 = solver.u3;
+    oldb = solver.b;
 
     stratifloat E0 = -1;
 
-    exec("rm -rf ICs");
-    exec("mkdir -p ICs");
-
-
     std::ofstream energyFile("energy.dat");
-    for (int p=0; p<50; p++) // Direct-adjoint loop
+    for (; p<100; p++) // Direct-adjoint loop
     {
         exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
         exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
@@ -72,7 +85,7 @@ int main()
             IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
             IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
             Ubar.SetValue([](stratifloat z){return tanh(z);}, IMEXRK::L3);
-            Bbar.SetValue([R](stratifloat z){return tanh(R*z);}, IMEXRK::L3);
+            Bbar.SetValue([R](stratifloat z){return -tanh(R*z);}, IMEXRK::L3);
 
             solver.SetBackground(Ubar, Bbar);
 
@@ -234,7 +247,7 @@ int main()
         }
 
         energyFile << "STEP " << p << " and residual= "
-                   << solver.Optimise(0.02, E0, oldu1, oldu2, oldu3, oldb, backgroundB)
+                   << solver.Optimise(0.05, E0, oldu1, oldu2, oldu3, oldb, backgroundB)
                    << std::endl;
     }
 

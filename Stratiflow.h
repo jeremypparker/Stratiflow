@@ -198,9 +198,9 @@ public:
         for (int j=0; j<50; j++)
         {
             U_.Get()(j) = 1;
-            B_.Get()(j) = 1;
+            B_.Get()(j) = -1;
             U_.Get()(N3-1-j) = -1;
-            B_.Get()(N3-1-j) = -1;
+            B_.Get()(N3-1-j) = 1;
         }
         U_.ToModal(u_);
         B_.ToModal(b_);
@@ -371,7 +371,7 @@ public:
             }
             else
             {
-                ndTemp.slice(j) /= dB_dz.Get()(j);
+                ndTemp.slice(j) /= -dB_dz.Get()(j);
             }
         }
 
@@ -631,19 +631,19 @@ public:
         u3.ToNodal(U3);
         b.ToNodal(B);
 
-        nnTemp = (1/Ri)*B*dB_dz;
-        nnTemp2 = (1/Ri)*dB_dz;
+        nnTemp = B*dB_dz;
+        nnTemp2 = dB_dz;
 
         // first get rid of any net mass change in the density
         stratifloat mu = IntegrateAllSpace(nnTemp, L1, L2, L3)/IntegrateAllSpace(nnTemp2, L1, L2, L3);
         B -= mu;
 
         MField& scaledvarrho = boundedTemp; // share memory
-        nnTemp = (1/Ri)*B*dB_dz;
+        nnTemp = (-1/Ri)*B*dB_dz;
         nnTemp.ToModal(scaledvarrho);
 
 
-        ndTemp = U1*U1 + U2*U2 + U3*U3 + (1/Ri)*B*B*dB_dz;
+        ndTemp = U1*U1 + U2*U2 + U3*U3 + (-1/Ri)*B*B*dB_dz;
         stratifloat vdotv = IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
 
         oldu1.ToNodal(nnTemp);
@@ -851,7 +851,7 @@ private:
 
         ndTemp = Ri*B;// buoyancy force
         ndTemp.ToModal(decayingTemp);
-        r3 += decayingTemp; // z goes down
+        r3 -= decayingTemp;
 
         //////// NONLINEAR TERMS ////////
 
