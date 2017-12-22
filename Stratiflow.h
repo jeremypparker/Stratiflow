@@ -360,6 +360,7 @@ public:
     {
         b.ToNodal(B);
         db_dz = ddz(b_);
+        db_dz.Filter();
         db_dz.ToNodal(dB_dz);
         ndTemp = 0.5f*Ri*B*B;
 
@@ -624,6 +625,7 @@ public:
                          M1D& backgroundB)
     {
         db_dz = ddz(backgroundB);
+        db_dz.Filter();
         db_dz.ToNodal(dB_dz);
 
         u1.ToNodal(U1);

@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
     stratifloat E0 = -1;
 
     std::ofstream energyFile("energy.dat");
-    for (; p<100; p++) // Direct-adjoint loop
+    for (; p<20; p++) // Direct-adjoint loop
     {
         exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
         exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
@@ -92,10 +92,10 @@ int main(int argc, char *argv[])
             Bbar.ToModal(backgroundB);
         }
 
-        if (E0 == -1)
-        {
+        //if (E0 == -1)
+        //{
             E0 = solver.KE() + solver.PE();
-        }
+        //}
         std::cout << "E0: " << (solver.KE() + solver.PE()) << std::endl;
 
         stratifloat totalTime = 0.0f;
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
         solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
         solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
-        stratifloat saveEvery = 0.4f;
+        stratifloat saveEvery = 1.0f;
         int lastFrame = -1;
         int step = 0;
         solver.totalExplicit = 0;
