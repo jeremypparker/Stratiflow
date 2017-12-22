@@ -54,8 +54,8 @@ NodalField<N1,N2,N3> GetBuoyancy(stratifloat time)
     static stratifloat timeabove = -1;
     static stratifloat timebelow = -1;
 
-    static NodalField<N1,N2,N3> bAbove(BoundaryCondition::Neumann);
-    static NodalField<N1,N2,N3> bBelow(BoundaryCondition::Neumann);
+    static NodalField<N1,N2,N3> bAbove(BoundaryCondition::Bounded);
+    static NodalField<N1,N2,N3> bBelow(BoundaryCondition::Bounded);
 
     if (timebelow != entry->first)
     {
@@ -73,7 +73,7 @@ NodalField<N1,N2,N3> GetBuoyancy(stratifloat time)
         timebelow = std::next(entry)->first;
     }
 
-    NodalField<N1,N2,N3> bNodal(BoundaryCondition::Neumann);
+    NodalField<N1,N2,N3> bNodal(BoundaryCondition::Bounded);
 
     bNodal = ((time-timebelow)/(timeabove-timebelow))*bAbove + ((timeabove-time)/(timeabove-timebelow))*bBelow;
 
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
 
     //stratifloat time = strtof(argv[1], nullptr);
 
-    ModalField<N1,N2,N3> bModal(BoundaryCondition::Neumann);
+    ModalField<N1,N2,N3> bModal(BoundaryCondition::Bounded);
 
     matplotlibcpp::figure();
 
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
     {    
         GetBuoyancy<N1,N2,N3>(time).ToModal(bModal);
 
-        HeatPlot(bModal, L1, L3, 0);
+        HeatPlot(bModal, L1, L3, 0, "output.png");
     }
 
     return 0;
