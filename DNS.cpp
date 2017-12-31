@@ -2,7 +2,7 @@
 
 int main(int argc, char *argv[])
 {
-    stratifloat targetTime = 100.0;
+    stratifloat targetTime = 200.0;
 
     f3_init_threads();
     f3_plan_with_nthreads(omp_get_max_threads());
@@ -102,10 +102,10 @@ int main(int argc, char *argv[])
         {
             lastFrame=frame;
 
-            solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            //solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
             solver.PlotBuoyancy("images/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-            solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            //solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+            //solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
             solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
             energyFile << totalTime

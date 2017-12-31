@@ -41,9 +41,9 @@ std::string exec(const char* cmd) {
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 192;
+    static constexpr int N1 = 384;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 220;
+    static constexpr int N3 = 440;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -204,6 +204,9 @@ public:
         }
         U_.ToModal(u_);
         B_.ToModal(b_);
+
+        u_.Filter();
+        b_.Filter();
     }
 
     void TimeStepAdjoint(stratifloat time)
@@ -344,12 +347,12 @@ public:
         u2.ToNodal(U2);
         u3.ToNodal(U3);
 
-        // // hack for now: perturbation energy relative to frozen bg
-        // u_.ToNodal(U_);
-        // U1 += U_;
-        // NField Uinitial(BoundaryCondition::Bounded);
-        // Uinitial.SetValue([](stratifloat z){return tanh(z);}, L3);
-        // U1 -= Uinitial;
+        // hack for now: perturbation energy relative to frozen bg
+        //u_.ToNodal(U_);
+        //U1 += U_;
+        //NField Uinitial(BoundaryCondition::Bounded);
+        //Uinitial.SetValue([](stratifloat z){return tanh(z);}, L3);
+        //U1 += -1*Uinitial;
 
         ndTemp = 0.5f*(U1*U1 + U2*U2 + U3*U3);
 
@@ -362,6 +365,15 @@ public:
         db_dz = ddz(b_);
         db_dz.Filter();
         db_dz.ToNodal(dB_dz);
+
+        // hack for now: perturbation energy relative to frozen bg
+        //b_.ToNodal(B_);
+        //B += B_;
+        //NField Binitial(BoundaryCondition::Bounded);
+        //Binitial.SetValue([](stratifloat z){return -tanh(2*z);}, L3);
+        //B += -1*Binitial;
+
+
         ndTemp = 0.5f*Ri*B*B;
 
         for (int j=0; j<N3; j++)
@@ -378,7 +390,6 @@ public:
 
         return IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
     }
-
     void RemoveDivergence(stratifloat pressureMultiplier=1.0f)
     {
         // construct the diverence of u

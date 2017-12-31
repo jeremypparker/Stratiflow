@@ -15,7 +15,19 @@ int main(int argc, char *argv[])
     IMEXRK::MField oldu3(BoundaryCondition::Decaying);
     IMEXRK::MField oldb(BoundaryCondition::Bounded);
 
+    IMEXRK::MField oldoldu1(BoundaryCondition::Bounded);
+    IMEXRK::MField oldoldu2(BoundaryCondition::Bounded);
+    IMEXRK::MField oldoldu3(BoundaryCondition::Decaying);
+    IMEXRK::MField oldoldb(BoundaryCondition::Bounded);
+ 
     IMEXRK::M1D backgroundB(BoundaryCondition::Bounded);
+
+    IMEXRK::MField previousv1(BoundaryCondition::Bounded);
+    IMEXRK::MField previousv2(BoundaryCondition::Bounded);
+    IMEXRK::MField previousv3(BoundaryCondition::Decaying);
+    IMEXRK::MField previousvb(BoundaryCondition::Bounded);
+
+    stratifloat previousIntegral = -1000;
 
     int p; // which DAL step we are on
 
@@ -68,8 +80,10 @@ int main(int argc, char *argv[])
 
     stratifloat E0 = -1;
 
+    stratifloat epsilon = 0.1;
+
     std::ofstream energyFile("energy.dat");
-    for (; p<20; p++) // Direct-adjoint loop
+    for (; p<50; p++) // Direct-adjoint loop
     {
         exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
         exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
@@ -119,6 +133,9 @@ int main(int argc, char *argv[])
         solver.totalDivergence = 0;
         solver.totalForcing = 0;
         bool done = false;
+
+        stratifloat JoverKintegrated = 0;
+
         while (totalTime < targetTime)
         {
             // on last step, arrive exactly
@@ -130,6 +147,9 @@ int main(int argc, char *argv[])
             }
 
             solver.TimeStep();
+
+            JoverKintegrated += solver.JoverK() * solver.deltaT;
+
             totalTime += solver.deltaT;
 
             solver.SaveFlow("/local/scratch/public/jpp39/snapshots/"+std::to_string(totalTime)+".fields");
@@ -171,6 +191,38 @@ int main(int argc, char *argv[])
             {
                 break;
             }
+        }
+        
+        std::cout << "Integral of J/K: " << JoverKintegrated << std::endl;
+
+        if (JoverKintegrated > previousIntegral)
+        {
+            previousIntegral = JoverKintegrated;
+
+            oldoldu1 = oldu1;
+            oldoldu2 = oldu2;
+            oldoldu3 = oldu3;
+            oldoldb = oldb;
+        }
+        else
+        {
+            // we have overshot, try with a smaller step
+            epsilon /= 2;
+
+            std::cout << "Epsilon: " << epsilon << std::endl;
+
+            solver.u1 = previousv1;
+            solver.u2 = previousv2;
+            solver.u3 = previousv3;
+            solver.b = previousvb;
+            
+            oldu1 = oldoldu1;
+            oldu2 = oldoldu2;
+            oldu3 = oldoldu3;
+            oldb = oldoldb;
+
+            std::cout << "Residual: " << solver.Optimise(epsilon, E0, oldu1, oldu2, oldu3, oldb, backgroundB) << std::endl;
+            continue;
         }
 
         // clear everything for adjoint loop
@@ -246,8 +298,13 @@ int main(int argc, char *argv[])
             }
         }
 
+        previousv1 = solver.u1;
+        previousv2 = solver.u2;
+        previousv3 = solver.u3;
+        previousvb = solver.b;
+
         energyFile << "STEP " << p << " and residual= "
-                   << solver.Optimise(0.05, E0, oldu1, oldu2, oldu3, oldb, backgroundB)
+                   << solver.Optimise(epsilon, E0, oldu1, oldu2, oldu3, oldb, backgroundB)
                    << std::endl;
     }
 
