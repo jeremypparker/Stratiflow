@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     IMEXRK::MField oldoldu2(BoundaryCondition::Bounded);
     IMEXRK::MField oldoldu3(BoundaryCondition::Decaying);
     IMEXRK::MField oldoldb(BoundaryCondition::Bounded);
- 
+
     IMEXRK::M1D backgroundB(BoundaryCondition::Bounded);
 
     IMEXRK::MField previousv1(BoundaryCondition::Bounded);
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 
     stratifloat E0 = -1;
 
-    stratifloat epsilon = 0.1;
+    stratifloat epsilon = 0.01;
 
     std::ofstream energyFile("energy.dat");
     for (; p<50; p++) // Direct-adjoint loop
@@ -192,38 +192,38 @@ int main(int argc, char *argv[])
                 break;
             }
         }
-        
+
         std::cout << "Integral of J/K: " << JoverKintegrated << std::endl;
 
-        if (JoverKintegrated > previousIntegral)
-        {
-            previousIntegral = JoverKintegrated;
+        // if (JoverKintegrated > previousIntegral)
+        // {
+        //     previousIntegral = JoverKintegrated;
 
-            oldoldu1 = oldu1;
-            oldoldu2 = oldu2;
-            oldoldu3 = oldu3;
-            oldoldb = oldb;
-        }
-        else
-        {
-            // we have overshot, try with a smaller step
-            epsilon /= 2;
+        //     oldoldu1 = oldu1;
+        //     oldoldu2 = oldu2;
+        //     oldoldu3 = oldu3;
+        //     oldoldb = oldb;
+        // }
+        // else
+        // {
+        //     // we have overshot, try with a smaller step
+        //     epsilon /= 2;
 
-            std::cout << "Epsilon: " << epsilon << std::endl;
+        //     std::cout << "Epsilon: " << epsilon << std::endl;
 
-            solver.u1 = previousv1;
-            solver.u2 = previousv2;
-            solver.u3 = previousv3;
-            solver.b = previousvb;
-            
-            oldu1 = oldoldu1;
-            oldu2 = oldoldu2;
-            oldu3 = oldoldu3;
-            oldb = oldoldb;
+        //     solver.u1 = previousv1;
+        //     solver.u2 = previousv2;
+        //     solver.u3 = previousv3;
+        //     solver.b = previousvb;
 
-            std::cout << "Residual: " << solver.Optimise(epsilon, E0, oldu1, oldu2, oldu3, oldb, backgroundB) << std::endl;
-            continue;
-        }
+        //     oldu1 = oldoldu1;
+        //     oldu2 = oldoldu2;
+        //     oldu3 = oldoldu3;
+        //     oldb = oldoldb;
+
+        //     std::cout << "Residual: " << solver.Optimise(epsilon, E0, oldu1, oldu2, oldu3, oldb, backgroundB) << std::endl;
+        //     continue;
+        // }
 
         // clear everything for adjoint loop
         {

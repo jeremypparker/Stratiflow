@@ -41,9 +41,9 @@ std::string exec(const char* cmd) {
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 384;
+    static constexpr int N1 = 192;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 440;
+    static constexpr int N3 = 220;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -451,23 +451,6 @@ public:
         B.ToModal(b);
     }
 
-    stratifloat I(const MField& b_total) const
-    {
-        static M1D ave(BoundaryCondition::Bounded);
-        HorizontalAverage(b_total, ave);
-
-        static N1D aveN(BoundaryCondition::Bounded);
-        ave.ToNodal(aveN);
-
-        static N1D one(BoundaryCondition::Bounded);
-        one.SetValue([](stratifloat z){return 1;}, L3);
-
-        static N1D integrand(BoundaryCondition::Decaying);
-        integrand = one + (-1)*aveN*aveN;
-
-        return IntegrateVertically(integrand, L3);
-    }
-
     stratifloat JoverK()
     {
         static MField u1_total(BoundaryCondition::Bounded);
@@ -495,13 +478,6 @@ public:
                                        const MField& u3_total,
                                        const MField& b_total)
     {
-        // calculate length scale of the flow
-        stratifloat I = this->I(b_total);
-
-        // calculate weight function for integrals
-        static N1D varpi(BoundaryCondition::Decaying);
-        varpi.SetValue([I](stratifloat z){return exp(-z*z/I/I);}, L3);
-
         // work out variation of buoyancy from average
         static M1D bAveModal(BoundaryCondition::Bounded);
         HorizontalAverage(b_total, bAveModal);
@@ -526,43 +502,16 @@ public:
         HorizontalAverage(decayingTemp, bwAve);
         static N1D Jintegrand(BoundaryCondition::Decaying);
         bwAve.ToNodal(Jintegrand);
-        Jintegrand = Jintegrand*varpi;
-
         J = IntegrateVertically(Jintegrand, L3);
 
-        // work out average buoyancy gradient
-        static M1D dbdz(BoundaryCondition::Decaying);
-        dbdz = ddz(bAveModal);
-
-        // construct integrand for K
-        static N1D Kintegrand(BoundaryCondition::Decaying);
-        dbdz.ToNodal(Kintegrand);
-        Kintegrand = -1*Kintegrand*varpi;
-
-        K = IntegrateVertically(Kintegrand, L3);
-
-        // also calculate other things needed for DAL
-        static N1D varpiDerivative(BoundaryCondition::Bounded);
-        varpiDerivative.SetValue([I](stratifloat z){return 2*z*z/I/I/I;}, L3);
-
-        Jintegrand = Jintegrand*varpiDerivative;
-        stratifloat Jderivative = IntegrateVertically(Jintegrand, L3);
-
-        Kintegrand = Kintegrand*varpiDerivative;
-        stratifloat Kderivative = IntegrateVertically(Kintegrand, L3);
-
-        // lagrange multiplier for value of I
-        stratifloat lambda = J*Kderivative/K/K - Jderivative/K; // quotient rule for -J/K
+        K = 2;
 
         // forcing term for u3
-        ndTemp = (-1/K)*varpi*(B+(-1)*bAveNodal);
+        ndTemp = (-1/K)*(B+(-1)*bAveNodal);
         ndTemp.ToModal(u3Forcing);
 
         // forcing term for b
-        varpiDerivative.SetValue([I](stratifloat z){return 2*z/I/I;}, L3);
-
-        nnTemp = (J/K/K)*varpiDerivative*varpi + (-1/K)*varpi*(U3+(-1)*wAveNodal) + -2*lambda*bAveNodal;
-
+        nnTemp = (-1/K)*(U3+(-1)*wAveNodal);
         nnTemp.ToModal(bForcing);
     }
 
@@ -582,8 +531,8 @@ public:
         }
         closedir(dir);
 
-        lastFilenameAbove = filenames.end();
-        lastFilenameAbove--;
+        fileAbove = filenames.end();
+        fileAbove--;
     }
 
     void UpdateForTimestep()
@@ -639,24 +588,25 @@ public:
         db_dz.Filter();
         db_dz.ToNodal(dB_dz);
 
+        static N1D Bgradientinv(BoundaryCondition::Decaying);
+        for (int j=0; j<N3; j++)
+        {
+            if(dB_dz.Get()(j)>-0.00001 && dB_dz.Get()(j)<0.00001)
+            {
+                Bgradientinv.Get()(j) = 0;
+            }
+            else
+            {
+                Bgradientinv.Get()(j) = -1/dB_dz.Get()(j);
+            }
+        }
+
         u1.ToNodal(U1);
         u2.ToNodal(U2);
         u3.ToNodal(U3);
         b.ToNodal(B);
 
-        nnTemp = B*dB_dz;
-        nnTemp2 = dB_dz;
-
-        // first get rid of any net mass change in the density
-        stratifloat mu = IntegrateAllSpace(nnTemp, L1, L2, L3)/IntegrateAllSpace(nnTemp2, L1, L2, L3);
-        B -= mu;
-
-        MField& scaledvarrho = boundedTemp; // share memory
-        nnTemp = (-1/Ri)*B*dB_dz;
-        nnTemp.ToModal(scaledvarrho);
-
-
-        ndTemp = U1*U1 + U2*U2 + U3*U3 + (-1/Ri)*B*B*dB_dz;
+        ndTemp = U1*U1 + U2*U2 + U3*U3 + Ri*B*B*Bgradientinv;
         stratifloat vdotv = IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
 
         oldu1.ToNodal(nnTemp);
@@ -669,21 +619,24 @@ public:
         ndTemp = ndTemp*U3;
         udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
         oldb.ToNodal(nnTemp);
-        ndTemp = nnTemp*B;
+        ndTemp = Ri*nnTemp*B*Bgradientinv;
         udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
         udotv /= L1*L2;
 
-        stratifloat mag = sqrt(vdotv - udotv*udotv/(2*E_0));
-        stratifloat alpha = epsilon * mag;
+        stratifloat udotu = 2*E_0;
 
-        std::cout << alpha << " " << udotv << " " << vdotv << " " << E_0 << std::endl;
-        stratifloat residual = (mag*mag/vdotv);
+        // from quadratic solution
+        stratifloat lambda = udotu - epsilon*udotv
+            - sqrt(udotu*udotu + epsilon*epsilon*udotv*udotv -epsilon*epsilon*udotu*vdotv);
+        lambda /= epsilon * udotu;
+
+        std::cout << "Optimsation numbers: " << udotu << " " << vdotv << " " << udotv << " " << epsilon << std::endl;
 
         // store the new values in old (which we no longer need after this)
-        oldu1 = cos(alpha)*oldu1 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/(2*E_0))*oldu1 + -1.0*u1);
-        oldu2 = cos(alpha)*oldu2 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/(2*E_0))*oldu2 + -1.0*u2);
-        oldu3 = cos(alpha)*oldu3 + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/(2*E_0))*oldu3 + -1.0*u3);
-        oldb = cos(alpha)*oldb   + (sqrt(2*E_0)*sin(alpha)/mag)*((udotv/(2*E_0))*oldb + -1.0*scaledvarrho);
+        oldu1 = (1-lambda*epsilon)*oldu1 + -epsilon*u1;
+        oldu2 = (1-lambda*epsilon)*oldu2 + -epsilon*u2;
+        oldu3 = (1-lambda*epsilon)*oldu3 + -epsilon*u3;
+        oldb  = (1-lambda*epsilon)*oldb  + -epsilon*b;// dubious
 
         // now actually update the values for the next step
         u1 = oldu1;
@@ -692,11 +645,10 @@ public:
         b = oldb;
         p.Zero();
 
-        return residual;
+        return 1 - udotv*udotv/udotu/vdotv;
     }
 
-private:
-    void LoadVariable(std::string filename, NField& into, int index)
+    static void LoadVariable(std::string filename, NField& into, int index)
     {
         std::ifstream filestream(filename, std::ios::in | std::ios::binary);
 
@@ -704,12 +656,15 @@ private:
         into.Load(filestream);
     }
 
+
+private:
     void LoadAtTime(stratifloat time)
     {
-        while(lastFilenameAbove->first > time && std::prev(lastFilenameAbove) != filenames.begin())
+        while(fileAbove->first >= time && std::prev(fileAbove) != filenames.begin())
         {
-            lastFilenameAbove--;
+            fileAbove--;
         }
+        fileAbove++;
 
         static stratifloat timeabove = -1;
         static stratifloat timebelow = -1;
@@ -726,27 +681,30 @@ private:
         static NField bAbove(BoundaryCondition::Bounded);
         static NField bBelow(BoundaryCondition::Bounded);
 
-        if (timeabove != lastFilenameAbove->first)
+        if (timeabove != fileAbove->first)
         {
-            if (timebelow == lastFilenameAbove->first)
+            if (timebelow == fileAbove->first)
             {
+                u1Above = u1Below;
+                u2Above = u2Below;
+                u3Above = u3Below;
                 bAbove = bBelow;
             }
             else
             {
-                LoadVariable(lastFilenameAbove->second, u1Above, 0);
-                LoadVariable(lastFilenameAbove->second, u2Above, 1);
-                LoadVariable(lastFilenameAbove->second, u3Above, 2);
-                LoadVariable(lastFilenameAbove->second, bAbove, 3);
+                LoadVariable(fileAbove->second, u1Above, 0);
+                LoadVariable(fileAbove->second, u2Above, 1);
+                LoadVariable(fileAbove->second, u3Above, 2);
+                LoadVariable(fileAbove->second, bAbove, 3);
             }
-            LoadVariable(std::prev(lastFilenameAbove)->second, u1Below, 0);
-            LoadVariable(std::prev(lastFilenameAbove)->second, u2Below, 1);
-            LoadVariable(std::prev(lastFilenameAbove)->second, u3Below, 2);
-            LoadVariable(std::prev(lastFilenameAbove)->second, bBelow, 3);
+            LoadVariable(std::prev(fileAbove)->second, u1Below, 0);
+            LoadVariable(std::prev(fileAbove)->second, u2Below, 1);
+            LoadVariable(std::prev(fileAbove)->second, u3Below, 2);
+            LoadVariable(std::prev(fileAbove)->second, bBelow, 3);
 
 
-            timeabove = lastFilenameAbove->first;
-            timebelow = std::prev(lastFilenameAbove)->first;
+            timeabove = fileAbove->first;
+            timebelow = std::prev(fileAbove)->first;
         }
 
         U1_tot = ((time-timebelow)/(timeabove-timebelow))*u1Above + ((timeabove-time)/(timeabove-timebelow))*u1Below;
@@ -1116,6 +1074,6 @@ private:
 
     // for flow saving/loading
     std::map<stratifloat, std::string> filenames;
-    std::map<stratifloat, std::string>::iterator lastFilenameAbove;
+    std::map<stratifloat, std::string>::iterator fileAbove;
     const std::string snapshotdir = "/local/scratch/public/jpp39/snapshots/";
 };
