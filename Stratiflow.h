@@ -606,7 +606,7 @@ public:
         u3.ToNodal(U3);
         b.ToNodal(B);
 
-        ndTemp = U1*U1 + U2*U2 + U3*U3 + Ri*B*B*Bgradientinv;
+        ndTemp = U1*U1 + U2*U2 + U3*U3 + (-1/Ri)*B*B*dB_dz;
         stratifloat vdotv = IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
 
         oldu1.ToNodal(nnTemp);
@@ -619,7 +619,7 @@ public:
         ndTemp = ndTemp*U3;
         udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
         oldb.ToNodal(nnTemp);
-        ndTemp = Ri*nnTemp*B*Bgradientinv;
+        ndTemp = nnTemp*B;
         udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
         udotv /= L1*L2;
 
@@ -632,11 +632,15 @@ public:
 
         std::cout << "Optimsation numbers: " << udotu << " " << vdotv << " " << udotv << " " << epsilon << std::endl;
 
+        static MField bscaled(BoundaryCondition::Bounded);
+        nnTemp = B*dB_dz;
+        nnTemp.ToModal(bscaled);
+
         // store the new values in old (which we no longer need after this)
         oldu1 = (1-lambda*epsilon)*oldu1 + -epsilon*u1;
         oldu2 = (1-lambda*epsilon)*oldu2 + -epsilon*u2;
         oldu3 = (1-lambda*epsilon)*oldu3 + -epsilon*u3;
-        oldb  = (1-lambda*epsilon)*oldb  + -epsilon*b;// dubious
+        oldb  = (1-lambda*epsilon)*oldb  + -(-1/Ri)*epsilon*bscaled;
 
         // now actually update the values for the next step
         u1 = oldu1;

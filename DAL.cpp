@@ -195,35 +195,38 @@ int main(int argc, char *argv[])
 
         std::cout << "Integral of J/K: " << JoverKintegrated << std::endl;
 
-        // if (JoverKintegrated > previousIntegral)
-        // {
-        //     previousIntegral = JoverKintegrated;
+        if (JoverKintegrated > previousIntegral)
+        {
+            previousIntegral = JoverKintegrated;
 
-        //     oldoldu1 = oldu1;
-        //     oldoldu2 = oldu2;
-        //     oldoldu3 = oldu3;
-        //     oldoldb = oldb;
-        // }
-        // else
-        // {
-        //     // we have overshot, try with a smaller step
-        //     epsilon /= 2;
+            oldoldu1 = oldu1;
+            oldoldu2 = oldu2;
+            oldoldu3 = oldu3;
+            oldoldb = oldb;
+        }
+        else
+        {
+            // we have overshot, try with a smaller step
+            epsilon /= 2;
 
-        //     std::cout << "Epsilon: " << epsilon << std::endl;
+            std::cout << "Epsilon: " << epsilon << std::endl;
 
-        //     solver.u1 = previousv1;
-        //     solver.u2 = previousv2;
-        //     solver.u3 = previousv3;
-        //     solver.b = previousvb;
+            solver.u1 = previousv1;
+            solver.u2 = previousv2;
+            solver.u3 = previousv3;
+            solver.b = previousvb;
 
-        //     oldu1 = oldoldu1;
-        //     oldu2 = oldoldu2;
-        //     oldu3 = oldoldu3;
-        //     oldb = oldoldb;
+            oldu1 = oldoldu1;
+            oldu2 = oldoldu2;
+            oldu3 = oldoldu3;
+            oldb = oldoldb;
 
-        //     std::cout << "Residual: " << solver.Optimise(epsilon, E0, oldu1, oldu2, oldu3, oldb, backgroundB) << std::endl;
-        //     continue;
-        // }
+            energyFile << "STEP " << p << " and residual= "
+                   << solver.Optimise(epsilon, E0, oldu1, oldu2, oldu3, oldb, backgroundB)
+                   << std::endl;
+
+            continue;
+        }
 
         // clear everything for adjoint loop
         {
