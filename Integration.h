@@ -57,3 +57,70 @@ void HorizontalAverage(const ModalField<N1,N2,N3>& integrand, Modal1D<N1,N2,N3>&
     // the zero mode gives the horizontal average (should always be real)
     into.Get() = real(integrand.stack(0,0));
 }
+
+template<typename C, typename T, int N1, int N2, int N3>
+stratifloat InnerProd(const NodalField<N1,N2,N3>& A, const NodalField<N1,N2,N3>& B, stratifloat L3, const StackContainer<C,T,N1,N2,N3>& weight)
+{
+    static NodalField<N1,N2,N3> U(BoundaryCondition::Decaying);
+
+    U = A*B*weight;
+
+    return IntegrateAllSpace(U, 1, 1, L3);
+}
+
+
+template<typename C, typename T, int N1, int N2, int N3>
+stratifloat InnerProd(const ModalField<N1,N2,N3>& a, const ModalField<N1,N2,N3>& b, stratifloat L3, const StackContainer<C,T,N1,N2,N3>& weight)
+{
+    if (a.BC() == BoundaryCondition::Bounded && b.BC()==BoundaryCondition::Bounded)
+    {
+        static NodalField<N1,N2,N3> A(BoundaryCondition::Bounded);
+        static NodalField<N1,N2,N3> B(BoundaryCondition::Bounded);
+
+        a.ToNodal(A);
+        b.ToNodal(B);
+
+        return InnerProd(A, B, L3, weight);
+    }
+    else if (a.BC() == BoundaryCondition::Decaying && b.BC()==BoundaryCondition::Decaying)
+    {
+        static NodalField<N1,N2,N3> A(BoundaryCondition::Bounded);
+        static NodalField<N1,N2,N3> B(BoundaryCondition::Bounded);
+
+        a.ToNodal(A);
+        b.ToNodal(B);
+
+        return InnerProd(A, B, L3, weight);
+    }
+    else
+    {
+        assert(0);
+        return 0;
+    }
+}
+
+template<int N1, int N2, int N3>
+stratifloat InnerProd(const ModalField<N1,N2,N3>& a, const ModalField<N1,N2,N3>& b, stratifloat L3)
+{
+    static Nodal1D<N1,N2,N3> one(BoundaryCondition::Bounded);
+    one.SetValue([](stratifloat z){return 1;}, L3);
+    return InnerProd(a, b, L3, one);
+}
+
+template<int N1, int N2, int N3>
+stratifloat InnerProd(const NodalField<N1,N2,N3>& A, const NodalField<N1,N2,N3>& B, stratifloat L3)
+{
+    static Nodal1D<N1,N2,N3> one(BoundaryCondition::Bounded);
+    one.SetValue([](stratifloat z){return 1;}, L3);
+    return InnerProd(A, B, L3, one);
+}
+
+template<int N1, int N2, int N3>
+stratifloat InnerProd(const ModalField<N1,N2,N3>& a, const ModalField<N1,N2,N3>& b, stratifloat L3, stratifloat weight)
+{
+    static Nodal1D<N1,N2,N3> w(BoundaryCondition::Bounded);
+    w.SetValue([weight](stratifloat z){return weight;}, L3);
+    return InnerProd(a, b, L3, w);
+}
+
+stratifloat SolveQuadratic(stratifloat a, stratifloat b, stratifloat c, bool positiveSign=false);

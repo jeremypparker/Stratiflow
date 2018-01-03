@@ -41,9 +41,9 @@ std::string exec(const char* cmd) {
 class IMEXRK
 {
 public:
-    static constexpr int N1 = 192;
+    static constexpr int N1 = 384;
     static constexpr int N2 = 1;
-    static constexpr int N3 = 220;
+    static constexpr int N3 = 440;
 
     static constexpr int M1 = N1/2 + 1;
 
@@ -343,20 +343,7 @@ public:
 
     stratifloat KE() const
     {
-        u1.ToNodal(U1);
-        u2.ToNodal(U2);
-        u3.ToNodal(U3);
-
-        // hack for now: perturbation energy relative to frozen bg
-        //u_.ToNodal(U_);
-        //U1 += U_;
-        //NField Uinitial(BoundaryCondition::Bounded);
-        //Uinitial.SetValue([](stratifloat z){return tanh(z);}, L3);
-        //U1 += -1*Uinitial;
-
-        ndTemp = 0.5f*(U1*U1 + U2*U2 + U3*U3);
-
-        return IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
+        return 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u2, u2, L3) + InnerProd(u3, u3, L3));
     }
 
     stratifloat PE() const
@@ -374,21 +361,19 @@ public:
         //B += -1*Binitial;
 
 
-        ndTemp = 0.5f*Ri*B*B;
-
         for (int j=0; j<N3; j++)
         {
             if(dB_dz.Get()(j)>-0.00001 && dB_dz.Get()(j)<0.00001)
             {
-                ndTemp.slice(j) = 0;
+                nnTemp1D.Get()(j) = 0;
             }
             else
             {
-                ndTemp.slice(j) /= -dB_dz.Get()(j);
+                nnTemp1D.Get()(j) = -1/dB_dz.Get()(j);
             }
         }
 
-        return IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
+        return 0.5f*InnerProd(b, b, L3, Ri*nnTemp1D);
     }
     void RemoveDivergence(stratifloat pressureMultiplier=1.0f)
     {
@@ -597,50 +582,51 @@ public:
             }
             else
             {
-                Bgradientinv.Get()(j) = -1/dB_dz.Get()(j);
+                Bgradientinv.Get()(j) = 1/dB_dz.Get()(j);
             }
         }
 
-        u1.ToNodal(U1);
-        u2.ToNodal(U2);
-        u3.ToNodal(U3);
-        b.ToNodal(B);
+        stratifloat udotu = InnerProd(oldu1, oldu1, L3)
+                          + InnerProd(oldu2, oldu2, L3)
+                          + InnerProd(oldu3, oldu3, L3)
+                          + InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
 
-        ndTemp = U1*U1 + U2*U2 + U3*U3 + (-1/Ri)*B*B*dB_dz;
-        stratifloat vdotv = IntegrateAllSpace(ndTemp, L1, L2, L3)/L1/L2;
+        stratifloat vdotv = InnerProd(u1, u1, L3)
+                          + InnerProd(u2, u2, L3)
+                          + InnerProd(u3, u3, L3)
+                          + InnerProd(b, b, L3, -(1/Ri)*dB_dz);
 
-        oldu1.ToNodal(nnTemp);
-        ndTemp = nnTemp*U1;
-        stratifloat udotv = IntegrateAllSpace(ndTemp, L1, L2, L3);
-        oldu2.ToNodal(nnTemp);
-        ndTemp = nnTemp*U2;
-        udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
-        oldu3.ToNodal(ndTemp);
-        ndTemp = ndTemp*U3;
-        udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
-        oldb.ToNodal(nnTemp);
-        ndTemp = nnTemp*B;
-        udotv += IntegrateAllSpace(ndTemp, L1, L2, L3);
-        udotv /= L1*L2;
+        stratifloat udotv = InnerProd(u1, oldu1, L3)
+                          + InnerProd(u2, oldu2, L3)
+                          + InnerProd(u3, oldu3, L3)
+                          + InnerProd(b, oldb, L3);
 
-        stratifloat udotu = 2*E_0;
-
-        // from quadratic solution
-        stratifloat lambda = udotu - epsilon*udotv
-            - sqrt(udotu*udotu + epsilon*epsilon*udotv*udotv -epsilon*epsilon*udotu*vdotv);
-        lambda /= epsilon * udotu;
-
-        std::cout << "Optimsation numbers: " << udotu << " " << vdotv << " " << udotv << " " << epsilon << std::endl;
+        stratifloat lambda = SolveQuadratic(epsilon*udotu,
+                                            2*epsilon*udotv - 2*udotu,
+                                            epsilon*vdotv - 2*udotv);
 
         static MField bscaled(BoundaryCondition::Bounded);
-        nnTemp = B*dB_dz;
+        b.ToNodal(B);
+        nnTemp = -1*B*dB_dz;
         nnTemp.ToModal(bscaled);
 
         // store the new values in old (which we no longer need after this)
         oldu1 = (1-lambda*epsilon)*oldu1 + -epsilon*u1;
         oldu2 = (1-lambda*epsilon)*oldu2 + -epsilon*u2;
         oldu3 = (1-lambda*epsilon)*oldu3 + -epsilon*u3;
-        oldb  = (1-lambda*epsilon)*oldb  + -(-1/Ri)*epsilon*bscaled;
+        oldb  = (1-lambda*epsilon)*oldb  + -(1/Ri)*epsilon*bscaled;
+
+        stratifloat new2E0 = InnerProd(oldu1, oldu1, L3)
+                           + InnerProd(oldu2, oldu2, L3)
+                           + InnerProd(oldu3, oldu3, L3)
+                           + InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
+
+        stratifloat scale = sqrt(2*E_0/new2E0);
+
+        oldu1 *= scale;
+        oldu2 *= scale;
+        oldu3 *= scale;
+        oldb *= scale;
 
         // now actually update the values for the next step
         u1 = oldu1;

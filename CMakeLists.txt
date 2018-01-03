@@ -35,7 +35,7 @@ if(CUDA)
     add_definitions(-DUSE_CUDA)
 endif()
 
-add_library(StratiLib Differentiation.cpp Field.cpp Graph.cpp)
+add_library(StratiLib Differentiation.cpp Field.cpp Graph.cpp Integration.cpp)
 
 add_subdirectory(tests)
 

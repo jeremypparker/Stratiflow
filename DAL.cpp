@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
     stratifloat epsilon = 0.01;
 
     std::ofstream energyFile("energy.dat");
-    for (; p<50; p++) // Direct-adjoint loop
+    for (; p<100; p++) // Direct-adjoint loop
     {
         exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
         exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
