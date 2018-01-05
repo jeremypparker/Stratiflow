@@ -3,6 +3,7 @@
 int main(int argc, char *argv[])
 {
     stratifloat targetTime = 10.0;
+    stratifloat energy = 0.001;
 
     f3_init_threads();
     f3_plan_with_nthreads(omp_get_max_threads());
@@ -31,11 +32,11 @@ int main(int argc, char *argv[])
 
     int p; // which DAL step we are on
 
-    if (argc == 2)
+    if (argc > 2)
     {
         std::cout << "Loading ICs..." << std::endl;
 
-        p = std::stoi(argv[1]);
+        p = std::stoi(argv[2]);
         solver.LoadFlow("ICs/"+std::to_string(p)+".fields");
     }
     else
@@ -55,23 +56,39 @@ int main(int argc, char *argv[])
 
         // add a perturbation to allow instabilities to develop
 
-        stratifloat bandmax = 4;
-        for (int j=0; j<IMEXRK::N3; j++)
+        initialU1.SetValue([](stratifloat x, stratifloat y, stratifloat z)
         {
-            if (x3(j) > -bandmax && x3(j) < bandmax)
-            {
-                initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-                initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-                initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-            }
-        }
+            return 0.1*cos(4*pi*x/IMEXRK::L1)*exp(-z*z);
+        }, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
+
+        // stratifloat bandmax = 4;
+        // for (int j=0; j<IMEXRK::N3; j++)
+        // {
+        //     if (x3(j) > -bandmax && x3(j) < bandmax)
+        //     {
+        //         initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+        //             * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+        //         initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+        //             * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+        //         initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+        //             * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
+        //     }
+        // }
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
     }
 
     solver.RemoveDivergence(0.0f);
+
+    // rescale energy
+    {
+        stratifloat energyBefore = solver.KE() + solver.PE();
+        stratifloat scale = sqrt(energy/energyBefore);
+
+        solver.u1 *= scale;
+        solver.u2 *= scale;
+        solver.u3 *= scale;
+        solver.b *= scale;
+    }
 
     oldu1 = solver.u1;
     oldu2 = solver.u2;
@@ -82,14 +99,21 @@ int main(int argc, char *argv[])
 
     stratifloat epsilon = 0.01;
 
-    std::ofstream energyFile("energy.dat");
-    for (; p<100; p++) // Direct-adjoint loop
+    int maxiterations = 50;
+    if (argc > 2)
     {
-        exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
+        maxiterations = std::stoi(argv[1]);
+    }
+
+    std::ofstream energyFile("energy.dat");
+    for (; p<maxiterations; p++) // Direct-adjoint loop
+    {
+        exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure images/vorticity images/perturbvorticity");
         exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
-        exec("rm -rf /local/scratch/public/jpp39/snapshots/*");
-        exec("mkdir -p images/u1 images/u2 images/u3 images/buoyancy images/pressure");
+        exec("rm -rf snapshots");
+        exec("mkdir -p images/u1 images/u2 images/u3 images/buoyancy images/pressure images/vorticity images/perturbvorticity");
         exec("mkdir -p imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
+        exec("mkdir -p snapshots");
 
         // add background flow
         std::cout << "Setting background..." << std::endl;
@@ -113,10 +137,10 @@ int main(int argc, char *argv[])
         std::cout << "E0: " << (solver.KE() + solver.PE()) << std::endl;
 
         stratifloat totalTime = 0.0f;
-        solver.SaveFlow("/local/scratch/public/jpp39/snapshots/"+std::to_string(totalTime)+".fields");
+        solver.StoreSnapshot(totalTime);
 
         // save initial condition
-        solver.SaveFlow("ICs/"+std::to_string(p)+".fields", false);
+        solver.SaveFlow("ICs/"+std::to_string(p)+".fields");
 
         // also save images for animation
         solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
@@ -124,6 +148,7 @@ int main(int argc, char *argv[])
         solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
         solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
         solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+        solver.PlotSpanwiseVorticity("images/vorticity/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
         stratifloat saveEvery = 1.0f;
         int lastFrame = -1;
@@ -152,7 +177,7 @@ int main(int argc, char *argv[])
 
             totalTime += solver.deltaT;
 
-            solver.SaveFlow("/local/scratch/public/jpp39/snapshots/"+std::to_string(totalTime)+".fields");
+            solver.StoreSnapshot(totalTime);
 
             if(step%50==0)
             {
@@ -177,6 +202,8 @@ int main(int argc, char *argv[])
                 solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
                 solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
                 solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotSpanwiseVorticity("images/vorticity/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotPerturbationVorticity("images/perturbvorticity/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
                 energyFile << totalTime
                         << " " << solver.KE()
@@ -203,6 +230,9 @@ int main(int argc, char *argv[])
             oldoldu2 = oldu2;
             oldoldu3 = oldu3;
             oldoldb = oldb;
+
+            // it's going well, slowly increase step size
+            epsilon *= 1.1;
         }
         else
         {

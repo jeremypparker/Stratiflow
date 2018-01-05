@@ -51,6 +51,10 @@ public:
     static constexpr stratifloat L2 = 4.0f;  // size of domain spanwise
     static constexpr stratifloat L3 = 5.0f; // vertical scaling factor
 
+    static constexpr bool ThreeDimensional = false;
+
+    static constexpr bool SnapshotToMemory = false;
+
     stratifloat deltaT = 0.01f;
     const stratifloat Re = 1000;
     const stratifloat Ri = 0.1;
@@ -64,6 +68,21 @@ public:
     long totalExplicit = 0;
     long totalImplicit = 0;
     long totalDivergence = 0;
+
+    struct State
+    {
+        State()
+        : U1(BoundaryCondition::Bounded)
+        , U2(BoundaryCondition::Bounded)
+        , U3(BoundaryCondition::Decaying)
+        , B(BoundaryCondition::Bounded)
+        {}
+
+        NField U1;
+        NField U2;
+        NField U3;
+        NField B;
+    };
 
 public:
     IMEXRK()
@@ -119,6 +138,8 @@ public:
     , implicitSolveDecaying{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
 
     {
+        assert(ThreeDimensional || N2 == 1);
+
         std::cout << "Evaluating derivative matrices..." << std::endl;
 
         dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
@@ -187,7 +208,10 @@ public:
 
         // To prevent anything dodgy accumulating in the unused coefficients
         u1.Filter();
-        u2.Filter();
+        if(ThreeDimensional)
+        {
+            u2.Filter();
+        }
         u3.Filter();
         b.Filter();
         p.Filter();
@@ -242,7 +266,10 @@ public:
 
         // To prevent anything dodgy accumulating in the unused coefficients
         u1.Filter();
-        u2.Filter();
+        if(ThreeDimensional)
+        {
+            u2.Filter();
+        }
         u3.Filter();
         b.Filter();
         p.Filter();
@@ -270,7 +297,27 @@ public:
 
     void PlotSpanwiseVelocity(std::string filename, int j2) const
     {
-        HeatPlot(u2, L1, L3, j2, filename);
+        if(ThreeDimensional)
+        {
+            HeatPlot(u2, L1, L3, j2, filename);
+        }
+    }
+
+    void PlotSpanwiseVorticity(std::string filename, int j2) const
+    {
+        u1.ToNodal(U1);
+        u_.ToNodal(U_);
+        U1 += U_;
+        U1.ToModal(boundedTemp);
+
+        decayingTemp = ddz(boundedTemp)+-1.0*ddx(u3);
+        HeatPlot(decayingTemp, L1, L3, j2, filename);
+    }
+
+    void PlotPerturbationVorticity(std::string filename, int j2) const
+    {
+        decayingTemp = ddz(u1)+-1.0*ddx(u3);
+        HeatPlot(decayingTemp, L1, L3, j2, filename);
     }
 
     void PlotStreamwiseVelocity(std::string filename, int j2) const
@@ -343,7 +390,14 @@ public:
 
     stratifloat KE() const
     {
-        return 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u2, u2, L3) + InnerProd(u3, u3, L3));
+        if(ThreeDimensional)
+        {
+            return 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u2, u2, L3) + InnerProd(u3, u3, L3));
+        }
+        else
+        {
+            return 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u3, u3, L3));
+        }
     }
 
     stratifloat PE() const
@@ -378,7 +432,14 @@ public:
     void RemoveDivergence(stratifloat pressureMultiplier=1.0f)
     {
         // construct the diverence of u
-        divergence = ddx(u1) + ddy(u2) + ddz(u3);
+        if(ThreeDimensional)
+        {
+            divergence = ddx(u1) + ddy(u2) + ddz(u3);
+        }
+        else
+        {
+            divergence = ddx(u1) + ddz(u3);
+        }
 
         // constant term - set value at infinity to zero
         divergence(0,0,0) = 0;
@@ -388,7 +449,10 @@ public:
 
         // subtract the gradient of this from the velocity
         u1 -= ddx(q);
-        u2 -= ddy(q);
+        if(ThreeDimensional)
+        {
+            u2 -= ddy(q);
+        }
         u3 -= ddz(q);
 
         // also add it on to p for the next step
@@ -397,21 +461,12 @@ public:
         p += pressureMultiplier*q;
     }
 
-    void SaveFlow(const std::string& filename, bool includeBackground = true) const
+    void SaveFlow(const std::string& filename) const
     {
         u1.ToNodal(U1);
         u2.ToNodal(U2);
         u3.ToNodal(U3);
         b.ToNodal(B);
-
-        if (includeBackground)
-        {
-            u_.ToNodal(U_);
-            b_.ToNodal(B_);
-
-            U1 += U_;
-            B += B_;
-        }
 
         std::ofstream filestream(filename, std::ios::out | std::ios::binary);
 
@@ -419,6 +474,35 @@ public:
         U2.Save(filestream);
         U3.Save(filestream);
         B.Save(filestream);
+    }
+
+    void StoreSnapshot(stratifloat time) const
+    {
+        u1.ToNodal(U1);
+        u2.ToNodal(U2);
+        u3.ToNodal(U3);
+        b.ToNodal(B);
+
+        u_.ToNodal(U_);
+        b_.ToNodal(B_);
+
+        U1 += U_;
+        B += B_;
+
+        if (SnapshotToMemory)
+        {
+
+        }
+        else
+        {
+            std::ofstream filestream(snapshotdir+std::to_string(time)+".fields",
+                                     std::ios::out | std::ios::binary);
+
+            U1.Save(filestream);
+            U2.Save(filestream);
+            U3.Save(filestream);
+            B.Save(filestream);
+        }
     }
 
     void LoadFlow(const std::string& filename)
@@ -769,7 +853,10 @@ private:
     void ImplicitUpdate(int k)
     {
         CNSolve(R1, u1, k);
-        CNSolve(R2, u2, k);
+        if(ThreeDimensional)
+        {
+            CNSolve(R2, u2, k);
+        }
         CNSolve(R3, u3, k);
         CNSolve(RB, b, k);
 
@@ -780,7 +867,10 @@ private:
     void ImplicitUpdateAdjoint(int k)
     {
         CNSolve(R1, u1, k);
-        CNSolve(R2, u2, k);
+        if(ThreeDimensional)
+        {
+            CNSolve(R2, u2, k);
+        }
         CNSolve(R3, u3, k);
         CNSolve(RB, b, k);
     }
@@ -788,7 +878,10 @@ private:
     void ExplicitUpdate(int k)
     {
         u1.ToNodal(U1);
-        u2.ToNodal(U2);
+        if(ThreeDimensional)
+        {
+            u2.ToNodal(U2);
+        }
         u3.ToNodal(U3);
         b.ToNodal(B);
 
@@ -796,7 +889,10 @@ private:
 
         //   old      last rk step         pressure         explicit CN
         R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Bounded, u1));
+        if(ThreeDimensional)
+        {
         R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
+        }
         R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
         RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
 
@@ -806,7 +902,10 @@ private:
 
         // now construct explicit terms
         r1.Zero();
-        r2.Zero();
+        if(ThreeDimensional)
+        {
+            r2.Zero();
+        }
         r3.Zero();
         rB.Zero();
 
@@ -831,32 +930,38 @@ private:
         r3 -= ddx(decayingTemp);
         r1 -= ddz(decayingTemp);
 
-        nnTemp = U2*U2;
-        nnTemp.ToModal(boundedTemp);
-        r2 -= ddy(boundedTemp);
-
-        ndTemp = U2*U3;
-        ndTemp.ToModal(decayingTemp);
-        r3 -= ddy(decayingTemp);
-        r2 -= ddz(decayingTemp);
-
         nnTemp = U3*U3;
         nnTemp.ToModal(boundedTemp);
         r3 -= ddz(boundedTemp);
 
-        nnTemp = U1*U2;
-        nnTemp.ToModal(boundedTemp);
-        r1 -= ddy(boundedTemp);
-        r2 -= ddx(boundedTemp);
+        if(ThreeDimensional)
+        {
+            nnTemp = U2*U2;
+            nnTemp.ToModal(boundedTemp);
+            r2 -= ddy(boundedTemp);
+
+            ndTemp = U2*U3;
+            ndTemp.ToModal(decayingTemp);
+            r3 -= ddy(decayingTemp);
+            r2 -= ddz(decayingTemp);
+
+            nnTemp = U1*U2;
+            nnTemp.ToModal(boundedTemp);
+            r1 -= ddy(boundedTemp);
+            r2 -= ddx(boundedTemp);
+        }
 
         // buoyancy nonlinear terms
         nnTemp = U1*B;
         nnTemp.ToModal(boundedTemp);
         rB -= ddx(boundedTemp);
 
-        nnTemp = U2*B;
-        nnTemp.ToModal(boundedTemp);
-        rB -= ddy(boundedTemp);
+        if(ThreeDimensional)
+        {
+            nnTemp = U2*B;
+            nnTemp.ToModal(boundedTemp);
+            rB -= ddy(boundedTemp);
+        }
 
         ndTemp = U3*B;
         ndTemp.ToModal(decayingTemp);
@@ -872,7 +977,10 @@ private:
 
         // now add on explicit terms to RHS
         R1 += (h[k]*beta[k])*r1;
-        R2 += (h[k]*beta[k])*r2;
+        if(ThreeDimensional)
+        {
+            R2 += (h[k]*beta[k])*r2;
+        }
         R3 += (h[k]*beta[k])*r3;
         RB += (h[k]*beta[k])*rB;
     }
@@ -881,7 +989,10 @@ private:
     void ExplicitUpdateAdjoint(int k)
     {
         u1.ToNodal(U1);
-        u2.ToNodal(U2);
+        if(ThreeDimensional)
+        {
+            u2.ToNodal(U2);
+        }
         u3.ToNodal(U3);
         b.ToNodal(B);
 
@@ -894,13 +1005,19 @@ private:
 
         //   old      last rk step         pressure         explicit CN
         R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Bounded, u1));
+        if(ThreeDimensional)
+        {
         R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
+        }
         R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
         RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
 
         // now construct explicit terms
         r1.Zero();
-        r2.Zero();
+        if(ThreeDimensional)
+        {
+            r2.Zero();
+        }
         r3 = u3Forcing;
         rB = bForcing;
 
@@ -914,29 +1031,38 @@ private:
         nnTemp = U1*U1_tot;
         nnTemp.ToModal(boundedTemp);
         r1 += ddx(boundedTemp);
-        nnTemp = U1*U2_tot;
-        nnTemp.ToModal(boundedTemp);
-        r1 += ddy(boundedTemp);
+        if(ThreeDimensional)
+        {
+            nnTemp = U1*U2_tot;
+            nnTemp.ToModal(boundedTemp);
+            r1 += ddy(boundedTemp);
+        }
         ndTemp = U1*U3_tot;
         ndTemp.ToModal(decayingTemp);
         r1 += ddz(decayingTemp);
 
-        nnTemp = U2*U1_tot;
-        nnTemp.ToModal(boundedTemp);
-        r2 += ddx(boundedTemp);
-        nnTemp = U2*U2_tot;
-        nnTemp.ToModal(boundedTemp);
-        r2 += ddy(boundedTemp);
-        ndTemp = U2*U3_tot;
-        ndTemp.ToModal(decayingTemp);
-        r2 += ddz(decayingTemp);
+        if(ThreeDimensional)
+        {
+            nnTemp = U2*U1_tot;
+            nnTemp.ToModal(boundedTemp);
+            r2 += ddx(boundedTemp);
+            nnTemp = U2*U2_tot;
+            nnTemp.ToModal(boundedTemp);
+            r2 += ddy(boundedTemp);
+            ndTemp = U2*U3_tot;
+            ndTemp.ToModal(decayingTemp);
+            r2 += ddz(decayingTemp);
+        }
 
         ndTemp = U3*U1_tot;
         ndTemp.ToModal(decayingTemp);
         r3 += ddx(decayingTemp);
-        ndTemp = U3*U2_tot;
-        ndTemp.ToModal(decayingTemp);
-        r3 += ddy(decayingTemp);
+        if(ThreeDimensional)
+        {
+            ndTemp = U3*U2_tot;
+            ndTemp.ToModal(decayingTemp);
+            r3 += ddy(decayingTemp);
+        }
         nnTemp = U3*U3_tot;
         nnTemp.ToModal(boundedTemp);
         r3 += ddz(boundedTemp);
@@ -944,9 +1070,12 @@ private:
         nnTemp = B*U1_tot;
         nnTemp.ToModal(boundedTemp);
         rB += ddx(boundedTemp);
-        nnTemp = B*U2_tot;
-        nnTemp.ToModal(boundedTemp);
-        rB += ddy(boundedTemp);
+        if(ThreeDimensional)
+        {
+            nnTemp = B*U2_tot;
+            nnTemp.ToModal(boundedTemp);
+            rB += ddy(boundedTemp);
+        }
         ndTemp = B*U3_tot;
         ndTemp.ToModal(decayingTemp);
         rB += ddz(decayingTemp);
@@ -955,33 +1084,42 @@ private:
         boundedTemp = ddx(u1_tot);
         boundedTemp.ToNodal(nnTemp);
         nnTemp2 = nnTemp*U1;
-        boundedTemp = ddx(u2_tot);
-        boundedTemp.ToNodal(nnTemp);
-        nnTemp2 += nnTemp*U2;
+        if(ThreeDimensional)
+        {
+            boundedTemp = ddx(u2_tot);
+            boundedTemp.ToNodal(nnTemp);
+            nnTemp2 += nnTemp*U2;
+        }
         decayingTemp = ddx(u3_tot);
         decayingTemp.ToNodal(ndTemp);
         nnTemp2 = nnTemp2 + ndTemp*U3;
         nnTemp2.ToModal(boundedTemp);
         r1 -= boundedTemp;
 
-        boundedTemp = ddy(u1_tot);
-        boundedTemp.ToNodal(nnTemp);
-        nnTemp2 = nnTemp*U1;
-        boundedTemp = ddy(u2_tot);
-        boundedTemp.ToNodal(nnTemp);
-        nnTemp2 += nnTemp*U2;
-        decayingTemp = ddy(u3_tot);
-        decayingTemp.ToNodal(ndTemp);
-        nnTemp2 = nnTemp2 + ndTemp*U3;
-        nnTemp2.ToModal(boundedTemp);
-        r2 -= boundedTemp;
+        if(ThreeDimensional)
+        {
+            boundedTemp = ddy(u1_tot);
+            boundedTemp.ToNodal(nnTemp);
+            nnTemp2 = nnTemp*U1;
+            boundedTemp = ddy(u2_tot);
+            boundedTemp.ToNodal(nnTemp);
+            nnTemp2 += nnTemp*U2;
+            decayingTemp = ddy(u3_tot);
+            decayingTemp.ToNodal(ndTemp);
+            nnTemp2 = nnTemp2 + ndTemp*U3;
+            nnTemp2.ToModal(boundedTemp);
+            r2 -= boundedTemp;
+        }
 
         decayingTemp = ddz(u1_tot);
         decayingTemp.ToNodal(ndTemp);
         ndTemp2 = ndTemp*U1;
-        decayingTemp = ddz(u2_tot);
-        decayingTemp.ToNodal(ndTemp);
-        ndTemp2 += ndTemp*U2;
+        if(ThreeDimensional)
+        {
+            decayingTemp = ddz(u2_tot);
+            decayingTemp.ToNodal(ndTemp);
+            ndTemp2 += ndTemp*U2;
+        }
         boundedTemp = ddz(u3_tot);
         boundedTemp.ToNodal(nnTemp);
         ndTemp2 = ndTemp2 + nnTemp*U3;
@@ -994,11 +1132,14 @@ private:
         nnTemp2.ToModal(boundedTemp);
         r1 -= boundedTemp;
 
-        boundedTemp = ddy(b_tot);
-        boundedTemp.ToNodal(nnTemp);
-        nnTemp2 = nnTemp*B;
-        nnTemp2.ToModal(boundedTemp);
-        r2 -= boundedTemp;
+        if(ThreeDimensional)
+        {
+            boundedTemp = ddy(b_tot);
+            boundedTemp.ToNodal(nnTemp);
+            nnTemp2 = nnTemp*B;
+            nnTemp2.ToModal(boundedTemp);
+            r2 -= boundedTemp;
+        }
 
         decayingTemp = ddz(b_tot);
         decayingTemp.ToNodal(ndTemp);
@@ -1008,7 +1149,10 @@ private:
 
         // now add on explicit terms to RHS
         R1 += (h[k]*beta[k])*r1;
-        R2 += (h[k]*beta[k])*r2;
+        if(ThreeDimensional)
+        {
+            R2 += (h[k]*beta[k])*r2;
+        }
         R3 += (h[k]*beta[k])*r3;
         RB += (h[k]*beta[k])*rB;
     }
@@ -1065,5 +1209,8 @@ private:
     // for flow saving/loading
     std::map<stratifloat, std::string> filenames;
     std::map<stratifloat, std::string>::iterator fileAbove;
-    const std::string snapshotdir = "/local/scratch/public/jpp39/snapshots/";
+    std::map<stratifloat, State> snapshots;
+    std::map<stratifloat, State>::iterator snapshotAbove;
+
+    const std::string snapshotdir = "snapshots/";
 };
