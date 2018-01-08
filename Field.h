@@ -482,9 +482,8 @@ public:
     {
         assert(solver.rows() == N3);
 
-        // todo: don't allocate
-        Matrix<T, -1, 1> in = Get();
-        Matrix<T, -1, 1> out(N3);
+        Matrix<T, N3, 1> in = Get();
+        Matrix<T, N3, 1> out(N3);
         out = solver.solve(in);
         result.Get() = out;
     }
