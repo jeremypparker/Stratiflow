@@ -24,7 +24,8 @@
     #define f3_plan_many_r2r        fftw_plan_many_r2r
     #define f3_plan_many_dft_r2c    fftw_plan_many_dft_r2c
     #define f3_plan_many_dft_c2r    fftw_plan_many_dft_c2r
-    #define f3_complex              fftw_complex 
+    #define f3_plan_r2r_1d          fftw_plan_r2r_1d
+    #define f3_complex              fftw_complex
 #else
     #define stratifloat float
     #define notstratifloat double
@@ -47,7 +48,8 @@
     #define f3_plan_many_r2r        fftwf_plan_many_r2r
     #define f3_plan_many_dft_r2c    fftwf_plan_many_dft_r2c
     #define f3_plan_many_dft_c2r    fftwf_plan_many_dft_c2r
-    #define f3_complex              fftwf_complex 
+    #define f3_plan_r2r_1d          fftwf_plan_r2r_1d
+    #define f3_complex              fftwf_complex
 #endif
 
 constexpr stratifloat pi = 3.14159265358979;

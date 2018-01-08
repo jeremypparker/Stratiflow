@@ -542,7 +542,7 @@ public:
             size = N3-2;
         }
 
-        auto plan = f3_plan_many_r2r(1, &size, 1, in, nullptr, 1, 1, out, nullptr, 1, 1, &kind, FFTW_ESTIMATE);
+        auto plan = f3_plan_r2r_1d(size, in, out, kind, FFTW_ESTIMATE);
 
         f3_execute(plan);
         f3_destroy_plan(plan);
@@ -595,7 +595,7 @@ public:
             size = N3-2;
         }
 
-        auto plan = f3_plan_many_r2r(1, &size, 1, in, nullptr, 1, 1, out, nullptr, 1, 1, &kind, FFTW_ESTIMATE);
+        auto plan = f3_plan_r2r_1d(size, in, out, kind, FFTW_ESTIMATE);
 
         f3_execute(plan);
         f3_destroy_plan(plan);
