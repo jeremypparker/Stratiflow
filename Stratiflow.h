@@ -414,6 +414,24 @@ public:
         }
     }
 
+    void PlotAll(std::string prefix, std::string filename, bool includeBackground) const
+    {
+        PlotPressure(prefix+"/pressure/"+filename, IMEXRK::N2/2);
+        PlotBuoyancy(prefix+"/buoyancy/"+filename, IMEXRK::N2/2, includeBackground);
+        PlotVerticalVelocity(prefix+"/u3/"+filename, IMEXRK::N2/2);
+        PlotSpanwiseVelocity(prefix+"/u2/"+filename, IMEXRK::N2/2);
+        PlotStreamwiseVelocity(prefix+"/u1/"+filename, IMEXRK::N2/2, includeBackground);
+
+        if (includeBackground)
+        {
+            PlotSpanwiseVorticity(prefix+"/vorticity/"+filename, IMEXRK::N2/2);
+        }
+        else
+        {
+            PlotPerturbationVorticity(prefix+"/perturbvorticity/"+filename, IMEXRK::N2/2);
+        }
+    }
+
     void SetInitial(NField velocity1, NField velocity2, NField velocity3, NField buoyancy)
     {
         velocity1.ToModal(u1);

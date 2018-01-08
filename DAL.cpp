@@ -137,18 +137,7 @@ int main(int argc, char *argv[])
         std::cout << "E0: " << (solver.KE() + solver.PE()) << std::endl;
 
         stratifloat totalTime = 0.0f;
-        solver.StoreSnapshot(totalTime);
 
-        // save initial condition
-        solver.SaveFlow("ICs/"+std::to_string(p)+".fields");
-
-        // also save images for animation
-        solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-        solver.PlotBuoyancy("images/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-        solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-        solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-        solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-        solver.PlotSpanwiseVorticity("images/vorticity/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
 
         stratifloat saveEvery = 1.0f;
         int lastFrame = -1;
@@ -158,6 +147,13 @@ int main(int argc, char *argv[])
         stratifloat JoverKintegrated = 0;
 
         solver.PrepareRun();
+
+        // save initial condition
+        solver.StoreSnapshot(totalTime);
+        solver.SaveFlow("ICs/"+std::to_string(p)+".fields");
+
+        // also save images for animation
+        solver.PlotAll("images", std::to_string(totalTime)+".png", true);
         while (totalTime < targetTime)
         {
             // on last step, arrive exactly
@@ -194,13 +190,7 @@ int main(int argc, char *argv[])
             {
                 lastFrame=frame;
 
-                solver.PlotPressure("images/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-                solver.PlotBuoyancy("images/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-                solver.PlotVerticalVelocity("images/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-                solver.PlotSpanwiseVelocity("images/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-                solver.PlotStreamwiseVelocity("images/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-                solver.PlotSpanwiseVorticity("images/vorticity/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-                solver.PlotPerturbationVorticity("images/perturbvorticity/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotAll("images", std::to_string(totalTime)+".png", true);
 
                 energyFile << totalTime
                         << " " << solver.KE()
@@ -300,11 +290,7 @@ int main(int argc, char *argv[])
             {
                 lastFrame=frame;
 
-                solver.PlotPressure("imagesadj/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-                solver.PlotBuoyancy("imagesadj/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2, false);
-                solver.PlotVerticalVelocity("imagesadj/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-                solver.PlotSpanwiseVelocity("imagesadj/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-                solver.PlotStreamwiseVelocity("imagesadj/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2, false);
+                solver.PlotAll("imagesadj", std::to_string(totalTime)+".png", false);
             }
 
             step++;
