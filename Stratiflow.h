@@ -323,6 +323,33 @@ public:
         b.ToNodal(B);
     }
 
+    void PrepareRun()
+    {
+        totalExplicit = 0;
+        totalImplicit = 0;
+        totalDivergence = 0;
+        totalForcing = 0;
+
+        PopulateNodalVariables();
+    }
+
+    void PrepareRunAdjoint()
+    {
+        totalExplicit = 0;
+        totalImplicit = 0;
+        totalDivergence = 0;
+        totalForcing = 0;
+
+        u1.Zero();
+        u2.Zero();
+        u3.Zero();
+        b.Zero();
+        p.Zero();
+
+        PopulateNodalVariablesAdjoint();
+
+        BuildFilenameMap();
+    }
 
     void PlotBuoyancy(std::string filename, int j2) const
     {

@@ -76,11 +76,8 @@ int main(int argc, char *argv[])
     stratifloat saveEvery = 1.0f;
     int lastFrame = -1;
     int step = 0;
-    solver.totalExplicit = 0;
-    solver.totalImplicit = 0;
-    solver.totalDivergence = 0;
 
-    solver.PopulateNodalVariables();
+    solver.PrepareRun();
     while (totalTime < targetTime)
     {
         solver.TimeStep();

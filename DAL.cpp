@@ -153,15 +153,11 @@ int main(int argc, char *argv[])
         stratifloat saveEvery = 1.0f;
         int lastFrame = -1;
         int step = 0;
-        solver.totalExplicit = 0;
-        solver.totalImplicit = 0;
-        solver.totalDivergence = 0;
-        solver.totalForcing = 0;
         bool done = false;
 
         stratifloat JoverKintegrated = 0;
 
-        solver.PopulateNodalVariables();
+        solver.PrepareRun();
         while (totalTime < targetTime)
         {
             // on last step, arrive exactly
@@ -259,14 +255,6 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        // clear everything for adjoint loop
-        {
-            solver.u1.Zero();
-            solver.u2.Zero();
-            solver.u3.Zero();
-            solver.b.Zero();
-            solver.p.Zero();
-        }
         {
             IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
             IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
@@ -276,16 +264,10 @@ int main(int argc, char *argv[])
         totalTime = targetTime;
         lastFrame = 10000;
 
-        solver.BuildFilenameMap();
-
         step = 0;
-        solver.totalExplicit = 0;
-        solver.totalImplicit = 0;
-        solver.totalDivergence = 0;
-        solver.totalForcing = 0;
-
         done = false;
-        solver.PopulateNodalVariables();
+
+        solver.PrepareRunAdjoint();
         while (totalTime > 0)
         {
             // on last step, arrive exactly
