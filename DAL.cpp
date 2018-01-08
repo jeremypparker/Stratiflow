@@ -1,4 +1,5 @@
 #include "Stratiflow.h"
+#include "OSUtils.cpp"
 
 int main(int argc, char *argv[])
 {
@@ -43,8 +44,7 @@ int main(int argc, char *argv[])
     {
         std::cout << "Setting ICs..." << std::endl;
 
-        exec("rm -rf ICs");
-        exec("mkdir -p ICs");
+        MakeCleanDir("ICs");
 
         p = 0;
 
@@ -108,12 +108,19 @@ int main(int argc, char *argv[])
     std::ofstream energyFile("energy.dat");
     for (; p<maxiterations; p++) // Direct-adjoint loop
     {
-        exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure images/vorticity images/perturbvorticity");
-        exec("rm -rf imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
-        exec("rm -rf snapshots");
-        exec("mkdir -p images/u1 images/u2 images/u3 images/buoyancy images/pressure images/vorticity images/perturbvorticity");
-        exec("mkdir -p imagesadj/u1 imagesadj/u2 imagesadj/u3 imagesadj/buoyancy imagesadj/pressure");
-        exec("mkdir -p snapshots");
+        MakeCleanDir("images/u1");
+        MakeCleanDir("images/u2");
+        MakeCleanDir("images/u3");
+        MakeCleanDir("images/buoyancy");
+        MakeCleanDir("images/vorticity");
+        MakeCleanDir("images/perturbvorticity");
+        MakeCleanDir("imagesadj/u1");
+        MakeCleanDir("imagesadj/u2");
+        MakeCleanDir("imagesadj/u3");
+        MakeCleanDir("imagesadj/buoyancy");
+        MakeCleanDir("imagesadj/vorticity");
+        MakeCleanDir("imagesadj/perturbvorticity");
+        MakeCleanDir("snapshots");
 
         // add background flow
         std::cout << "Setting background..." << std::endl;

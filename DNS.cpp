@@ -1,4 +1,5 @@
 #include "Stratiflow.h"
+#include "OSUtils.cpp"
 
 int main(int argc, char *argv[])
 {
@@ -49,8 +50,12 @@ int main(int argc, char *argv[])
 
     std::ofstream energyFile("energy.dat");
 
-    exec("rm -rf images/u1 images/u2 images/u3 images/buoyancy images/pressure");
-    exec("mkdir -p images/u1 images/u2 images/u3 images/buoyancy images/pressure");
+    MakeCleanDir("images/u1");
+    MakeCleanDir("images/u2");
+    MakeCleanDir("images/u3");
+    MakeCleanDir("images/buoyancy");
+    MakeCleanDir("images/vorticity");
+    MakeCleanDir("images/perturbvorticity");
 
     // add background flow
     std::cout << "Setting background..." << std::endl;

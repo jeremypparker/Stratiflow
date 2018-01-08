@@ -29,7 +29,7 @@ else()
     link_libraries(fftw3f fftw3f_omp)
 endif()
 
-add_library(StratiLib Differentiation.cpp Field.cpp Graph.cpp Integration.cpp)
+add_library(StratiLib Differentiation.cpp Field.cpp Graph.cpp Integration.cpp OSUtils.cpp)
 
 add_subdirectory(tests)
 
