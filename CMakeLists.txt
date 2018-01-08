@@ -1,7 +1,6 @@
 project(Stratiflow)
 cmake_minimum_required(VERSION 3.1.3)
 
-option(CUDA "Whether to enable CUDA acceleration of DFTs")
 option(DOUBLE "Use double precision floating point")
 
 set(CMAKE_CXX_COMPILER clang++)
@@ -28,11 +27,6 @@ if(DOUBLE)
     add_definitions(-DUSE_DOUBLE)
 else()
     link_libraries(fftw3f fftw3f_omp)
-endif()
-
-if(CUDA)
-    link_libraries(cufft cudart)
-    add_definitions(-DUSE_CUDA)
 endif()
 
 add_library(StratiLib Differentiation.cpp Field.cpp Graph.cpp Integration.cpp)

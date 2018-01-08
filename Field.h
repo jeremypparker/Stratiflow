@@ -8,11 +8,6 @@
 
 #include <fftw3.h>
 
-#ifdef USE_CUDA
-#include <cufft.h>
-#include <cuda_runtime.h>
-#endif
-
 #include <vector>
 #include <utility>
 #include <functional>
@@ -743,39 +738,6 @@ public:
 
         // then do FFT in 1st and 2nd dimensions
         {
-#ifdef USE_CUDA
-            static cufftComplex *data = nullptr;
-            static cufftReal *realdata = nullptr;
-
-            size_t datasize = sizeof(cufftComplex)*(N1/2+1)*N2*N3;
-            size_t smalldatasize = sizeof(cufftReal)*N1*N2*N3;
-            static cufftHandle plan;
-
-
-            if (!data)
-            {
-                cudaMalloc((void**)&data, datasize);
-                cudaMalloc((void**)&realdata, smalldatasize);
-
-                int dims[] = {N2, N1};
-                int odims[] = {N2, (N1/2+1)};
-                cufftPlanMany(&plan, // todo: do beforehand
-                            2,
-                            dims,
-                            dims,
-                            N3,
-                            1,
-                            odims,
-                            N3,
-                            1,
-                            CUFFT_R2C,
-                            N3);
-            }
-
-            cudaMemcpy(realdata, intermediateData.data(), smalldatasize, cudaMemcpyHostToDevice);
-            cufftExecR2C(plan, realdata, data);
-            cudaMemcpy(other.Raw(), data, datasize, cudaMemcpyDeviceToHost);
-#else
             int dims[] = {N2, N1};
             int odims[] = {N2, (N1/2+1)};
             auto plan = f3_plan_many_dft_r2c(2,
@@ -792,7 +754,6 @@ public:
                                         FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
             f3_execute(plan);
             f3_destroy_plan(plan);
-#endif
         }
 
         other *= 1/static_cast<stratifloat>(N1*N2*2*(N3-1));
@@ -950,40 +911,6 @@ public:
 
         // do IFT in 1st and 2nd dimensions
 
-#ifdef USE_CUDA
-        static cufftComplex *data = nullptr;
-        static cufftReal *realdata = nullptr;
-
-        size_t datasize = sizeof(cufftComplex)*actualN1*N2*N3;
-        size_t smalldatasize = sizeof(cufftReal)*N1*N2*N3;
-        static cufftHandle plan;
-
-
-        if (!data)
-        {
-            cudaMalloc((void**)&data, datasize);
-            cudaMalloc((void**)&realdata, smalldatasize);
-
-            int dims[] = {N2, N1};
-            int idims[] = {N2, actualN1};
-            cufftPlanMany(&plan, // todo: do beforehand
-                        2,
-                        dims,
-                        idims,
-                        N3,
-                        1,
-                        dims,
-                        N3,
-                        1,
-                        CUFFT_C2R,
-                        N3);
-        }
-
-        cudaMemcpy(data, this->Raw(), datasize, cudaMemcpyHostToDevice);
-        cufftExecC2R(plan, data, realdata);
-        cudaMemcpy(other.Raw(), realdata, smalldatasize, cudaMemcpyDeviceToHost);
-#else
-
         // make a copy of the input data as it is modified by the transform
         for (unsigned int j=0; j<actualN1*N2*N3; j++)
         {
@@ -1006,7 +933,6 @@ public:
                                         FFTW_ESTIMATE);
         f3_execute(plan);
         f3_destroy_plan(plan);
-#endif
     }
 
     void ToNodal(NodalField<N1, N2, N3>& other) const
