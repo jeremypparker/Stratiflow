@@ -130,8 +130,10 @@ public:
     , divergence(boundedTemp)
     , q(boundedTemp)
 
-    , u3Forcing(u3)
-    , bForcing(b)
+    , u1Forcing(U1)
+    , u2Forcing(U2)
+    , u3Forcing(U3)
+    , bForcing(B)
 
     , solveLaplacian(M1*N2)
     , implicitSolveBounded{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
@@ -351,11 +353,18 @@ public:
         BuildFilenameMap();
     }
 
-    void PlotBuoyancy(std::string filename, int j2) const
+    void PlotBuoyancy(std::string filename, int j2, bool includeBackground = true) const
     {
-        nnTemp = B_ + B;
-        nnTemp.ToModal(boundedTemp);
-        HeatPlot(boundedTemp, L1, L3, j2, filename);
+        if (includeBackground)
+        {
+            nnTemp = B_ + B;
+            nnTemp.ToModal(boundedTemp);
+            HeatPlot(boundedTemp, L1, L3, j2, filename);
+        }
+        else
+        {
+            HeatPlot(b, L1, L3, j2, filename);
+        }
     }
 
     void PlotPressure(std::string filename, int j2) const
@@ -391,11 +400,18 @@ public:
         HeatPlot(decayingTemp, L1, L3, j2, filename);
     }
 
-    void PlotStreamwiseVelocity(std::string filename, int j2) const
+    void PlotStreamwiseVelocity(std::string filename, int j2, bool includeBackground = true) const
     {
-        nnTemp = U1 + U_;
-        nnTemp.ToModal(boundedTemp);
-        HeatPlot(boundedTemp, L1, L3, j2, filename);
+        if (includeBackground)
+        {
+            nnTemp = U1 + U_;
+            nnTemp.ToModal(boundedTemp);
+            HeatPlot(boundedTemp, L1, L3, j2, filename);
+        }
+        else
+        {
+            HeatPlot(u1, L1, L3, j2, filename);
+        }
     }
 
     void SetInitial(NField velocity1, NField velocity2, NField velocity3, NField buoyancy)
@@ -609,12 +625,13 @@ public:
         K = 2;
 
         // forcing term for u3
-        ndTemp = (-1/K)*(B_tot+(-1)*bAveNodal);
-        ndTemp.ToModal(u3Forcing);
+        u3Forcing = (-1/K)*(B_tot+(-1)*bAveNodal);
 
         // forcing term for b
-        nnTemp = (-1/K)*(U3_tot+(-1)*wAveNodal);
-        nnTemp.ToModal(bForcing);
+        bForcing = (-1/K)*(U3_tot+(-1)*wAveNodal);
+
+        u1Forcing.Zero();
+        u2Forcing.Zero();
     }
 
     void BuildFilenameMap()
@@ -1025,13 +1042,11 @@ private:
         {
             r2.Zero();
         }
-        r3 = u3Forcing;
-        rB = bForcing;
+        r3.Zero();
+        rB.Zero();
 
         // adjoint buoyancy
-        nnTemp = Ri*U3;
-        nnTemp.ToModal(boundedTemp);
-        rB -= boundedTemp;
+        bForcing -= Ri*U3;
 
         //////// NONLINEAR TERMS ////////
         // advection of adjoint quantities by the direct flow
@@ -1099,9 +1114,7 @@ private:
         }
         decayingTemp = ddx(u3_tot);
         decayingTemp.ToNodal(ndTemp);
-        nnTemp2 = nnTemp2 + ndTemp*U3;
-        nnTemp2.ToModal(boundedTemp);
-        r1 -= boundedTemp;
+        u1Forcing -= nnTemp2 + ndTemp*U3;
 
         if(ThreeDimensional)
         {
@@ -1113,9 +1126,7 @@ private:
             nnTemp2 += nnTemp*U2;
             decayingTemp = ddy(u3_tot);
             decayingTemp.ToNodal(ndTemp);
-            nnTemp2 = nnTemp2 + ndTemp*U3;
-            nnTemp2.ToModal(boundedTemp);
-            r2 -= boundedTemp;
+            u2Forcing -= nnTemp2 + ndTemp*U3;
         }
 
         decayingTemp = ddz(u1_tot);
@@ -1129,30 +1140,36 @@ private:
         }
         boundedTemp = ddz(u3_tot);
         boundedTemp.ToNodal(nnTemp);
-        ndTemp2 = ndTemp2 + nnTemp*U3;
-        ndTemp2.ToModal(decayingTemp);
-        r3 -= decayingTemp;
+        u3Forcing -= ndTemp2 + nnTemp*U3;
+
 
         boundedTemp = ddx(b_tot);
         boundedTemp.ToNodal(nnTemp);
-        nnTemp2 = nnTemp*B;
-        nnTemp2.ToModal(boundedTemp);
-        r1 -= boundedTemp;
+        u1Forcing -= nnTemp*B;
 
         if(ThreeDimensional)
         {
             boundedTemp = ddy(b_tot);
             boundedTemp.ToNodal(nnTemp);
-            nnTemp2 = nnTemp*B;
-            nnTemp2.ToModal(boundedTemp);
-            r2 -= boundedTemp;
+            u2Forcing -= nnTemp*B;
         }
 
         decayingTemp = ddz(b_tot);
         decayingTemp.ToNodal(ndTemp);
-        ndTemp2 = ndTemp*B;
-        ndTemp2.ToModal(decayingTemp);
-        r3 -= decayingTemp;
+        u3Forcing -= ndTemp*B;
+
+        // Now include all the forcing terms
+        u1Forcing.ToModal(boundedTemp);
+        r1 += boundedTemp;
+        if (ThreeDimensional)
+        {
+            u2Forcing.ToModal(boundedTemp);
+            r2 += boundedTemp;
+        }
+        u3Forcing.ToModal(decayingTemp);
+        r3 += decayingTemp;
+        bForcing.ToModal(boundedTemp);
+        rB += boundedTemp;
 
         // now add on explicit terms to RHS
         R1 += (h[k]*beta[k])*r1;
@@ -1176,11 +1193,14 @@ private:
     // direct flow (used for adjoint evolution)
     MField u1_tot, u2_tot, u3_tot, b_tot;
 
+    // Nodal versions of variables
+    mutable NField U1, U2, U3, B;
+
     // extra variables required for adjoint forcing
     stratifloat J, K;
 
-    MField u3Forcing;
-    MField bForcing;
+    NField u1Forcing, u2Forcing, u3Forcing;
+    NField bForcing;
 
     // parameters for the scheme
     const int s = 3;
@@ -1192,7 +1212,6 @@ private:
     MField R1, R2, R3, RB;
     M1D RU_, RB_;
     MField r1, r2, r3, rB;
-    mutable NField U1, U2, U3, B;
     mutable NField U1_tot, U2_tot, U3_tot, B_tot;
     mutable N1D U_, B_, dB_dz;
     mutable NField ndTemp, nnTemp;

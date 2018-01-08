@@ -859,6 +859,8 @@ public:
         return *this;
     }
 
+        using Field<stratifloat, N1, N2, N3>::operator-=;
+
 private:
     static std::vector<stratifloat, aligned_allocator<stratifloat>> intermediateData;
 };

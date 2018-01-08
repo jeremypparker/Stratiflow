@@ -301,10 +301,10 @@ int main(int argc, char *argv[])
                 lastFrame=frame;
 
                 solver.PlotPressure("imagesadj/pressure/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-                solver.PlotBuoyancy("imagesadj/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotBuoyancy("imagesadj/buoyancy/"+std::to_string(totalTime)+".png", IMEXRK::N2/2, false);
                 solver.PlotVerticalVelocity("imagesadj/u3/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
                 solver.PlotSpanwiseVelocity("imagesadj/u2/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
-                solver.PlotStreamwiseVelocity("imagesadj/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2);
+                solver.PlotStreamwiseVelocity("imagesadj/u1/"+std::to_string(totalTime)+".png", IMEXRK::N2/2, false);
             }
 
             step++;
