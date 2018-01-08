@@ -84,8 +84,8 @@ stratifloat InnerProd(const ModalField<N1,N2,N3>& a, const ModalField<N1,N2,N3>&
     }
     else if (a.BC() == BoundaryCondition::Decaying && b.BC()==BoundaryCondition::Decaying)
     {
-        static NodalField<N1,N2,N3> A(BoundaryCondition::Bounded);
-        static NodalField<N1,N2,N3> B(BoundaryCondition::Bounded);
+        static NodalField<N1,N2,N3> A(BoundaryCondition::Decaying);
+        static NodalField<N1,N2,N3> B(BoundaryCondition::Decaying);
 
         a.ToNodal(A);
         b.ToNodal(B);
