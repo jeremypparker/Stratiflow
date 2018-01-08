@@ -197,15 +197,63 @@ public:
             auto t2 = std::chrono::high_resolution_clock::now();
 
             RemoveDivergence(1/h[k]);
-            //SolveForPressure();
 
             auto t3 = std::chrono::high_resolution_clock::now();
+
+            if (k==s-1)
+            {
+                FilterAll();
+            }
+
+            PopulateNodalVariables();
 
             totalExplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
             totalImplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
             totalDivergence += std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count();
         }
+    }
 
+    void TimeStepAdjoint(stratifloat time)
+    {
+        for (int k=0; k<s; k++)
+        {
+            auto t4 = std::chrono::high_resolution_clock::now();
+
+            LoadAtTime(time);
+            UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
+
+            auto t0 = std::chrono::high_resolution_clock::now();
+
+            ExplicitUpdateAdjoint(k);
+
+            auto t1 = std::chrono::high_resolution_clock::now();
+
+            ImplicitUpdateAdjoint(k);
+
+            auto t2 = std::chrono::high_resolution_clock::now();
+
+            RemoveDivergence(1/h[k]);
+
+            auto t3 = std::chrono::high_resolution_clock::now();
+
+            if (k==s-1)
+            {
+                FilterAllAdjoint();
+            }
+
+            PopulateNodalVariablesAdjoint();
+
+            totalForcing += std::chrono::duration_cast<std::chrono::milliseconds>(t0-t4).count();
+            totalExplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
+            totalImplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
+            totalDivergence += std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count();
+
+            time -= h[k];
+        }
+    }
+
+    void FilterAll()
+    {
         // To prevent anything dodgy accumulating in the unused coefficients
         u1.Filter();
         if(ThreeDimensional)
@@ -233,37 +281,8 @@ public:
         b_.Filter();
     }
 
-    void TimeStepAdjoint(stratifloat time)
+    void FilterAllAdjoint()
     {
-        for (int k=0; k<s; k++)
-        {
-            auto t4 = std::chrono::high_resolution_clock::now();
-
-            LoadAtTime(time);
-            UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
-
-            auto t0 = std::chrono::high_resolution_clock::now();
-
-            ExplicitUpdateAdjoint(k);
-
-            auto t1 = std::chrono::high_resolution_clock::now();
-
-            ImplicitUpdateAdjoint(k);
-
-            auto t2 = std::chrono::high_resolution_clock::now();
-
-            RemoveDivergence(1/h[k]);
-
-            auto t3 = std::chrono::high_resolution_clock::now();
-
-            totalForcing += std::chrono::duration_cast<std::chrono::milliseconds>(t0-t4).count();
-            totalExplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
-            totalImplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
-            totalDivergence += std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count();
-
-            time -= h[k];
-        }
-
         // To prevent anything dodgy accumulating in the unused coefficients
         u1.Filter();
         if(ThreeDimensional)
@@ -275,11 +294,38 @@ public:
         p.Filter();
     }
 
+    void PopulateNodalVariables()
+    {
+        u_.ToNodal(U_);
+        b_.ToNodal(B_);
+
+        db_dz = ddz(b_);
+        db_dz.Filter();
+        db_dz.ToNodal(dB_dz);
+
+        u1.ToNodal(U1);
+        if (ThreeDimensional)
+        {
+            u2.ToNodal(U2);
+        }
+        u3.ToNodal(U3);
+        b.ToNodal(B);
+    }
+
+    void PopulateNodalVariablesAdjoint()
+    {
+        u1.ToNodal(U1);
+        if (ThreeDimensional)
+        {
+            u2.ToNodal(U2);
+        }
+        u3.ToNodal(U3);
+        b.ToNodal(B);
+    }
+
 
     void PlotBuoyancy(std::string filename, int j2) const
     {
-        b.ToNodal(B);
-        b_.ToNodal(B_);
         nnTemp = B_ + B;
         nnTemp.ToModal(boundedTemp);
         HeatPlot(boundedTemp, L1, L3, j2, filename);
@@ -305,10 +351,8 @@ public:
 
     void PlotSpanwiseVorticity(std::string filename, int j2) const
     {
-        u1.ToNodal(U1);
-        u_.ToNodal(U_);
-        U1 += U_;
-        U1.ToModal(boundedTemp);
+        nnTemp = U1 + U_;
+        nnTemp.ToModal(boundedTemp);
 
         decayingTemp = ddz(boundedTemp)+-1.0*ddx(u3);
         HeatPlot(decayingTemp, L1, L3, j2, filename);
@@ -322,10 +366,8 @@ public:
 
     void PlotStreamwiseVelocity(std::string filename, int j2) const
     {
-        u1.ToNodal(U1);
-        u_.ToNodal(U_);
-        U1 += U_;
-        U1.ToModal(boundedTemp);
+        nnTemp = U1 + U_;
+        nnTemp.ToModal(boundedTemp);
         HeatPlot(boundedTemp, L1, L3, j2, filename);
     }
 
@@ -347,18 +389,14 @@ public:
     stratifloat CFL()
     {
         static ArrayX z = VerticalPoints(L3, N3);
-        u1.ToNodal(U1);
-        u2.ToNodal(U2);
-        u3.ToNodal(U3);
 
-        u_.ToNodal(U_);
-        U1 += U_;
+        U1_tot = U1 + U_;
 
         stratifloat delta1 = L1/N1;
         stratifloat delta2 = L2/N2;
         stratifloat delta3 = z(N3/2) - z(N3/2+1); // smallest gap in middle
 
-        stratifloat cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
+        stratifloat cfl = U1_tot.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
 
         // update timestep for target cfl
@@ -402,19 +440,6 @@ public:
 
     stratifloat PE() const
     {
-        b.ToNodal(B);
-        db_dz = ddz(b_);
-        db_dz.Filter();
-        db_dz.ToNodal(dB_dz);
-
-        // hack for now: perturbation energy relative to frozen bg
-        //b_.ToNodal(B_);
-        //B += B_;
-        //NField Binitial(BoundaryCondition::Bounded);
-        //Binitial.SetValue([](stratifloat z){return -tanh(2*z);}, L3);
-        //B += -1*Binitial;
-
-
         for (int j=0; j<N3; j++)
         {
             if(dB_dz.Get()(j)>-0.00001 && dB_dz.Get()(j)<0.00001)
@@ -463,11 +488,6 @@ public:
 
     void SaveFlow(const std::string& filename) const
     {
-        u1.ToNodal(U1);
-        u2.ToNodal(U2);
-        u3.ToNodal(U3);
-        b.ToNodal(B);
-
         std::ofstream filestream(filename, std::ios::out | std::ios::binary);
 
         U1.Save(filestream);
@@ -478,16 +498,8 @@ public:
 
     void StoreSnapshot(stratifloat time) const
     {
-        u1.ToNodal(U1);
-        u2.ToNodal(U2);
-        u3.ToNodal(U3);
-        b.ToNodal(B);
-
-        u_.ToNodal(U_);
-        b_.ToNodal(B_);
-
-        U1 += U_;
-        B += B_;
+        U1_tot = U1 + U_;
+        B_tot = B + B_;
 
         if (SnapshotToMemory)
         {
@@ -498,10 +510,10 @@ public:
             std::ofstream filestream(snapshotdir+std::to_string(time)+".fields",
                                      std::ios::out | std::ios::binary);
 
-            U1.Save(filestream);
+            U1_tot.Save(filestream);
             U2.Save(filestream);
             U3.Save(filestream);
-            B.Save(filestream);
+            B_tot.Save(filestream);
         }
     }
 
@@ -524,12 +536,6 @@ public:
     {
         static MField u1_total(BoundaryCondition::Bounded);
         static MField b_total(BoundaryCondition::Bounded);
-
-        u1.ToNodal(U1);
-        u_.ToNodal(U_);
-
-        b.ToNodal(B);
-        b_.ToNodal(B_);
 
         nnTemp = U1 + U_;
         nnTemp.ToModal(u1_total);
@@ -558,12 +564,12 @@ public:
         static N1D wAveNodal(BoundaryCondition::Decaying);
         wAveModal.ToNodal(wAveNodal);
 
-        b_total.ToNodal(B);
-        nnTemp = B + -1*bAveNodal;
+        b_total.ToNodal(B_tot);
+        nnTemp = B_tot + -1*bAveNodal;
 
         // (b-<b>)*w
-        u3_total.ToNodal(U3);
-        ndTemp = nnTemp*U3;
+        u3_total.ToNodal(U3_tot);
+        ndTemp = nnTemp*U3_tot;
         ndTemp.ToModal(decayingTemp);
 
         // construct integrand for J
@@ -576,11 +582,11 @@ public:
         K = 2;
 
         // forcing term for u3
-        ndTemp = (-1/K)*(B+(-1)*bAveNodal);
+        ndTemp = (-1/K)*(B_tot+(-1)*bAveNodal);
         ndTemp.ToModal(u3Forcing);
 
         // forcing term for b
-        nnTemp = (-1/K)*(U3+(-1)*wAveNodal);
+        nnTemp = (-1/K)*(U3_tot+(-1)*wAveNodal);
         nnTemp.ToModal(bForcing);
     }
 
@@ -690,7 +696,6 @@ public:
                                             epsilon*vdotv - 2*udotv);
 
         static MField bscaled(BoundaryCondition::Bounded);
-        b.ToNodal(B);
         nnTemp = -1*B*dB_dz;
         nnTemp.ToModal(bscaled);
 
@@ -877,14 +882,6 @@ private:
 
     void ExplicitUpdate(int k)
     {
-        u1.ToNodal(U1);
-        if(ThreeDimensional)
-        {
-            u2.ToNodal(U2);
-        }
-        u3.ToNodal(U3);
-        b.ToNodal(B);
-
         // build up right hand sides for the implicit solve in R
 
         //   old      last rk step         pressure         explicit CN
@@ -918,14 +915,13 @@ private:
         // calculate products at nodes in physical space
 
         // take into account background shear for nonlinear terms
-        u_.ToNodal(U_);
-        U1 += U_;
+        U1_tot = U1 + U_;
 
-        nnTemp = U1*U1;
+        nnTemp = U1_tot*U1_tot;
         nnTemp.ToModal(boundedTemp);
         r1 -= ddx(boundedTemp);
 
-        ndTemp = U1*U3;
+        ndTemp = U1_tot*U3;
         ndTemp.ToModal(decayingTemp);
         r3 -= ddx(decayingTemp);
         r1 -= ddz(decayingTemp);
@@ -945,14 +941,14 @@ private:
             r3 -= ddy(decayingTemp);
             r2 -= ddz(decayingTemp);
 
-            nnTemp = U1*U2;
+            nnTemp = U1_tot*U2;
             nnTemp.ToModal(boundedTemp);
             r1 -= ddy(boundedTemp);
             r2 -= ddx(boundedTemp);
         }
 
         // buoyancy nonlinear terms
-        nnTemp = U1*B;
+        nnTemp = U1_tot*B;
         nnTemp.ToModal(boundedTemp);
         rB -= ddx(boundedTemp);
 
@@ -968,9 +964,6 @@ private:
         rB -= ddz(decayingTemp);
 
         // advection term from background buoyancy
-        db_dz = ddz(b_);
-        db_dz.ToNodal(dB_dz);
-
         nnTemp = U3*dB_dz;
         nnTemp.ToModal(boundedTemp);
         rB -= boundedTemp;
@@ -988,19 +981,6 @@ private:
 
     void ExplicitUpdateAdjoint(int k)
     {
-        u1.ToNodal(U1);
-        if(ThreeDimensional)
-        {
-            u2.ToNodal(U2);
-        }
-        u3.ToNodal(U3);
-        b.ToNodal(B);
-
-        // u1_tot.ToNodal(U1_tot);
-        // u2_tot.ToNodal(U2_tot);
-        // u3_tot.ToNodal(U3_tot);
-        // b_tot.ToNodal(B_tot);
-
         // build up right hand sides for the implicit solve in R
 
         //   old      last rk step         pressure         explicit CN

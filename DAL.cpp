@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 
         initialU1.SetValue([](stratifloat x, stratifloat y, stratifloat z)
         {
-            return 0.1*cos(4*pi*x/IMEXRK::L1)*exp(-z*z);
+            return 0.1*cos(2*pi*x/IMEXRK::L1)*exp(-z*z);
         }, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
 
         // stratifloat bandmax = 4;
@@ -161,6 +161,7 @@ int main(int argc, char *argv[])
 
         stratifloat JoverKintegrated = 0;
 
+        solver.PopulateNodalVariables();
         while (totalTime < targetTime)
         {
             // on last step, arrive exactly
@@ -284,6 +285,7 @@ int main(int argc, char *argv[])
         solver.totalForcing = 0;
 
         done = false;
+        solver.PopulateNodalVariables();
         while (totalTime > 0)
         {
             // on last step, arrive exactly

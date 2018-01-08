@@ -79,6 +79,8 @@ int main(int argc, char *argv[])
     solver.totalExplicit = 0;
     solver.totalImplicit = 0;
     solver.totalDivergence = 0;
+
+    solver.PopulateNodalVariables();
     while (totalTime < targetTime)
     {
         solver.TimeStep();
