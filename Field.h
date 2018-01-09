@@ -636,16 +636,17 @@ public:
     NodalField(BoundaryCondition bc)
     : Field<stratifloat, N1, N2, N3>(bc)
     {
-        auto plan = f3_plan_dft_r2c_3d(2*(N3-1),
-                                         N2,
-                                         N1,
-                                         intermediateData.data(),
-                                         reinterpret_cast<f3_complex*>(intermediateData.data()),
-                                         FFTW_MEASURE);
+        if (!plan)
+        {
+            plan = f3_plan_dft_r2c_3d(2*(N3-1),
+                                      N2,
+                                      N1,
+                                      intermediateData.data(),
+                                      reinterpret_cast<f3_complex*>(intermediateData.data()),
+                                      FFTW_MEASURE);
 
-        assert(plan);
-        f3_execute(plan);
-        f3_destroy_plan(plan);
+            assert(plan);
+        }
     }
 
     void ToModal(ModalField<N1, N2, N3>& other) const
@@ -694,16 +695,7 @@ public:
             }
         }
 
-        auto plan = f3_plan_dft_r2c_3d(2*(N3-1),
-                                         N2,
-                                         N1,
-                                         intermediateData.data(),
-                                         reinterpret_cast<f3_complex*>(intermediateData.data()),
-                                         FFTW_ESTIMATE);
-
-        assert(plan);
         f3_execute(plan);
-        f3_destroy_plan(plan);
 
         // swizzle back
         for (int j1=0; j1<N1/2+1; j1++)
@@ -801,10 +793,13 @@ public:
 
 private:
     static std::vector<stratifloat, aligned_allocator<stratifloat>> intermediateData;
+    static f3_plan plan;
 };
 
 template<int N1, int N2, int N3>
 std::vector<stratifloat, aligned_allocator<stratifloat>> NodalField<N1,N2,N3>::intermediateData(2*(N1/2+1)*N2*2*(N3-1), 0);
+template<int N1, int N2, int N3>
+f3_plan NodalField<N1,N2,N3>::plan(0);
 
 template<int N1, int N2, int N3>
 class ModalField : public Field<complex, N1/2+1, N2, N3>
