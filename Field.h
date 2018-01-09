@@ -655,6 +655,7 @@ public:
         assert(other.BC() == this->BC());
 
         // swizzle (and use symmetry to pad out)
+        #pragma omp parallel for schedule(static) collapse(3)
         for (int j1=0; j1<2*(N1/2+1); j1++)
         {
             for (int j2=0; j2<N2; j2++)
@@ -699,6 +700,7 @@ public:
         f3_execute(plan);
 
         // swizzle back
+        #pragma omp parallel for schedule(static) collapse(3)
         for (int j1=0; j1<N1/2+1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
@@ -857,43 +859,46 @@ public:
         assert(other.BC() == this->BC());
 
         // swizzle (and use symmetry to pad out)
+        #pragma omp parallel for schedule(static) collapse(3)
         for (int j1=0; j1<N1/2+1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
             {
-                for (int j3=0; j3<N3; j3++)
+                for (int j3=0; j3<2*(N3-1); j3++)
                 {
-                    if (this->BC() == BoundaryCondition::Bounded)
+                    if (j3<N3)
                     {
-                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
-                            this->operator()(j1,j2,j3).real();
-                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
-                            this->operator()(j1,j2,j3).imag();
+                        if (this->BC() == BoundaryCondition::Bounded)
+                        {
+                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
+                                this->operator()(j1,j2,j3).real();
+                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
+                                this->operator()(j1,j2,j3).imag();
+                        }
+                        else
+                        {
+                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
+                                this->operator()(j1,j2,j3).imag();
+                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
+                                -this->operator()(j1,j2,j3).real();
+                        }
                     }
                     else
                     {
-                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
-                            this->operator()(j1,j2,j3).imag();
-                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
-                            -this->operator()(j1,j2,j3).real();
-                    }
-                }
-
-                for (int j3=N3; j3<2*(N3-1); j3++)
-                {
-                    if (this->BC() == BoundaryCondition::Bounded)
-                    {
-                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
-                            this->operator()(j1,j2,2*(N3-1)-j3).real();
-                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
-                            this->operator()(j1,j2,2*(N3-1)-j3).imag();
-                    }
-                    else
-                    {
-                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
-                            -this->operator()(j1,j2,2*(N3-1)-j3).imag();
-                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
-                            this->operator()(j1,j2,2*(N3-1)-j3).real();
+                        if (this->BC() == BoundaryCondition::Bounded)
+                        {
+                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
+                                this->operator()(j1,j2,2*(N3-1)-j3).real();
+                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
+                                this->operator()(j1,j2,2*(N3-1)-j3).imag();
+                        }
+                        else
+                        {
+                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
+                                -this->operator()(j1,j2,2*(N3-1)-j3).imag();
+                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
+                                this->operator()(j1,j2,2*(N3-1)-j3).real();
+                        }
                     }
                 }
             }
@@ -902,6 +907,7 @@ public:
         f3_execute(plan);
 
         // swizzle back (taking only those elements we care about)
+        #pragma omp parallel for schedule(static) collapse(3)
         for (int j1=0; j1<N1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
