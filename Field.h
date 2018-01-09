@@ -646,6 +646,7 @@ public:
                                       FFTW_MEASURE);
 
             assert(plan);
+            f3_execute(plan);
         }
     }
 
@@ -815,6 +816,7 @@ public:
                                       FFTW_MEASURE);
 
             assert(plan);
+            f3_execute(plan);
         }
     }
 
