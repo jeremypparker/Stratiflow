@@ -50,13 +50,6 @@ int main(int argc, char *argv[])
 
     std::ofstream energyFile("energy.dat");
 
-    MakeCleanDir("images/u1");
-    MakeCleanDir("images/u2");
-    MakeCleanDir("images/u3");
-    MakeCleanDir("images/buoyancy");
-    MakeCleanDir("images/vorticity");
-    MakeCleanDir("images/perturbvorticity");
-
     // add background flow
     std::cout << "Setting background..." << std::endl;
     {
@@ -76,8 +69,8 @@ int main(int argc, char *argv[])
     int lastFrame = -1;
     int step = 0;
 
-    solver.PrepareRun();
-    solver.PlotAll("images", std::to_string(totalTime)+".png", true);
+    solver.PrepareRun("images/");
+    solver.PlotAll(std::to_string(totalTime)+".png", true);
     while (totalTime < targetTime)
     {
         solver.TimeStep();
@@ -101,7 +94,7 @@ int main(int argc, char *argv[])
         {
             lastFrame=frame;
 
-            solver.PlotAll("images", std::to_string(totalTime)+".png", true);
+            solver.PlotAll(std::to_string(totalTime)+".png", true);
 
             energyFile << totalTime
                     << " " << solver.KE()

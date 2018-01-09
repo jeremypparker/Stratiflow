@@ -4,6 +4,7 @@
 #include "Differentiation.h"
 #include "Integration.h"
 #include "Graph.h"
+#include "OSUtils.h"
 
 #include <iostream>
 #include <fstream>
@@ -310,18 +311,31 @@ public:
         b.ToNodal(B);
     }
 
-    void PrepareRun()
+    void PrepareRun(std::string imageDir)
     {
+        imageDirectory = imageDir;
+
         totalExplicit = 0;
         totalImplicit = 0;
         totalDivergence = 0;
         totalForcing = 0;
 
         PopulateNodalVariables();
+
+        MakeCleanDir(imageDirectory+"u1");
+        MakeCleanDir(imageDirectory+"u2");
+        MakeCleanDir(imageDirectory+"u3");
+        MakeCleanDir(imageDirectory+"buoyancy");
+        MakeCleanDir(imageDirectory+"pressure");
+        MakeCleanDir(imageDirectory+"vorticity");
+        MakeCleanDir(imageDirectory+"perturbvorticity");
+        MakeCleanDir(snapshotdir);
     }
 
-    void PrepareRunAdjoint()
+    void PrepareRunAdjoint(std::string imageDir)
     {
+        imageDirectory = imageDir;
+
         totalExplicit = 0;
         totalImplicit = 0;
         totalDivergence = 0;
@@ -336,6 +350,14 @@ public:
         PopulateNodalVariablesAdjoint();
 
         BuildFilenameMap();
+
+        MakeCleanDir(imageDirectory+"u1");
+        MakeCleanDir(imageDirectory+"u2");
+        MakeCleanDir(imageDirectory+"u3");
+        MakeCleanDir(imageDirectory+"buoyancy");
+        MakeCleanDir(imageDirectory+"pressure");
+        MakeCleanDir(imageDirectory+"vorticity");
+        MakeCleanDir(imageDirectory+"perturbvorticity");
     }
 
     void PlotBuoyancy(std::string filename, int j2, bool includeBackground = true) const
@@ -399,21 +421,21 @@ public:
         }
     }
 
-    void PlotAll(std::string prefix, std::string filename, bool includeBackground) const
+    void PlotAll(std::string filename, bool includeBackground) const
     {
-        PlotPressure(prefix+"/pressure/"+filename, IMEXRK::N2/2);
-        PlotBuoyancy(prefix+"/buoyancy/"+filename, IMEXRK::N2/2, includeBackground);
-        PlotVerticalVelocity(prefix+"/u3/"+filename, IMEXRK::N2/2);
-        PlotSpanwiseVelocity(prefix+"/u2/"+filename, IMEXRK::N2/2);
-        PlotStreamwiseVelocity(prefix+"/u1/"+filename, IMEXRK::N2/2, includeBackground);
+        PlotPressure(imageDirectory+"/pressure/"+filename, IMEXRK::N2/2);
+        PlotBuoyancy(imageDirectory+"/buoyancy/"+filename, IMEXRK::N2/2, includeBackground);
+        PlotVerticalVelocity(imageDirectory+"/u3/"+filename, IMEXRK::N2/2);
+        PlotSpanwiseVelocity(imageDirectory+"/u2/"+filename, IMEXRK::N2/2);
+        PlotStreamwiseVelocity(imageDirectory+"/u1/"+filename, IMEXRK::N2/2, includeBackground);
 
         if (includeBackground)
         {
-            PlotSpanwiseVorticity(prefix+"/vorticity/"+filename, IMEXRK::N2/2);
+            PlotSpanwiseVorticity(imageDirectory+"/vorticity/"+filename, IMEXRK::N2/2);
         }
         else
         {
-            PlotPerturbationVorticity(prefix+"/perturbvorticity/"+filename, IMEXRK::N2/2);
+            PlotPerturbationVorticity(imageDirectory+"/perturbvorticity/"+filename, IMEXRK::N2/2);
         }
     }
 
@@ -1242,4 +1264,5 @@ private:
     std::map<stratifloat, State>::iterator snapshotAbove;
 
     const std::string snapshotdir = "snapshots/";
+    std::string imageDirectory;
 };

@@ -1,5 +1,4 @@
 #include "Stratiflow.h"
-#include "OSUtils.cpp"
 
 int main(int argc, char *argv[])
 {
@@ -108,20 +107,6 @@ int main(int argc, char *argv[])
     std::ofstream energyFile("energy.dat");
     for (; p<maxiterations; p++) // Direct-adjoint loop
     {
-        MakeCleanDir("images/u1");
-        MakeCleanDir("images/u2");
-        MakeCleanDir("images/u3");
-        MakeCleanDir("images/buoyancy");
-        MakeCleanDir("images/vorticity");
-        MakeCleanDir("images/perturbvorticity");
-        MakeCleanDir("imagesadj/u1");
-        MakeCleanDir("imagesadj/u2");
-        MakeCleanDir("imagesadj/u3");
-        MakeCleanDir("imagesadj/buoyancy");
-        MakeCleanDir("imagesadj/vorticity");
-        MakeCleanDir("imagesadj/perturbvorticity");
-        MakeCleanDir("snapshots");
-
         // add background flow
         std::cout << "Setting background..." << std::endl;
         {
@@ -153,14 +138,14 @@ int main(int argc, char *argv[])
 
         stratifloat JoverKintegrated = 0;
 
-        solver.PrepareRun();
+        solver.PrepareRun("images/");
 
         // save initial condition
         solver.StoreSnapshot(totalTime);
         solver.SaveFlow("ICs/"+std::to_string(p)+".fields");
 
         // also save images for animation
-        solver.PlotAll("images", std::to_string(totalTime)+".png", true);
+        solver.PlotAll(std::to_string(totalTime)+".png", true);
         while (totalTime < targetTime)
         {
             // on last step, arrive exactly
@@ -197,7 +182,7 @@ int main(int argc, char *argv[])
             {
                 lastFrame=frame;
 
-                solver.PlotAll("images", std::to_string(totalTime)+".png", true);
+                solver.PlotAll(std::to_string(totalTime)+".png", true);
 
                 energyFile << totalTime
                         << " " << solver.KE()
@@ -264,7 +249,7 @@ int main(int argc, char *argv[])
         step = 0;
         done = false;
 
-        solver.PrepareRunAdjoint();
+        solver.PrepareRunAdjoint("imagesadj/");
         while (totalTime > 0)
         {
             // on last step, arrive exactly
@@ -297,7 +282,7 @@ int main(int argc, char *argv[])
             {
                 lastFrame=frame;
 
-                solver.PlotAll("imagesadj", std::to_string(totalTime)+".png", false);
+                solver.PlotAll(std::to_string(totalTime)+".png", false);
             }
 
             step++;
