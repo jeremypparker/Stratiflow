@@ -26,6 +26,7 @@
     #define f3_plan_many_dft_c2r    fftw_plan_many_dft_c2r
     #define f3_plan_r2r_1d          fftw_plan_r2r_1d
     #define f3_plan_dft_r2c_3d      fftw_plan_dft_r2c_3d
+    #define f3_plan_dft_c2r_3d      fftw_plan_dft_c2r_3d
     #define f3_complex              fftw_complex
     #define f3_plan                 fftw_plan
 #else
@@ -52,6 +53,7 @@
     #define f3_plan_many_dft_c2r    fftwf_plan_many_dft_c2r
     #define f3_plan_r2r_1d          fftwf_plan_r2r_1d
     #define f3_plan_dft_r2c_3d      fftwf_plan_dft_r2c_3d
+    #define f3_plan_dft_c2r_3d      fftwf_plan_dft_c2r_3d
     #define f3_complex              fftwf_complex
     #define f3_plan                 fftwf_plan
 #endif

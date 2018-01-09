@@ -728,12 +728,6 @@ public:
 
         other *= 1/static_cast<stratifloat>(N1*N2*2*(N3-1));
 
-        if (this->BC() == BoundaryCondition::Decaying)
-        {
-            other.slice(0).setZero();
-            other.slice(N3-1).setZero();
-        }
-
         other.Filter();
     }
 
@@ -789,7 +783,7 @@ public:
         return *this;
     }
 
-        using Field<stratifloat, N1, N2, N3>::operator-=;
+    using Field<stratifloat, N1, N2, N3>::operator-=;
 
 private:
     static std::vector<stratifloat, aligned_allocator<stratifloat>> intermediateData;
@@ -811,69 +805,16 @@ public:
     ModalField(BoundaryCondition bc)
     : Field<complex, N1/2+1, N2, N3>(bc)
     {
-        // do fft to measure time
-        std::vector<stratifloat, aligned_allocator<stratifloat>> data0(N1*N2*N3);
-
+        if (!plan)
         {
-            // make a copy of the input data as it is modified by the transform
-            if(inputData.size() == 0)
-            {
-                inputData.resize(actualN1*N2*N3);
-            }
+            plan = f3_plan_dft_c2r_3d(2*(N3-1),
+                                      N2,
+                                      N1,
+                                      reinterpret_cast<f3_complex*>(intermediateData.data()),
+                                      intermediateData.data(),
+                                      FFTW_MEASURE);
 
-            int dims[] = {N2, N1};
-            int idims[] = {N2, actualN1};
-            auto plan = f3_plan_many_dft_c2r(2,
-                                            dims,
-                                            N3,
-                                            reinterpret_cast<f3_complex*>(inputData.data()),
-                                            idims,
-                                            N3,
-                                            1,
-                                            data0.data(),
-                                            dims,
-                                            N3,
-                                            1,
-                                            FFTW_MEASURE);
-            f3_execute(plan);
-            f3_destroy_plan(plan);
-
-        }
-
-        {
-            int dims;
-            f3_r2r_kind kind;
-            stratifloat* in = data0.data();
-            stratifloat* out = data0.data();
-
-            if (this->BC() == BoundaryCondition::Bounded)
-            {
-                kind = FFTW_REDFT00;
-                dims = N3;
-            }
-            else
-            {
-                kind = FFTW_RODFT00;
-                in += 1;
-                out += 1;
-                dims = N3-2;
-            }
-            auto plan = f3_plan_many_r2r(1,
-                                           &dims,
-                                           N1*N2,
-                                           in,
-                                           &dims,
-                                           1,
-                                           N3,
-                                           out,
-                                           &dims,
-                                           1,
-                                           N3,
-                                           &kind,
-                                           FFTW_MEASURE);
-
-            f3_execute(plan);
-            f3_destroy_plan(plan);
+            assert(plan);
         }
     }
 
@@ -885,6 +826,7 @@ public:
         // do IFT in 1st and 2nd dimensions
 
         // make a copy of the input data as it is modified by the transform
+        std::vector<complex, aligned_allocator<complex>> inputData(actualN1*N2*N3);
         for (unsigned int j=0; j<actualN1*N2*N3; j++)
         {
             inputData[j] = this->Raw()[j];
@@ -910,54 +852,64 @@ public:
 
     void ToNodal(NodalField<N1, N2, N3>& other) const
     {
-        ToNodalHorizontal(other);
+        assert(other.BC() == this->BC());
 
-        // then do (co)sine transform in 3rd dimension
+        // swizzle (and use symmetry to pad out)
+        for (int j1=0; j1<N1/2+1; j1++)
         {
-            int dims;
-            f3_r2r_kind kind;
-            stratifloat* in = other.Raw();
-            stratifloat* out = other.Raw();
-
-            if (this->BC() == BoundaryCondition::Bounded)
+            for (int j2=0; j2<N2; j2++)
             {
-                kind = FFTW_REDFT00; // cosine transform
-                dims = N3;
-            }
-            else
-            {
-                // for sine transform
-                //  we don't care about first and last values as these must be zero
-                kind = FFTW_RODFT00;
-                in += 1;
-                out += 1;
-                dims = N3-2;
-            }
-            auto plan = f3_plan_many_r2r(1,
-                                           &dims,
-                                           N1*N2,
-                                           in,
-                                           &dims,
-                                           1,
-                                           N3,
-                                           out,
-                                           &dims,
-                                           1,
-                                           N3,
-                                           &kind,
-                                           FFTW_ESTIMATE);
+                for (int j3=0; j3<N3; j3++)
+                {
+                    if (this->BC() == BoundaryCondition::Bounded)
+                    {
+                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
+                            this->operator()(j1,j2,j3).real();
+                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
+                            this->operator()(j1,j2,j3).imag();
+                    }
+                    else
+                    {
+                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
+                            this->operator()(j1,j2,j3).imag();
+                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
+                            -this->operator()(j1,j2,j3).real();
+                    }
+                }
 
-            f3_execute(plan);
-            f3_destroy_plan(plan);
+                for (int j3=N3; j3<2*(N3-1); j3++)
+                {
+                    if (this->BC() == BoundaryCondition::Bounded)
+                    {
+                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
+                            this->operator()(j1,j2,2*(N3-1)-j3).real();
+                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
+                            this->operator()(j1,j2,2*(N3-1)-j3).imag();
+                    }
+                    else
+                    {
+                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
+                            -this->operator()(j1,j2,2*(N3-1)-j3).imag();
+                        intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
+                            this->operator()(j1,j2,2*(N3-1)-j3).real();
+                    }
+                }
+            }
         }
 
-        if (this->BC() == BoundaryCondition::Decaying)
-        {
-            // now enforce zeros
-            other.slice(0).setZero();
-            other.slice(N3-1).setZero();
-        }
+        f3_execute(plan);
 
+        // swizzle back (taking only those elements we care about)
+        for (int j1=0; j1<N1; j1++)
+        {
+            for (int j2=0; j2<N2; j2++)
+            {
+                for (int j3=0; j3<N3; j3++)
+                {
+                    other(j1,j2,j3) = intermediateData[j3*N2*2*(N1/2+1) + j2*2*(N1/2+1) + j1];
+                }
+            }
+        }
     }
 
     void Filter()
@@ -1017,11 +969,14 @@ public:
     }
 
 private:
-    static std::vector<complex, aligned_allocator<complex>> inputData;
+    static std::vector<stratifloat, aligned_allocator<stratifloat>> intermediateData;
+    static f3_plan plan;
 };
 
 template<int N1, int N2, int N3>
-std::vector<complex, aligned_allocator<complex>> ModalField<N1,N2,N3>::inputData;
+std::vector<stratifloat, aligned_allocator<stratifloat>> ModalField<N1,N2,N3>::intermediateData(2*(N1/2+1)*N2*2*(N3-1), 0);
+template<int N1, int N2, int N3>
+f3_plan ModalField<N1,N2,N3>::plan(0);
 
 template<typename A, typename T, int N1, int N2, int N3>
 ScalarProduct<A, T, N1, N2, N3> operator*(T scalar,
