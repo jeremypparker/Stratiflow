@@ -655,7 +655,7 @@ public:
         assert(other.BC() == this->BC());
 
         // swizzle (and use symmetry to pad out)
-        #pragma omp parallel for schedule(static) collapse(3)
+        #pragma omp parallel for collapse(3)
         for (int j1=0; j1<2*(N1/2+1); j1++)
         {
             for (int j2=0; j2<N2; j2++)
@@ -700,7 +700,7 @@ public:
         f3_execute(plan);
 
         // swizzle back
-        #pragma omp parallel for schedule(static) collapse(3)
+        #pragma omp parallel for collapse(3)
         for (int j1=0; j1<N1/2+1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
@@ -859,7 +859,7 @@ public:
         assert(other.BC() == this->BC());
 
         // swizzle (and use symmetry to pad out)
-        #pragma omp parallel for schedule(static) collapse(3)
+        #pragma omp parallel for collapse(3)
         for (int j1=0; j1<N1/2+1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
@@ -907,7 +907,7 @@ public:
         f3_execute(plan);
 
         // swizzle back (taking only those elements we care about)
-        #pragma omp parallel for schedule(static) collapse(3)
+        #pragma omp parallel for collapse(3)
         for (int j1=0; j1<N1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
@@ -924,6 +924,7 @@ public:
     {
         if (N3>2)
         {
+            #pragma omp parallel for
             for (int j3=2*N3/3; j3<N3; j3++)
             {
                 this->slice(j3).setZero();
@@ -932,6 +933,7 @@ public:
 
         if (N1>2)
         {
+            #pragma omp parallel for collapse(2)
             for (int j1=N1/3; j1<actualN1; j1++)
             {
                 for (int j2=0; j2<N2; j2++)
@@ -943,6 +945,7 @@ public:
 
         if (N2>2)
         {
+            #pragma omp parallel for collapse(2)
             for (int j2=N2/3; j2<=2*N2/3; j2++)
             {
                 for (int j1=0; j1<actualN1; j1++)
@@ -958,10 +961,10 @@ public:
         int maxN1 = std::min(N1/2 + 1, 2*(N1/2 + 1)/3+1);
         int halfMaxN2 = N2/3+1;
 
-        #pragma omp parallel for
-        for (int j1=0; j1<maxN1; j1++)
+        if(N2>1)
         {
-            if(N2>1)
+            #pragma omp parallel for collapse(2)
+            for (int j1=0; j1<maxN1; j1++)
             {
                 for (int j2=0; j2<halfMaxN2; j2++)
                 {
@@ -969,7 +972,11 @@ public:
                     f(j1, N2-1-j2);
                 }
             }
-            else
+        }
+        else
+        {
+            #pragma omp parallel for
+            for (int j1=0; j1<maxN1; j1++)
             {
                 f(j1, 0);
             }
