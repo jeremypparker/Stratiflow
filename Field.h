@@ -654,76 +654,145 @@ public:
     {
         assert(other.BC() == this->BC());
 
-        // swizzle (and use symmetry to pad out)
-        #pragma omp parallel for collapse(3)
-        for (int j1=0; j1<2*(N1/2+1); j1++)
+        // first transpose to format required for fft (and use symmetry to pad out)
+
+        int n1 = 2*(N1/2+1);
+        int n2 = N2;
+        int n3 = 2*(N3-1);
+
+        // if statement outside the loops, though harder to read and gives code duplicating
+        // is much more efficient (compiler doesn't seem clever enough to break it out in this case)
+        if (this->BC() == BoundaryCondition::Decaying)
         {
-            for (int j2=0; j2<N2; j2++)
+            // loop in blocks for cache efficiency
+            #pragma omp parallel for
+            for (int k3 = 0; k3 < n3; k3 += LoopBlockSize)
             {
-                for (int j3=0; j3<2*(N3-1); j3++)
+                for (int k2 = 0; k2 < n2; k2 += LoopBlockSize)
                 {
-                    stratifloat& outVal = intermediateData[j3*N2*2*(N1/2+1) + j2*2*(N1/2+1) + j1];
-                    if (j1<N1)
+                    // take first dimension last for efficiency when writing
+                    for (int k1 = 0; k1 < n1; k1 += LoopBlockSize)
                     {
-                        if (j3<N3)
+                        for (int j3 = k3; j3 < std::min(n3, k3 + LoopBlockSize); j3++)
                         {
-                            if ((j3==0 || j3==N3-1) && this->BC() == BoundaryCondition::Decaying)
+                            for (int j2 = k2; j2 < std::min(n2, k2 + LoopBlockSize); j2++)
                             {
-                                outVal = 0;
-                            }
-                            else
-                            {
-                                outVal = this->operator()(j1,j2,j3);
-                            }
-                        }
-                        else
-                        {
-                            if (this->BC() == BoundaryCondition::Bounded)
-                            {
-                                outVal = this->operator()(j1,j2,2*(N3-1)-j3);
-                            }
-                            else
-                            {
-                                outVal = -this->operator()(j1,j2,2*(N3-1)-j3);
+                                for (int j1 = k1; j1 < std::min(n1, k1 + LoopBlockSize); j1++)
+                                {
+                                    stratifloat& outVal = intermediateData[j3*n1*n2 + j2*n1 + j1];
+
+                                    if (j1<N1)
+                                    {
+                                        if (j3<N3)
+                                        {
+                                            if (j3==0 || j3==N3-1)
+                                            {
+                                                // because of odd symmetry, must have zeros at ends
+                                                // (which corresponds to infinity in physical space)
+                                                outVal = 0;
+                                            }
+                                            else
+                                            {
+                                                outVal = this->operator()(j1,j2,j3);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            // odd symmetry gives a sine transform in 3rd direction
+                                            outVal = -this->operator()(j1,j2,2*(N3-1)-j3);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // pad with zeros in extra values needed
+                                        // for fftw inplace real to complex
+                                        outVal = 0;
+                                    }
+                                }
                             }
                         }
                     }
-                    else
+                }
+            }
+        }
+        else
+        {
+            // loop in blocks for cache efficiency
+            #pragma omp parallel for
+            for (int k3 = 0; k3 < n3; k3 += LoopBlockSize)
+            {
+                for (int k2 = 0; k2 < n2; k2 += LoopBlockSize)
+                {
+                    // take first dimension last for efficiency when writing
+                    for (int k1 = 0; k1 < n1; k1 += LoopBlockSize)
                     {
-                        // pad with zeros for extra values needed because inplace real to complex
-                        outVal = 0;
+                        for (int j3 = k3; j3 < std::min(n3, k3 + LoopBlockSize); j3++)
+                        {
+                            for (int j2 = k2; j2 < std::min(n2, k2 + LoopBlockSize); j2++)
+                            {
+                                for (int j1 = k1; j1 < std::min(n1, k1 + LoopBlockSize); j1++)
+                                {
+                                    stratifloat& outVal = intermediateData[j3*n1*n2 + j2*n1 + j1];
+
+                                    if (j1 < N1)
+                                    {
+                                        if (j3<N3)
+                                        {
+                                            outVal = this->operator()(j1,j2,j3);
+                                        }
+                                        else
+                                        {
+                                            // even symmetry gives a cosine transform in 3rd dim
+                                            outVal = this->operator()(j1,j2,2*(N3-1)-j3);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // pad with zeros in extra values needed
+                                        // for fftw inplace real to complex
+                                        outVal = 0;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
 
+
+        // then actually perform fft
         f3_execute(plan);
 
-        // swizzle back
-        #pragma omp parallel for collapse(3)
-        for (int j1=0; j1<N1/2+1; j1++)
+        // then transpose back
+        if (this->BC() == BoundaryCondition::Bounded)
         {
-            for (int j2=0; j2<N2; j2++)
+            #pragma omp parallel for collapse(3)
+            for (int j1=0; j1<N1/2+1; j1++)
             {
-                for (int j3=0; j3<N3; j3++)
+                for (int j2=0; j2<N2; j2++)
                 {
-                    if (this->BC() == BoundaryCondition::Bounded)
+                    for (int j3=0; j3<N3; j3++)
                     {
-                        other(j1,j2,j3).real(
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1]
-                        );
-                        other(j1,j2,j3).imag(
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1]
-                        );
+                            other(j1,j2,j3) = {
+                                intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1],
+                                intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1]};
                     }
-                    else
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for collapse(3)
+            for (int j1=0; j1<N1/2+1; j1++)
+            {
+                for (int j2=0; j2<N2; j2++)
+                {
+                    for (int j3=0; j3<N3; j3++)
                     {
-                        other(j1,j2,j3).real(
-                            -intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1]
-                        );
-                        other(j1,j2,j3).imag(
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1]
-                        );
+                            other(j1,j2,j3) = {
+                                -intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1],
+                                intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1]};
                     }
                 }
             }
@@ -859,16 +928,16 @@ public:
         assert(other.BC() == this->BC());
 
         // swizzle (and use symmetry to pad out)
-        #pragma omp parallel for collapse(3)
-        for (int j1=0; j1<N1/2+1; j1++)
+        if (this->BC() == BoundaryCondition::Bounded)
         {
-            for (int j2=0; j2<N2; j2++)
+            #pragma omp parallel for collapse(3)
+            for (int j1=0; j1<N1/2+1; j1++)
             {
-                for (int j3=0; j3<2*(N3-1); j3++)
+                for (int j2=0; j2<N2; j2++)
                 {
-                    if (j3<N3)
+                    for (int j3=0; j3<2*(N3-1); j3++)
                     {
-                        if (this->BC() == BoundaryCondition::Bounded)
+                        if (j3<N3)
                         {
                             intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
                                 this->operator()(j1,j2,j3).real();
@@ -878,19 +947,29 @@ public:
                         else
                         {
                             intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
-                                this->operator()(j1,j2,j3).imag();
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
-                                -this->operator()(j1,j2,j3).real();
-                        }
-                    }
-                    else
-                    {
-                        if (this->BC() == BoundaryCondition::Bounded)
-                        {
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
                                 this->operator()(j1,j2,2*(N3-1)-j3).real();
                             intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
                                 this->operator()(j1,j2,2*(N3-1)-j3).imag();
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for collapse(3)
+            for (int j1=0; j1<N1/2+1; j1++)
+            {
+                for (int j2=0; j2<N2; j2++)
+                {
+                    for (int j3=0; j3<2*(N3-1); j3++)
+                    {
+                        if (j3<N3)
+                        {
+                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
+                                this->operator()(j1,j2,j3).imag();
+                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
+                                -this->operator()(j1,j2,j3).real();
                         }
                         else
                         {
