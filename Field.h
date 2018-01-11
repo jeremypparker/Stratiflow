@@ -666,136 +666,100 @@ public:
         {
             // loop in blocks for cache efficiency
             #pragma omp parallel for
-            for (int k3 = 0; k3 < n3; k3 += LoopBlockSize)
+            for3D(n1,n2,n3)
             {
-                for (int k2 = 0; k2 < n2; k2 += LoopBlockSize)
-                {
-                    // take first dimension last for efficiency when writing
-                    for (int k1 = 0; k1 < n1; k1 += LoopBlockSize)
-                    {
-                        for (int j3 = k3; j3 < std::min(n3, k3 + LoopBlockSize); j3++)
-                        {
-                            for (int j2 = k2; j2 < std::min(n2, k2 + LoopBlockSize); j2++)
-                            {
-                                for (int j1 = k1; j1 < std::min(n1, k1 + LoopBlockSize); j1++)
-                                {
-                                    stratifloat& outVal = intermediateData[j3*n1*n2 + j2*n1 + j1];
+                stratifloat& outVal = intermediateData[j3*n1*n2 + j2*n1 + j1];
 
-                                    if (j1<N1)
-                                    {
-                                        if (j3<N3)
-                                        {
-                                            if (j3==0 || j3==N3-1)
-                                            {
-                                                // because of odd symmetry, must have zeros at ends
-                                                // (which corresponds to infinity in physical space)
-                                                outVal = 0;
-                                            }
-                                            else
-                                            {
-                                                outVal = this->operator()(j1,j2,j3);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            // odd symmetry gives a sine transform in 3rd direction
-                                            outVal = -this->operator()(j1,j2,2*(N3-1)-j3);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // pad with zeros in extra values needed
-                                        // for fftw inplace real to complex
-                                        outVal = 0;
-                                    }
-                                }
-                            }
+                if (j1<N1)
+                {
+                    if (j3<N3)
+                    {
+                        if (j3==0 || j3==N3-1)
+                        {
+                            // because of odd symmetry, must have zeros at ends
+                            // (which corresponds to infinity in physical space)
+                            outVal = 0;
+                        }
+                        else
+                        {
+                            outVal = this->operator()(j1,j2,j3);
                         }
                     }
+                    else
+                    {
+                        // odd symmetry gives a sine transform in 3rd direction
+                        outVal = -this->operator()(j1,j2,2*(N3-1)-j3);
+                    }
                 }
-            }
+                else
+                {
+                    // pad with zeros in extra values needed
+                    // for fftw inplace real to complex
+                    outVal = 0;
+                }
+            } endfor3D
         }
         else
         {
             // loop in blocks for cache efficiency
             #pragma omp parallel for
-            for (int k3 = 0; k3 < n3; k3 += LoopBlockSize)
+            for3D(n1,n2,n3)
             {
-                for (int k2 = 0; k2 < n2; k2 += LoopBlockSize)
-                {
-                    // take first dimension last for efficiency when writing
-                    for (int k1 = 0; k1 < n1; k1 += LoopBlockSize)
-                    {
-                        for (int j3 = k3; j3 < std::min(n3, k3 + LoopBlockSize); j3++)
-                        {
-                            for (int j2 = k2; j2 < std::min(n2, k2 + LoopBlockSize); j2++)
-                            {
-                                for (int j1 = k1; j1 < std::min(n1, k1 + LoopBlockSize); j1++)
-                                {
-                                    stratifloat& outVal = intermediateData[j3*n1*n2 + j2*n1 + j1];
+                stratifloat& outVal = intermediateData[j3*n1*n2 + j2*n1 + j1];
 
-                                    if (j1 < N1)
-                                    {
-                                        if (j3<N3)
-                                        {
-                                            outVal = this->operator()(j1,j2,j3);
-                                        }
-                                        else
-                                        {
-                                            // even symmetry gives a cosine transform in 3rd dim
-                                            outVal = this->operator()(j1,j2,2*(N3-1)-j3);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // pad with zeros in extra values needed
-                                        // for fftw inplace real to complex
-                                        outVal = 0;
-                                    }
-                                }
-                            }
-                        }
+                if (j1 < N1)
+                {
+                    if (j3<N3)
+                    {
+                        outVal = this->operator()(j1,j2,j3);
+                    }
+                    else
+                    {
+                        // even symmetry gives a cosine transform in 3rd dim
+                        outVal = this->operator()(j1,j2,2*(N3-1)-j3);
                     }
                 }
-            }
+                else
+                {
+                    // pad with zeros in extra values needed
+                    // for fftw inplace real to complex
+                    outVal = 0;
+                }
+            } endfor3D
         }
 
 
         // then actually perform fft
         f3_execute(plan);
 
+        // we use an inplace transform, so the complex result is stored in a real array
+        complex *fftResult = reinterpret_cast<complex*>(intermediateData.data());
+
         // then transpose back
+
+        n1 = N1/2 + 1;
+        n2 = N2;
+        n3 = N3; // actually the output has 2*(N3-1) entries, but with symmetry
+
         if (this->BC() == BoundaryCondition::Bounded)
         {
-            #pragma omp parallel for collapse(3)
-            for (int j1=0; j1<N1/2+1; j1++)
+            #pragma omp parallel for
+            for3D(n1,n2,n3)
             {
-                for (int j2=0; j2<N2; j2++)
-                {
-                    for (int j3=0; j3<N3; j3++)
-                    {
-                            other(j1,j2,j3) = {
-                                intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1],
-                                intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1]};
-                    }
-                }
-            }
+                // this is a transpose in disguise, as the access order of operator()
+                // is 3, 1, 2
+                other(j1,j2,j3) = fftResult[j3*n2*n1 + j2*n1 + j1];
+            } endfor3D
         }
         else
         {
-            #pragma omp parallel for collapse(3)
-            for (int j1=0; j1<N1/2+1; j1++)
+            #pragma omp parallel for
+            for3D(n1,n2,n3)
             {
-                for (int j2=0; j2<N2; j2++)
-                {
-                    for (int j3=0; j3<N3; j3++)
-                    {
-                            other(j1,j2,j3) = {
-                                -intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1],
-                                intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1]};
-                    }
-                }
-            }
+                other(j1,j2,j3) = {
+                   -fftResult[j3*n2*n1 + j2*n1 + j1].imag(),
+                    fftResult[j3*n2*n1 + j2*n1 + j1].real() };
+            } endfor3D
         }
 
         other *= 1/static_cast<stratifloat>(N1*N2*2*(N3-1));
@@ -927,76 +891,62 @@ public:
     {
         assert(other.BC() == this->BC());
 
-        // swizzle (and use symmetry to pad out)
+        // we use an inplace transform, so the complex input is stored in a real array
+        complex *fftInput = reinterpret_cast<complex*>(intermediateData.data());
+
+        // transpose
+
+        int n1 = N1/2+1;
+        int n2 = N2;
+        int n3 = 2*(N3-1);
+
         if (this->BC() == BoundaryCondition::Bounded)
         {
-            #pragma omp parallel for collapse(3)
-            for (int j1=0; j1<N1/2+1; j1++)
+            #pragma omp parallel for
+            for3D(n1,n2,n3)
             {
-                for (int j2=0; j2<N2; j2++)
+                complex val;
+                if (j3<N3)
                 {
-                    for (int j3=0; j3<2*(N3-1); j3++)
-                    {
-                        if (j3<N3)
-                        {
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
-                                this->operator()(j1,j2,j3).real();
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
-                                this->operator()(j1,j2,j3).imag();
-                        }
-                        else
-                        {
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
-                                this->operator()(j1,j2,2*(N3-1)-j3).real();
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
-                                this->operator()(j1,j2,2*(N3-1)-j3).imag();
-                        }
-                    }
+                    val = this->operator()(j1,j2,j3);
                 }
-            }
+                else
+                {
+                    val = this->operator()(j1,j2,n3-j3);
+                }
+
+                fftInput[j3*n2*n1 + j2*n1 + j1] = val;
+            } endfor3D
         }
         else
         {
-            #pragma omp parallel for collapse(3)
-            for (int j1=0; j1<N1/2+1; j1++)
+            #pragma omp parallel for
+            for3D(n1,n2,n3)
             {
-                for (int j2=0; j2<N2; j2++)
+                complex val;
+                if (j3<N3)
                 {
-                    for (int j3=0; j3<2*(N3-1); j3++)
-                    {
-                        if (j3<N3)
-                        {
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
-                                this->operator()(j1,j2,j3).imag();
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
-                                -this->operator()(j1,j2,j3).real();
-                        }
-                        else
-                        {
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1] =
-                                -this->operator()(j1,j2,2*(N3-1)-j3).imag();
-                            intermediateData[j3*N2*2*(N1/2+1)+j2*2*(N1/2+1)+2*j1+1] =
-                                this->operator()(j1,j2,2*(N3-1)-j3).real();
-                        }
-                    }
+                    val = this->operator()(j1,j2,j3);
                 }
-            }
+                else
+                {
+                    val = -this->operator()(j1,j2,n3-j3);
+                }
+
+                fftInput[j3*n2*n1 + j2*n1 + j1] = {val.imag(), -val.real()};
+            } endfor3D
         }
 
+        // transform
         f3_execute(plan);
 
-        // swizzle back (taking only those elements we care about)
-        #pragma omp parallel for collapse(3)
-        for (int j1=0; j1<N1; j1++)
+        // transpose back
+
+        #pragma omp parallel for
+        for3D(N1,N2,N3)
         {
-            for (int j2=0; j2<N2; j2++)
-            {
-                for (int j3=0; j3<N3; j3++)
-                {
-                    other(j1,j2,j3) = intermediateData[j3*N2*2*(N1/2+1) + j2*2*(N1/2+1) + j1];
-                }
-            }
-        }
+            other(j1,j2,j3) = intermediateData[j3*2*n1*n2 + j2*2*n1 + j1];
+        } endfor3D
     }
 
     void Filter()

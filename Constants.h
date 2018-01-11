@@ -64,6 +64,18 @@ constexpr std::complex<stratifloat> i(0, 1);
 // this number should be tweaked depending on the cache size of the processor
 constexpr int LoopBlockSize = 16;
 
+// this is a (hopefully) cache efficient loop for transposes
+#define for3D(n1,n2,n3) \
+for (int k3 = 0; k3 < n3; k3 += LoopBlockSize) { \
+for (int k2 = 0; k2 < n2; k2 += LoopBlockSize) { \
+for (int k1 = 0; k1 < n1; k1 += LoopBlockSize) { \
+for (int j3 = k3; j3 < std::min(n3, k3 + LoopBlockSize); j3++) { \
+for (int j2 = k2; j2 < std::min(n2, k2 + LoopBlockSize); j2++) { \
+for (int j1 = k1; j1 < std::min(n1, k1 + LoopBlockSize); j1++)
+
+#define endfor3D \
+}}}}}
+
 enum class BoundaryCondition
 {
     Decaying,
