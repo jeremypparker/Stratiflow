@@ -660,42 +660,24 @@ public:
         int n2 = N2;
         int n3 = 2*(N3-1);
 
-        // if statement outside the loops, though harder to read and gives code duplicating
+        // if statement outside the loops, though harder to read and gives code duplication
         // is much more efficient (compiler doesn't seem clever enough to break it out in this case)
         if (this->BC() == BoundaryCondition::Decaying)
         {
             // loop in blocks for cache efficiency
             #pragma omp parallel for
-            for3D(n1,n2,n3)
+            for3D(N1,n2,n3)
             {
                 stratifloat& outVal = intermediateData[j3*n1*n2 + j2*n1 + j1];
 
-                if (j1<N1)
+                if (j3<N3)
                 {
-                    if (j3<N3)
-                    {
-                        if (j3==0 || j3==N3-1)
-                        {
-                            // because of odd symmetry, must have zeros at ends
-                            // (which corresponds to infinity in physical space)
-                            outVal = 0;
-                        }
-                        else
-                        {
-                            outVal = this->operator()(j1,j2,j3);
-                        }
-                    }
-                    else
-                    {
-                        // odd symmetry gives a sine transform in 3rd direction
-                        outVal = -this->operator()(j1,j2,2*(N3-1)-j3);
-                    }
+                    outVal = this->operator()(j1,j2,j3);
                 }
                 else
                 {
-                    // pad with zeros in extra values needed
-                    // for fftw inplace real to complex
-                    outVal = 0;
+                    // odd symmetry gives a sine transform in 3rd direction
+                    outVal = -this->operator()(j1,j2,n3-j3);
                 }
             } endfor3D
         }
@@ -703,27 +685,18 @@ public:
         {
             // loop in blocks for cache efficiency
             #pragma omp parallel for
-            for3D(n1,n2,n3)
+            for3D(N1,n2,n3)
             {
                 stratifloat& outVal = intermediateData[j3*n1*n2 + j2*n1 + j1];
 
-                if (j1 < N1)
+                if (j3<N3)
                 {
-                    if (j3<N3)
-                    {
-                        outVal = this->operator()(j1,j2,j3);
-                    }
-                    else
-                    {
-                        // even symmetry gives a cosine transform in 3rd dim
-                        outVal = this->operator()(j1,j2,2*(N3-1)-j3);
-                    }
+                    outVal = this->operator()(j1,j2,j3);
                 }
                 else
                 {
-                    // pad with zeros in extra values needed
-                    // for fftw inplace real to complex
-                    outVal = 0;
+                    // even symmetry gives a cosine transform in 3rd dim
+                    outVal = this->operator()(j1,j2,n3-j3);
                 }
             } endfor3D
         }
@@ -756,13 +729,17 @@ public:
             #pragma omp parallel for
             for3D(n1,n2,n3)
             {
-                other(j1,j2,j3) = {
-                   -fftResult[j3*n2*n1 + j2*n1 + j1].imag(),
-                    fftResult[j3*n2*n1 + j2*n1 + j1].real() };
+                other(j1,j2,j3) = -i*fftResult[j3*n2*n1 + j2*n1 + j1];
             } endfor3D
         }
 
         other *= 1/static_cast<stratifloat>(N1*N2*2*(N3-1));
+
+        if (this->BC() == BoundaryCondition::Decaying)
+        {
+            other.slice(0).setZero();
+            other.slice(N3-1).setZero();
+        }
 
         other.Filter();
     }
@@ -933,7 +910,7 @@ public:
                     val = -this->operator()(j1,j2,n3-j3);
                 }
 
-                fftInput[j3*n2*n1 + j2*n1 + j1] = {val.imag(), -val.real()};
+                fftInput[j3*n2*n1 + j2*n1 + j1] = i*val;
             } endfor3D
         }
 
@@ -947,6 +924,14 @@ public:
         {
             other(j1,j2,j3) = intermediateData[j3*2*n1*n2 + j2*2*n1 + j1];
         } endfor3D
+
+        if (this->BC() == BoundaryCondition::Decaying)
+        {
+            // now enforce zeros
+            other.slice(0).setZero();
+            other.slice(N3-1).setZero();
+        }
+
     }
 
     void Filter()
