@@ -670,7 +670,11 @@ public:
             {
                 stratifloat& outVal = intermediateData[j3*n1*n2 + j2*n1 + j1];
 
-                if (j3<N3)
+                if (j3 == 0 || j3 == N3-1)
+                {
+                    outVal = 0;
+                }
+                else if (j3<N3)
                 {
                     outVal = this->operator()(j1,j2,j3);
                 }
@@ -901,7 +905,11 @@ public:
             for3D(n1,n2,n3)
             {
                 complex val;
-                if (j3<N3)
+                if (j3 == 0 || j3 == N3-1)
+                {
+                    val = 0;
+                }
+                else if (j3<N3)
                 {
                     val = this->operator()(j1,j2,j3);
                 }
