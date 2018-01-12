@@ -729,7 +729,7 @@ public:
             #pragma omp parallel for
             for3D(n1,n2,n3)
             {
-                other(j1,j2,j3) = -i*fftResult[j3*n2*n1 + j2*n1 + j1];
+                other(j1,j2,j3) = i*fftResult[j3*n2*n1 + j2*n1 + j1];
             } endfor3D
         }
 
@@ -910,7 +910,7 @@ public:
                     val = -this->operator()(j1,j2,n3-j3);
                 }
 
-                fftInput[j3*n2*n1 + j2*n1 + j1] = i*val;
+                fftInput[j3*n2*n1 + j2*n1 + j1] = -i*val;
             } endfor3D
         }
 
