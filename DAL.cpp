@@ -2,7 +2,7 @@
 
 int main(int argc, char *argv[])
 {
-    const stratifloat targetTime = 20.0;
+    const stratifloat targetTime = 40.0;
     const stratifloat energy = 0.001;
     const stratifloat residualTarget = 0.001;
     const stratifloat minimumEpsilon = 0.000000001;
@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
 
             std::cout << "Epsilon: " << epsilon << std::endl;
 
-            if (epislon < minimumEpsilon)
+            if (epsilon < minimumEpsilon)
             {
                 std::cout << "Epsilon too small, cannot converge" << std::endl;
                 break;

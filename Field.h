@@ -989,7 +989,7 @@ public:
 
         for (int j1=0; j1<0.5*cutoff*N1; j1++)
         {
-            for (int j3=0; j3<cutoff*N3; j2++)
+            for (int j3=0; j3<cutoff*N3; j3++)
             {
                 for (int j2=0; j2<0.5*cutoff*N2; j2++)
                 {
