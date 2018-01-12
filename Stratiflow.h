@@ -447,6 +447,14 @@ public:
         buoyancy.ToModal(b);
     }
 
+    void SetInitial(MField velocity1, MField velocity2, MField velocity3, MField buoyancy)
+    {
+        u1 = velocity1;
+        u2 = velocity2;
+        u3 = velocity3;
+        b = buoyancy;
+    }
+
     void SetBackground(N1D velocity, N1D buoyancy)
     {
         velocity.ToModal(u_);

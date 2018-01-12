@@ -2,8 +2,10 @@
 
 int main(int argc, char *argv[])
 {
-    stratifloat targetTime = 10.0;
-    stratifloat energy = 0.001;
+    const stratifloat targetTime = 20.0;
+    const stratifloat energy = 0.001;
+    const stratifloat residualTarget = 0.001;
+    const stratifloat minimumEpsilon = 0.000000001;
 
     f3_init_threads();
     f3_plan_with_nthreads(omp_get_max_threads());
@@ -11,15 +13,17 @@ int main(int argc, char *argv[])
     std::cout << "Creating solver..." << std::endl;
     IMEXRK solver;
 
-    IMEXRK::MField oldu1(BoundaryCondition::Bounded);
-    IMEXRK::MField oldu2(BoundaryCondition::Bounded);
-    IMEXRK::MField oldu3(BoundaryCondition::Decaying);
-    IMEXRK::MField oldb(BoundaryCondition::Bounded);
+    // these are the initial conditions for the current step
+    IMEXRK::MField u10(BoundaryCondition::Bounded);
+    IMEXRK::MField u20(BoundaryCondition::Bounded);
+    IMEXRK::MField u30(BoundaryCondition::Decaying);
+    IMEXRK::MField b0(BoundaryCondition::Bounded);
 
-    IMEXRK::MField oldoldu1(BoundaryCondition::Bounded);
-    IMEXRK::MField oldoldu2(BoundaryCondition::Bounded);
-    IMEXRK::MField oldoldu3(BoundaryCondition::Decaying);
-    IMEXRK::MField oldoldb(BoundaryCondition::Bounded);
+    // these are the initial conditions for the previous step - so we can reset if necessary
+    IMEXRK::MField previousu10(BoundaryCondition::Bounded);
+    IMEXRK::MField previousu20(BoundaryCondition::Bounded);
+    IMEXRK::MField previousu30(BoundaryCondition::Decaying);
+    IMEXRK::MField previousb0(BoundaryCondition::Bounded);
 
     IMEXRK::M1D backgroundB(BoundaryCondition::Bounded);
 
@@ -30,8 +34,16 @@ int main(int argc, char *argv[])
 
     stratifloat previousIntegral = -1000;
 
-    int p; // which DAL step we are on
 
+    // first optional parameter is the maximum number of DAL loops
+    int maxiterations = 50;
+    if (argc > 1)
+    {
+        maxiterations = std::stoi(argv[1]);
+    }
+
+    // second optional parameter is which old initial condition to load
+    int p; // which DAL step we are on
     if (argc > 2)
     {
         std::cout << "Loading ICs..." << std::endl;
@@ -41,38 +53,24 @@ int main(int argc, char *argv[])
     }
     else
     {
+        // if none supplied, set ICs manually
         std::cout << "Setting ICs..." << std::endl;
 
         MakeCleanDir("ICs");
 
         p = 0;
 
-        IMEXRK::NField initialU1(BoundaryCondition::Bounded);
-        IMEXRK::NField initialU2(BoundaryCondition::Bounded);
-        IMEXRK::NField initialU3(BoundaryCondition::Decaying);
-        IMEXRK::NField initialB(BoundaryCondition::Bounded);
-        auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
+        IMEXRK::MField initialU1(BoundaryCondition::Bounded);
+        IMEXRK::MField initialU2(BoundaryCondition::Bounded);
+        IMEXRK::MField initialU3(BoundaryCondition::Decaying);
+        IMEXRK::MField initialB(BoundaryCondition::Bounded);
 
-        // add a perturbation to allow instabilities to develop
+        // put energy in the lowest third of the spatial modes
+        initialU1.RandomizeCoefficients(0.3);
+        initialU2.RandomizeCoefficients(0.3);
+        initialU3.RandomizeCoefficients(0.3);
+        initialB.RandomizeCoefficients(0.3);
 
-        initialU1.SetValue([](stratifloat x, stratifloat y, stratifloat z)
-        {
-            return 0.1*cos(2*pi*x/IMEXRK::L1)*exp(-z*z);
-        }, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
-
-        // stratifloat bandmax = 4;
-        // for (int j=0; j<IMEXRK::N3; j++)
-        // {
-        //     if (x3(j) > -bandmax && x3(j) < bandmax)
-        //     {
-        //         initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-        //             * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-        //         initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-        //             * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-        //         initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-        //             * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-        //     }
-        // }
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
     }
 
@@ -89,20 +87,14 @@ int main(int argc, char *argv[])
         solver.b *= scale;
     }
 
-    oldu1 = solver.u1;
-    oldu2 = solver.u2;
-    oldu3 = solver.u3;
-    oldb = solver.b;
+    u10 = solver.u1;
+    u20 = solver.u2;
+    u30 = solver.u3;
+    b0 = solver.b;
 
     stratifloat E0 = -1;
 
     stratifloat epsilon = 0.01;
-
-    int maxiterations = 50;
-    if (argc > 1)
-    {
-        maxiterations = std::stoi(argv[1]);
-    }
 
     std::ofstream energyFile("energy.dat");
     for (; p<maxiterations; p++) // Direct-adjoint loop
@@ -122,11 +114,8 @@ int main(int argc, char *argv[])
             Bbar.ToModal(backgroundB);
         }
 
-        //if (E0 == -1)
-        //{
-            E0 = solver.KE() + solver.PE();
-        //}
-        std::cout << "E0: " << (solver.KE() + solver.PE()) << std::endl;
+        E0 = solver.KE() + solver.PE();
+        std::cout << "E0: " << E0 << std::endl;
 
         stratifloat totalTime = 0.0f;
 
@@ -205,10 +194,10 @@ int main(int argc, char *argv[])
         {
             previousIntegral = JoverKintegrated;
 
-            oldoldu1 = oldu1;
-            oldoldu2 = oldu2;
-            oldoldu3 = oldu3;
-            oldoldb = oldb;
+            previousu10 = u10;
+            previousu20 = u20;
+            previousu30 = u30;
+            previousb0 = b0;
 
             // it's going well, slowly increase step size
             epsilon *= 1.1;
@@ -220,18 +209,24 @@ int main(int argc, char *argv[])
 
             std::cout << "Epsilon: " << epsilon << std::endl;
 
+            if (epislon < minimumEpsilon)
+            {
+                std::cout << "Epsilon too small, cannot converge" << std::endl;
+                break;
+            }
+
             solver.u1 = previousv1;
             solver.u2 = previousv2;
             solver.u3 = previousv3;
             solver.b = previousvb;
 
-            oldu1 = oldoldu1;
-            oldu2 = oldoldu2;
-            oldu3 = oldoldu3;
-            oldb = oldoldb;
+            u10 = previousu10;
+            u20 = previousu20;
+            u30 = previousu30;
+            b0 = previousb0;
 
             energyFile << "STEP " << p << " and residual= "
-                   << solver.Optimise(epsilon, E0, oldu1, oldu2, oldu3, oldb, backgroundB)
+                   << solver.Optimise(epsilon, E0, u10, u20, u30, b0, backgroundB)
                    << std::endl;
 
             continue;
@@ -298,9 +293,15 @@ int main(int argc, char *argv[])
         previousv3 = solver.u3;
         previousvb = solver.b;
 
-        energyFile << "STEP " << p << " and residual= "
-                   << solver.Optimise(epsilon, E0, oldu1, oldu2, oldu3, oldb, backgroundB)
-                   << std::endl;
+        stratifloat residual = solver.Optimise(epsilon, E0, u10, u20, u30, b0, backgroundB);
+
+        energyFile << "STEP " << p << " and residual= " << residual << std::endl;
+
+        if (residual < residualTarget)
+        {
+            std::cout << "Successfully converged" << std::endl;
+            break;
+        }
     }
 
     f3_cleanup_threads();

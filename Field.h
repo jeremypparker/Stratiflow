@@ -14,6 +14,7 @@
 #include <iostream>
 #include <iterator>
 #include <fstream>
+#include <random>
 
 
 using namespace Eigen;
@@ -973,6 +974,30 @@ public:
                 for (int j1=0; j1<actualN1; j1++)
                 {
                     this->stack(j1, j2).setZero();
+                }
+            }
+        }
+    }
+
+    void RandomizeCoefficients(stratifloat cutoff)
+    {
+        assert(cutoff < 2.0/3.0);
+
+        std::random_device rd;
+        std::mt19937 generator(rd());
+        std::uniform_real_distribution<stratifloat> rng(-1.0,1.0);
+
+        for (int j1=0; j1<0.5*cutoff*N1; j1++)
+        {
+            for (int j3=0; j3<cutoff*N3; j2++)
+            {
+                for (int j2=0; j2<0.5*cutoff*N2; j2++)
+                {
+                    this->operator()(j1,j2,j3) = rng(generator);
+                }
+                for (int j2=N2-1; j2>(1-0.5*cutoff)*N2; j2--)
+                {
+                    this->operator()(j1,j2,j3) = rng(generator);
                 }
             }
         }
