@@ -100,3 +100,9 @@ TEST_CASE("I test")
 
     REQUIRE(result == Approx(2.0).epsilon(0.001));
 }
+
+TEST_CASE("Quadratic")
+{
+    REQUIRE(SolveQuadratic(1,-1,-6,true) == Approx(3.0));
+    REQUIRE(SolveQuadratic(1,-1,-6,false) == Approx(-2.0));
+}
