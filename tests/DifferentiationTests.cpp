@@ -38,7 +38,7 @@ TEST_CASE("Simple derivatives Bounded")
 
     // convert to modal for differentiation
     ModalField<N1,N2,N3> f2(BoundaryCondition::Bounded);
-    f1.ToModal(f2);
+    f1.ToModal(f2, false);
     ModalField<N1,N2,N3> f3(BoundaryCondition::Decaying);
     f3 = Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>,stratifloat,complex,N1/2+1,N2,N3>(VerticalDerivativeMatrix(BoundaryCondition::Bounded, L, N3), f2);
     NodalField<N1,N2,N3> f4(BoundaryCondition::Decaying);
@@ -76,7 +76,7 @@ TEST_CASE("Simple derivatives Decaying")
 
     // convert to modal for differentiation
     ModalField<N1,N2,N3> f2(BoundaryCondition::Decaying);
-    f1.ToModal(f2);
+    f1.ToModal(f2, false);
     ModalField<N1,N2,N3> f3(BoundaryCondition::Bounded);
     f3 = Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>,stratifloat,complex,N1/2+1,N2,N3>(VerticalDerivativeMatrix(BoundaryCondition::Decaying, L, N3), f2);
     NodalField<N1,N2,N3> f4(BoundaryCondition::Bounded);
@@ -101,6 +101,28 @@ TEST_CASE("Simple derivatives Decaying")
     REQUIRE(f6 == expected2);
 }
 
+TEST_CASE("Simple derivatives Nodal")
+{
+    constexpr int N1 = 2;
+    constexpr int N2 = 2;
+    constexpr int N3 = 64;
+    stratifloat L = 5.0f;
+
+    auto x = VerticalPoints(L, N3);
+
+    NodalField<N1,N2,N3> f1(BoundaryCondition::Decaying);
+    f1.SetValue([](stratifloat z){return exp(-(z-0.5)*(z-0.5));}, L);
+
+    // convert to modal for differentiation
+    NodalField<N1,N2,N3> f2(BoundaryCondition::Decaying);
+    f2 = Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>,stratifloat,stratifloat,N1,N2,N3>(VerticalSecondDerivativeNodalMatrix(L, N3), f1);
+
+    NodalField<N1,N2,N3> expected(BoundaryCondition::Decaying);
+    expected.SetValue([](stratifloat z){return (4*(z-0.5)*(z-0.5)-2)*exp(-(z-0.5)*(z-0.5));}, L);
+
+    REQUIRE(f2 == expected);
+}
+
 TEST_CASE("Dim 1 fourier derivatives")
 {
     constexpr int N1 = 20;
@@ -112,7 +134,7 @@ TEST_CASE("Dim 1 fourier derivatives")
     f1.SetValue([L](stratifloat x, stratifloat y, stratifloat z){return cos(2*pi*x/L);}, L, 1, 1);
 
     ModalField<N1,N2,N3> f2(BoundaryCondition::Bounded);
-    f1.ToModal(f2);
+    f1.ToModal(f2, false);
 
     ModalField<N1,N2,N3> f3(BoundaryCondition::Bounded);
     f3 = Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>,complex,complex,N1/2+1,N2,N3>(FourierDerivativeMatrix(L, N1, 1), f2);
@@ -150,7 +172,7 @@ TEST_CASE("Dim 2 fourier derivatives")
 
 
     ModalField<N1,N2,N3> f2(BoundaryCondition::Bounded);
-    f1.ToModal(f2);
+    f1.ToModal(f2, false);
 
     ModalField<N1,N2,N3> f3(BoundaryCondition::Bounded);
     f3 = Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>,complex,complex,N1/2+1,N2,N3>(FourierDerivativeMatrix(L, N2, 2), f2);
@@ -218,7 +240,7 @@ TEST_CASE("Inverse Laplacian")
     ModalField<N1, N2, N3> q(BoundaryCondition::Bounded);
 
     ModalField<N1, N2, N3> rhs(BoundaryCondition::Bounded);
-    physicalRHS.ToModal(rhs);
+    physicalRHS.ToModal(rhs, false);
 
 
     rhs.Solve(solveLaplacian, q);

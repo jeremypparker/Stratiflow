@@ -106,7 +106,7 @@ TEST_CASE("Decaying Modal/Nodal")
     f1.slice(N3-1).setZero();
 
     ModalField<N1, N2, N3> f2(BoundaryCondition::Decaying);
-    f1.ToModal(f2);
+    f1.ToModal(f2, false);
 
     NodalField<N1, N2, N3> f3(BoundaryCondition::Decaying);
     f2.ToNodal(f3);
@@ -123,7 +123,7 @@ TEST_CASE("Bounded Modal/Nodal")
     }
 
     ModalField<2, 8, 4> f2(BoundaryCondition::Bounded);
-    f1.ToModal(f2);
+    f1.ToModal(f2, false);
 
     NodalField<2, 8, 4> f3(BoundaryCondition::Bounded);
     f2.ToNodal(f3);

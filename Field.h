@@ -651,7 +651,7 @@ public:
         }
     }
 
-    void ToModal(ModalField<N1, N2, N3>& other) const
+    void ToModal(ModalField<N1, N2, N3>& other, bool filter = true) const
     {
         assert(other.BC() == this->BC());
 
@@ -746,7 +746,10 @@ public:
             other.slice(N3-1).setZero();
         }
 
-        other.Filter();
+        if (filter)
+        {
+            other.Filter();
+        }
     }
 
     stratifloat Max() const
