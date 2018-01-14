@@ -44,18 +44,23 @@ int main(int argc, char *argv[])
 
     // second optional parameter is which old initial condition to load
     int p; // which DAL step we are on
+    std::ofstream energyFile; // file to which to output energy and residuals
     if (argc > 2)
     {
         std::cout << "Loading ICs..." << std::endl;
 
         p = std::stoi(argv[2]);
         solver.LoadFlow("ICs/"+std::to_string(p)+".fields");
+
+        // in this case, only append to the existing energy file
+        energyFile.open("energy.dat", std::fstream::out | std::fstream::app);
     }
     else
     {
         // if none supplied, set ICs manually
         std::cout << "Setting ICs..." << std::endl;
 
+        // fresh run, so clean up old stuff
         MakeCleanDir("ICs");
 
         p = 0;
@@ -72,6 +77,9 @@ int main(int argc, char *argv[])
         initialB.RandomizeCoefficients(0.3);
 
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
+        
+        // in this case, overwrite any old file
+        energyFile.open("energy.dat", std::fstream::out);
     }
 
     solver.RemoveDivergence(0.0f);
@@ -96,7 +104,6 @@ int main(int argc, char *argv[])
 
     stratifloat epsilon = 0.01;
 
-    std::ofstream energyFile("energy.dat");
     for (; p<maxiterations; p++) // Direct-adjoint loop
     {
         // add background flow
