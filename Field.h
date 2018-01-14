@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Constants.h"
-#include "ThreadPool.h"
 #include "Eigen.h"
 
 #include <cassert>
