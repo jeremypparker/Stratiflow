@@ -5,3 +5,4 @@
 #include <Eigen/StdVector>
 #include <Eigen/SparseCholesky> 
 
+using namespace Eigen;

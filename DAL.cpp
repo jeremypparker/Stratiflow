@@ -1,4 +1,4 @@
-#include "Stratiflow.h"
+#include "IMEXRK.h"
 
 int main(int argc, char *argv[])
 {

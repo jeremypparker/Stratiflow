@@ -3,9 +3,6 @@
 #include "Eigen.h"
 #include "Constants.h"
 
-using namespace Eigen;
-
-
 MatrixX VerticalDerivativeMatrix(BoundaryCondition originalBC, stratifloat L, int N);
 MatrixX VerticalSecondDerivativeMatrix(BoundaryCondition bc, stratifloat L, int N);
 

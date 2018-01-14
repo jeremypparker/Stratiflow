@@ -27,6 +27,8 @@
 class IMEXRK
 {
 public:
+
+    // SOLVER PARAMETERS //
     static constexpr int N1 = 384;
     static constexpr int N2 = 1;
     static constexpr int N3 = 440;
@@ -41,9 +43,11 @@ public:
 
     static constexpr bool SnapshotToMemory = false;
 
-    stratifloat deltaT = 0.01f;
+    // flow parameters (will become static constexpr with C++17)
     const stratifloat Re = 1000;
     const stratifloat Ri = 0.1;
+
+    stratifloat deltaT = 0.01f;
 
     using NField = NodalField<N1,N2,N3>;
     using MField = ModalField<N1,N2,N3>;

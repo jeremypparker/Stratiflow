@@ -1,6 +1,6 @@
 #include "Field.h"
 #include "Graph.h"
-#include "Stratiflow.h"
+#include "IMEXRK.h"
 
 #include <string>
 #include <fstream>

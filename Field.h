@@ -17,8 +17,6 @@
 #include <random>
 
 
-using namespace Eigen;
-
 ArrayX VerticalPoints(stratifloat L, int N);
 ArrayX FourierPoints(stratifloat L, int N);
 
