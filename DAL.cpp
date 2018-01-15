@@ -2,7 +2,7 @@
 
 int main(int argc, char *argv[])
 {
-    const stratifloat targetTime = 40.0;
+    const stratifloat targetTime = 10.0;
     const stratifloat energy = 0.001;
     const stratifloat residualTarget = 0.001;
     const stratifloat minimumEpsilon = 0.000000001;
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
         initialB.RandomizeCoefficients(0.3);
 
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
-        
+
         // in this case, overwrite any old file
         energyFile.open("energy.dat", std::fstream::out);
     }
@@ -100,9 +100,7 @@ int main(int argc, char *argv[])
     u30 = solver.u3;
     b0 = solver.b;
 
-    stratifloat E0 = -1;
-
-    stratifloat epsilon = 0.01;
+    stratifloat epsilon = 0.01; // gradient ascent step size
 
     for (; p<maxiterations; p++) // Direct-adjoint loop
     {
@@ -121,8 +119,7 @@ int main(int argc, char *argv[])
             Bbar.ToModal(backgroundB);
         }
 
-        E0 = solver.KE() + solver.PE();
-        std::cout << "E0: " << E0 << std::endl;
+        std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
 
         stratifloat totalTime = 0.0f;
 
@@ -233,7 +230,7 @@ int main(int argc, char *argv[])
             b0 = previousb0;
 
             energyFile << "STEP " << p << " and residual= "
-                   << solver.Optimise(epsilon, E0, u10, u20, u30, b0, backgroundB)
+                   << solver.Optimise(epsilon, energy, u10, u20, u30, b0, backgroundB)
                    << std::endl;
 
             continue;
@@ -300,7 +297,7 @@ int main(int argc, char *argv[])
         previousv3 = solver.u3;
         previousvb = solver.b;
 
-        stratifloat residual = solver.Optimise(epsilon, E0, u10, u20, u30, b0, backgroundB);
+        stratifloat residual = solver.Optimise(epsilon, energy, u10, u20, u30, b0, backgroundB);
 
         energyFile << "STEP " << p << " and residual= " << residual << std::endl;
 

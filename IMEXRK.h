@@ -758,19 +758,23 @@ public:
         }
 
         stratifloat udotu = InnerProd(oldu1, oldu1, L3)
-                          + InnerProd(oldu2, oldu2, L3)
                           + InnerProd(oldu3, oldu3, L3)
                           + InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
 
         stratifloat vdotv = InnerProd(u1, u1, L3)
-                          + InnerProd(u2, u2, L3)
                           + InnerProd(u3, u3, L3)
                           + InnerProd(b, b, L3, -(1/Ri)*dB_dz);
 
         stratifloat udotv = InnerProd(u1, oldu1, L3)
-                          + InnerProd(u2, oldu2, L3)
                           + InnerProd(u3, oldu3, L3)
                           + InnerProd(b, oldb, L3);
+
+        if (ThreeDimensional)
+        {
+            udotu += InnerProd(oldu2, oldu2, L3);
+            vdotv += InnerProd(u2, u2, L3);
+            udotv += InnerProd(u2, oldu2, L3);
+        }
 
         stratifloat lambda = SolveQuadratic(epsilon*udotu,
                                             2*epsilon*udotv - 2*udotu,
@@ -787,10 +791,14 @@ public:
         oldb  = (1-lambda*epsilon)*oldb  + -(1/Ri)*epsilon*bscaled;
 
         stratifloat new2E0 = InnerProd(oldu1, oldu1, L3)
-                           + InnerProd(oldu2, oldu2, L3)
                            + InnerProd(oldu3, oldu3, L3)
                            + InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
+        if (ThreeDimensional)
+        {
+            new2E0 += InnerProd(oldu2, oldu2, L3);
+        }
 
+        // rescale, to ensure we don't slowly drift from target energy
         stratifloat scale = sqrt(2*E_0/new2E0);
 
         oldu1 *= scale;
