@@ -19,6 +19,7 @@ constexpr bool SnapshotToMemory = false;
 // FLOW PARAMETERS //
 constexpr stratifloat Re = 1000;
 constexpr stratifloat Ri = 0.1;
+constexpr stratifloat Pe = Re; // Pe != Re not yet supported!
 constexpr stratifloat R = 1;
 
 // background shear
