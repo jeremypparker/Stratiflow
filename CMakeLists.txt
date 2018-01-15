@@ -54,3 +54,6 @@ target_link_libraries(DNS StratiLib)
 
 add_executable(SnapshotViewer SnapshotViewer.cpp)
 target_link_libraries(SnapshotViewer StratiLib)
+
+add_executable(OrrSommerfeld OrrSommerfeld.cpp)
+target_link_libraries(OrrSommerfeld StratiLib)

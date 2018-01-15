@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Stratiflow.h"
+
 #include "Field.h"
 #include "Differentiation.h"
 #include "Integration.h"
@@ -27,32 +29,7 @@
 class IMEXRK
 {
 public:
-
-    // SOLVER PARAMETERS //
-    static constexpr int N1 = 384;
-    static constexpr int N2 = 1;
-    static constexpr int N3 = 440;
-
-    static constexpr int M1 = N1/2 + 1;
-
-    static constexpr stratifloat L1 = 16.0f; // size of domain streamwise
-    static constexpr stratifloat L2 = 4.0f;  // size of domain spanwise
-    static constexpr stratifloat L3 = 5.0f; // vertical scaling factor
-
-    static constexpr bool ThreeDimensional = false;
-
-    static constexpr bool SnapshotToMemory = false;
-
-    // flow parameters (will become static constexpr with C++17)
-    const stratifloat Re = 1000;
-    const stratifloat Ri = 0.1;
-
     stratifloat deltaT = 0.01f;
-
-    using NField = NodalField<N1,N2,N3>;
-    using MField = ModalField<N1,N2,N3>;
-    using M1D = Modal1D<N1,N2,N3>;
-    using N1D = Nodal1D<N1,N2,N3>;
 
     long totalForcing = 0;
     long totalExplicit = 0;
@@ -427,19 +404,19 @@ public:
 
     void PlotAll(std::string filename, bool includeBackground) const
     {
-        PlotPressure(imageDirectory+"/pressure/"+filename, IMEXRK::N2/2);
-        PlotBuoyancy(imageDirectory+"/buoyancy/"+filename, IMEXRK::N2/2, includeBackground);
-        PlotVerticalVelocity(imageDirectory+"/u3/"+filename, IMEXRK::N2/2);
-        PlotSpanwiseVelocity(imageDirectory+"/u2/"+filename, IMEXRK::N2/2);
-        PlotStreamwiseVelocity(imageDirectory+"/u1/"+filename, IMEXRK::N2/2, includeBackground);
+        PlotPressure(imageDirectory+"/pressure/"+filename, N2/2);
+        PlotBuoyancy(imageDirectory+"/buoyancy/"+filename, N2/2, includeBackground);
+        PlotVerticalVelocity(imageDirectory+"/u3/"+filename, N2/2);
+        PlotSpanwiseVelocity(imageDirectory+"/u2/"+filename, N2/2);
+        PlotStreamwiseVelocity(imageDirectory+"/u1/"+filename, N2/2, includeBackground);
 
         if (includeBackground)
         {
-            PlotSpanwiseVorticity(imageDirectory+"/vorticity/"+filename, IMEXRK::N2/2);
+            PlotSpanwiseVorticity(imageDirectory+"/vorticity/"+filename, N2/2);
         }
         else
         {
-            PlotPerturbationVorticity(imageDirectory+"/perturbvorticity/"+filename, IMEXRK::N2/2);
+            PlotPerturbationVorticity(imageDirectory+"/perturbvorticity/"+filename, N2/2);
         }
     }
 
@@ -815,15 +792,6 @@ public:
 
         return 1 - udotv*udotv/udotu/vdotv;
     }
-
-    static void LoadVariable(std::string filename, NField& into, int index)
-    {
-        std::ifstream filestream(filename, std::ios::in | std::ios::binary);
-
-        filestream.seekg(N1*N2*N3*index*sizeof(stratifloat));
-        into.Load(filestream);
-    }
-
 
 private:
     void LoadAtTime(stratifloat time)
