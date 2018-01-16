@@ -78,21 +78,21 @@ int main(int argc, char *argv[])
 
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
 
+        solver.RemoveDivergence(0.0f);
+
+        // rescale energy
+        {
+            stratifloat energyBefore = solver.KE() + solver.PE();
+            stratifloat scale = sqrt(energy/energyBefore);
+
+            solver.u1 *= scale;
+            solver.u2 *= scale;
+            solver.u3 *= scale;
+            solver.b *= scale;
+        }
+
         // in this case, overwrite any old file
         energyFile.open("energy.dat", std::fstream::out);
-    }
-
-    solver.RemoveDivergence(0.0f);
-
-    // rescale energy
-    {
-        stratifloat energyBefore = solver.KE() + solver.PE();
-        stratifloat scale = sqrt(energy/energyBefore);
-
-        solver.u1 *= scale;
-        solver.u2 *= scale;
-        solver.u3 *= scale;
-        solver.b *= scale;
     }
 
     u10 = solver.u1;
@@ -117,13 +117,11 @@ int main(int argc, char *argv[])
             Bbar.ToModal(backgroundB);
         }
 
-        std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
-
         stratifloat totalTime = 0.0f;
 
 
         stratifloat saveEvery = 1.0f;
-        int lastFrame = -1;
+        int lastFrame = 0;
         int step = 0;
         bool done = false;
 
@@ -131,9 +129,16 @@ int main(int argc, char *argv[])
 
         solver.PrepareRun("images/");
 
+        std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
+
         // save initial condition
         solver.StoreSnapshot(totalTime);
         solver.SaveFlow("ICs/"+std::to_string(p)+".fields");
+        energyFile << totalTime
+                   << " " << solver.KE()
+                   << " " << solver.PE()
+                   << " " << solver.JoverK()
+                   << std::endl;
 
         // also save images for animation
         solver.PlotAll(std::to_string(totalTime)+".png", true);

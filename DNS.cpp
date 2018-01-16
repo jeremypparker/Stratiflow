@@ -67,6 +67,8 @@ int main(int argc, char *argv[])
     int lastFrame = -1;
     int step = 0;
 
+    std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
+
     solver.PrepareRun("images/");
     solver.PlotAll(std::to_string(totalTime)+".png", true);
     while (totalTime < targetTime)
