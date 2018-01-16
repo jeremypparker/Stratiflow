@@ -120,3 +120,33 @@ stratifloat LargestGrowth(stratifloat k,
 
     return largest;
 }
+
+void EigenModes(stratifloat k, MField& u1, MField& u2, MField& u3, MField& b)
+{
+    // find the vertical profile of eigenmodes
+    Field1D<complex, N1, N2, N3> w_hat(BoundaryCondition::Decaying);
+    Field1D<complex, N1, N2, N3> b_hat(BoundaryCondition::Decaying);
+
+    LargestGrowth(k, &w_hat, &b_hat);
+
+    // multiply out the modes
+    NField W(BoundaryCondition::Decaying);
+    NField B(BoundaryCondition::Bounded);
+
+    auto x = FourierPoints(L1, N1);
+
+    for3D(N1,N2,N3)
+    {
+        W(j1,j2,j3) = real(w_hat.Get()(j3) * exp(i*k*x(j1)));
+        B(j1,j2,j3) = real(b_hat.Get()(j3) * exp(i*k*x(j1)));
+    } endfor3D
+
+    W.ToModal(u3);
+    B.ToModal(b);
+
+    // incompressibility gives us streamwise velocity
+    u1 = (i/k)*ddz(u3); // only one fourier mode so can just divide to integrate
+
+    // squire's theorem tells us spanwise velocity is zero
+    u2.Zero();
+}

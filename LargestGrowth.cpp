@@ -1,4 +1,6 @@
 #include "OrrSommerfeld.h"
+#include "Graph.h"
+#include "Differentiation.h"
 
 int main()
 {
@@ -30,6 +32,19 @@ int main()
 
     std::cout << "Maximum growth rate " << growthmax << " at " << kmax << std::endl;
     std::cout << "Wavelength of fastest growing mode is " << 2*pi/kmax << std::endl;
+
+    MField u(BoundaryCondition::Bounded);
+    MField v(BoundaryCondition::Bounded);
+    MField w(BoundaryCondition::Decaying);
+    MField b(BoundaryCondition::Bounded);
+
+    EigenModes(kmax, u, v, w, b);
+
+    HeatPlot(u, L1, L3, 0, "u_eig.png");
+    HeatPlot(v, L1, L3, 0, "v_eig.png");
+    HeatPlot(w, L1, L3, 0, "w_eig.png");
+    HeatPlot(b, L1, L3, 0, "b_eig.png");
+
 
     return 0;
 }
