@@ -138,7 +138,9 @@ void EigenModes(stratifloat k, MField& u1, MField& u2, MField& u3, MField& b)
     for3D(N1,N2,N3)
     {
         W(j1,j2,j3) = real(w_hat.Get()(j3) * exp(i*k*x(j1)));
-        B(j1,j2,j3) = real(b_hat.Get()(j3) * exp(i*k*x(j1)));
+
+        // todo: make consistent the definition of b
+        B(j1,j2,j3) = -real(b_hat.Get()(j3) * exp(i*k*x(j1)));
     } endfor3D
 
     W.ToModal(u3);
@@ -149,4 +151,5 @@ void EigenModes(stratifloat k, MField& u1, MField& u2, MField& u3, MField& b)
 
     // squire's theorem tells us spanwise velocity is zero
     u2.Zero();
+
 }

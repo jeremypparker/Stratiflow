@@ -1,5 +1,6 @@
 #include "IMEXRK.h"
 #include "OSUtils.cpp"
+#include "OrrSommerfeld.h"
 
 int main(int argc, char *argv[])
 {
@@ -25,28 +26,44 @@ int main(int argc, char *argv[])
         NField initialB(BoundaryCondition::Bounded);
         auto x3 = VerticalPoints(L3, N3);
 
-        // nudge with something like the eigenmode
-        initialU3.SetValue([](stratifloat x, stratifloat y, stratifloat z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, L1, L2, L3);
 
-        // add a perturbation to allow instabilities to develop
+        MField initialu1(BoundaryCondition::Bounded);
+        MField initialu2(BoundaryCondition::Bounded);
+        MField initialu3(BoundaryCondition::Decaying);
+        MField initialb(BoundaryCondition::Bounded);
 
-        stratifloat bandmax = 4;
-        for (int j=0; j<N3; j++)
-        {
-            if (x3(j) > -bandmax && x3(j) < bandmax)
-            {
-                initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<stratifloat, N1, N2>::Random(N1, N2);
-                initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<stratifloat, N1, N2>::Random(N1, N2);
-                initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<stratifloat, N1, N2>::Random(N1, N2);
-            }
-        }
+        // add the eigenmode
+        std::cout << "Calculating Eigenmode..." << std::endl;
+        EigenModes(2*pi/L1, initialu1, initialu2, initialu3, initialb);
+        initialu1.ToNodal(initialU1);
+        initialu2.ToNodal(initialU2);
+        initialu3.ToNodal(initialU3);
+        initialb.ToNodal(initialB);
+
+        stratifloat scale = 0.5;
+        initialU1 *= scale;
+        initialU2 *= scale;
+        initialU3 *= scale;
+        initialB *= scale;
+
+        // // add a perturbation to allow instabilities to develop
+        // stratifloat bandmax = 4;
+        // for (int j=0; j<N3; j++)
+        // {
+        //     if (x3(j) > -bandmax && x3(j) < bandmax)
+        //     {
+        //         initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+        //             * Array<stratifloat, N1, N2>::Random(N1, N2);
+        //         initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+        //             * Array<stratifloat, N1, N2>::Random(N1, N2);
+        //         initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+        //             * Array<stratifloat, N1, N2>::Random(N1, N2);
+        //     }
+        // }
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
     }
 
-    solver.RemoveDivergence(0.0f);
+    //solver.RemoveDivergence(0.0f);
 
     std::ofstream energyFile("energy.dat");
 

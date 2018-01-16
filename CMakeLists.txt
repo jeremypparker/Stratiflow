@@ -42,7 +42,12 @@ if(MKL)
     add_definitions(-DEIGEN_USE_MKL_ALL)
 endif()
 
-add_library(StratiLib Differentiation.cpp Field.cpp Graph.cpp Integration.cpp OSUtils.cpp)
+add_library(StratiLib Differentiation.cpp
+                      Field.cpp
+                      Graph.cpp
+                      Integration.cpp
+                      OSUtils.cpp
+                      OrrSommerfeld.cpp)
 
 add_subdirectory(tests)
 
@@ -55,6 +60,5 @@ target_link_libraries(DNS StratiLib)
 add_executable(SnapshotViewer SnapshotViewer.cpp)
 target_link_libraries(SnapshotViewer StratiLib)
 
-add_executable(OrrSommerfeld OrrSommerfeld.cpp
-                             LargestGrowth.cpp)
+add_executable(OrrSommerfeld LargestGrowth.cpp)
 target_link_libraries(OrrSommerfeld StratiLib)

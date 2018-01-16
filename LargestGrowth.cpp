@@ -8,7 +8,7 @@ int main()
     stratifloat kmax;
     stratifloat growthmax = -10000;
 
-    stratifloat k_lower = 0.00001;
+    stratifloat k_lower = 0.001;
     stratifloat k_upper = 2.0;
 
     for (int n=0; n<5; n++)
