@@ -717,6 +717,8 @@ public:
                          MField& oldb,
                          M1D& backgroundB)
     {
+        PopulateNodalVariablesAdjoint();
+
         db_dz = ddz(backgroundB);
         db_dz.Filter();
         db_dz.ToNodal(dB_dz);
