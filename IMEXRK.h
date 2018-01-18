@@ -505,11 +505,23 @@ public:
             }
             else
             {
-                nnTemp1D.Get()(j) = -1/dB_dz.Get()(j);
+                nnTemp1D.Get()(j) = 1/dB_dz.Get()(j);
             }
         }
 
-        return 0.5f*InnerProd(b, b, L3, Ri*nnTemp1D);
+        if (EnergyConstraint == EnergyType::MadeUp)
+        {
+            return 0.5f*InnerProd(b, b, L3, Ri);
+        }
+        else if (EnergyConstraint == EnergyType::Correct)
+        {
+            return 0.5f*InnerProd(b, b, L3, -Ri*nnTemp1D);
+        }
+        else
+        {
+            assert(0);
+            return 0;
+        }
     }
     void RemoveDivergence(stratifloat pressureMultiplier=1.0f)
     {
@@ -737,16 +749,29 @@ public:
         }
 
         stratifloat udotu = InnerProd(oldu1, oldu1, L3)
-                          + InnerProd(oldu3, oldu3, L3)
-                          + InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
+                          + InnerProd(oldu3, oldu3, L3);
 
         stratifloat vdotv = InnerProd(u1, u1, L3)
-                          + InnerProd(u3, u3, L3)
-                          + InnerProd(b, b, L3, -(1/Ri)*dB_dz);
+                          + InnerProd(u3, u3, L3);
 
         stratifloat udotv = InnerProd(u1, oldu1, L3)
                           + InnerProd(u3, oldu3, L3)
                           + InnerProd(b, oldb, L3);
+
+        if (EnergyConstraint == EnergyType::MadeUp)
+        {
+            udotu += InnerProd(oldb, oldb, L3, Ri);
+            vdotv += InnerProd(b, b, L3, (1/Ri));
+        }
+        else if (EnergyConstraint == EnergyType::Correct)
+        {
+            udotu += InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
+            vdotv += InnerProd(b, b, L3, -(1/Ri)*dB_dz);
+        }
+        else
+        {
+            assert(0);
+        }
 
         if (ThreeDimensional)
         {
@@ -760,8 +785,20 @@ public:
                                             epsilon*vdotv - 2*udotv);
 
         static MField bscaled(BoundaryCondition::Bounded);
-        nnTemp = -1*B*dB_dz;
-        nnTemp.ToModal(bscaled);
+
+        if (EnergyConstraint == EnergyType::MadeUp)
+        {
+            bscaled = b;
+        }
+        else if (EnergyConstraint == EnergyType::Correct)
+        {
+            nnTemp = -1*B*dB_dz;
+            nnTemp.ToModal(bscaled);
+        }
+        else
+        {
+            assert(0);
+        }
 
         // store the new values in old (which we no longer need after this)
         oldu1 = (1-lambda*epsilon)*oldu1 + -epsilon*u1;
@@ -770,8 +807,21 @@ public:
         oldb  = (1-lambda*epsilon)*oldb  + -(1/Ri)*epsilon*bscaled;
 
         stratifloat new2E0 = InnerProd(oldu1, oldu1, L3)
-                           + InnerProd(oldu3, oldu3, L3)
-                           + InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
+                           + InnerProd(oldu3, oldu3, L3);
+
+        if (EnergyConstraint == EnergyType::MadeUp)
+        {
+            new2E0 += InnerProd(oldb, oldb, L3, Ri);
+        }
+        else if (EnergyConstraint == EnergyType::Correct)
+        {
+            new2E0 += InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
+        }
+        else
+        {
+            assert(0);
+        }
+
         if (ThreeDimensional)
         {
             new2E0 += InnerProd(oldu2, oldu2, L3);
@@ -792,6 +842,7 @@ public:
         b = oldb;
         p.Zero();
 
+        // return the residual
         return 1 - udotv*udotv/udotu/vdotv;
     }
 

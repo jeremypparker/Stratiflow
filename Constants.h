@@ -82,4 +82,11 @@ enum class BoundaryCondition
     Bounded
 };
 
+enum class EnergyType
+{
+    Full,
+    Correct,
+    MadeUp
+};
+
 using complex = std::complex<stratifloat>;
