@@ -1,0 +1,30 @@
+#pragma once
+
+#include "Constants.h"
+
+#ifdef USE_CUDA
+#include <cufftw.h>
+
+// cuda's fft wrapper does not define certain functions, so we have to work around this
+
+int fftw_init_threads();
+void fftw_plan_with_nthreads(int nthreads);
+void fftw_cleanup_threads();
+
+enum fftw_r2r_kind
+{
+FFTW_RODFT00,
+FFTW_REDFT00
+};
+
+#define fftwf_r2r_kind fftw_r2r_kind
+#define fftwf_init_threads fftw_init_threads
+#define fftwf_plan_with_nthreads fftw_plan_with_nthreads
+#define fftwf_cleanup_threads fftw_cleanup_threads
+
+#else
+#include <fftw3.h>
+#endif
+
+// this should not be a bottleneck, so we do it in a fairly inefficient way
+void Perform1DR2R(int size, const stratifloat* in, stratifloat* out, f3_r2r_kind kind);

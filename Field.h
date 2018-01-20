@@ -2,10 +2,9 @@
 
 #include "Constants.h"
 #include "Eigen.h"
+#include "FFT.h"
 
 #include <cassert>
-
-#include <fftw3.h>
 
 #include <vector>
 #include <utility>
@@ -544,10 +543,7 @@ public:
             size = N3-2;
         }
 
-        auto plan = f3_plan_r2r_1d(size, in, out, kind, FFTW_ESTIMATE);
-
-        f3_execute(plan);
-        f3_destroy_plan(plan);
+        Perform1DR2R(size, in, out, kind);
 
         if (this->BC() == BoundaryCondition::Decaying)
         {
@@ -597,10 +593,7 @@ public:
             size = N3-2;
         }
 
-        auto plan = f3_plan_r2r_1d(size, in, out, kind, FFTW_ESTIMATE);
-
-        f3_execute(plan);
-        f3_destroy_plan(plan);
+        Perform1DR2R(size, in, out, kind);
 
         other *= 1/static_cast<stratifloat>(2*(N3-1));
 

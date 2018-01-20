@@ -1,8 +1,8 @@
 #define CATCH_CONFIG_RUNNER
 #include <catch.h>
 #include <omp.h>
-#include <fftw3.h>
 
+#include "FFT.h"
 #include "Constants.h"
 
 
