@@ -1,5 +1,6 @@
 #include "IMEXRK.h"
 #include "OSUtils.cpp"
+#include "OrrSommerfeld.h"
 
 int main(int argc, char *argv[])
 {
@@ -19,46 +20,60 @@ int main(int argc, char *argv[])
     else
     {
         std::cout << "Setting ICs..." << std::endl;
-        IMEXRK::NField initialU1(BoundaryCondition::Bounded);
-        IMEXRK::NField initialU2(BoundaryCondition::Bounded);
-        IMEXRK::NField initialU3(BoundaryCondition::Decaying);
-        IMEXRK::NField initialB(BoundaryCondition::Bounded);
-        auto x3 = VerticalPoints(IMEXRK::L3, IMEXRK::N3);
+        NField initialU1(BoundaryCondition::Bounded);
+        NField initialU2(BoundaryCondition::Bounded);
+        NField initialU3(BoundaryCondition::Decaying);
+        NField initialB(BoundaryCondition::Bounded);
+        auto x3 = VerticalPoints(L3, N3);
 
-        // nudge with something like the eigenmode
-        initialU3.SetValue([](stratifloat x, stratifloat y, stratifloat z){return 0.1*cos(2*pi*x/16.0f)/cosh(z)/cosh(z);}, IMEXRK::L1, IMEXRK::L2, IMEXRK::L3);
 
-        // add a perturbation to allow instabilities to develop
+        MField initialu1(BoundaryCondition::Bounded);
+        MField initialu2(BoundaryCondition::Bounded);
+        MField initialu3(BoundaryCondition::Decaying);
+        MField initialb(BoundaryCondition::Bounded);
 
-        stratifloat bandmax = 4;
-        for (int j=0; j<IMEXRK::N3; j++)
-        {
-            if (x3(j) > -bandmax && x3(j) < bandmax)
-            {
-                initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-                initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-                initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-                    * Array<stratifloat, IMEXRK::N1, IMEXRK::N2>::Random(IMEXRK::N1, IMEXRK::N2);
-            }
-        }
+        // add the eigenmode
+        std::cout << "Calculating Eigenmode..." << std::endl;
+        EigenModes(2*pi/L1, initialu1, initialu2, initialu3, initialb);
+        initialu1.ToNodal(initialU1);
+        initialu2.ToNodal(initialU2);
+        initialu3.ToNodal(initialU3);
+        initialb.ToNodal(initialB);
+
+        stratifloat scale = 0.5;
+        initialU1 *= scale;
+        initialU2 *= scale;
+        initialU3 *= scale;
+        initialB *= scale;
+
+        // // add a perturbation to allow instabilities to develop
+        // stratifloat bandmax = 4;
+        // for (int j=0; j<N3; j++)
+        // {
+        //     if (x3(j) > -bandmax && x3(j) < bandmax)
+        //     {
+        //         initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+        //             * Array<stratifloat, N1, N2>::Random(N1, N2);
+        //         initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+        //             * Array<stratifloat, N1, N2>::Random(N1, N2);
+        //         initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+        //             * Array<stratifloat, N1, N2>::Random(N1, N2);
+        //     }
+        // }
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
     }
 
-    solver.RemoveDivergence(0.0f);
+    //solver.RemoveDivergence(0.0f);
 
     std::ofstream energyFile("energy.dat");
 
     // add background flow
     std::cout << "Setting background..." << std::endl;
     {
-        stratifloat R = 2;
-
-        IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
-        IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
-        Ubar.SetValue([](stratifloat z){return tanh(z);}, IMEXRK::L3);
-        Bbar.SetValue([R](stratifloat z){return -tanh(R*z);}, IMEXRK::L3);
+        N1D Ubar(BoundaryCondition::Bounded);
+        N1D Bbar(BoundaryCondition::Bounded);
+        Ubar.SetValue(InitialU, L3);
+        Bbar.SetValue(InitialB, L3);
 
         solver.SetBackground(Ubar, Bbar);
     }
@@ -68,6 +83,8 @@ int main(int argc, char *argv[])
     stratifloat saveEvery = 1.0f;
     int lastFrame = -1;
     int step = 0;
+
+    std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
 
     solver.PrepareRun("images/");
     solver.PlotAll(std::to_string(totalTime)+".png", true);

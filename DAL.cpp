@@ -2,7 +2,7 @@
 
 int main(int argc, char *argv[])
 {
-    const stratifloat targetTime = 40.0;
+    const stratifloat targetTime = 10.0;
     const stratifloat energy = 0.001;
     const stratifloat residualTarget = 0.001;
     const stratifloat minimumEpsilon = 0.000000001;
@@ -14,23 +14,23 @@ int main(int argc, char *argv[])
     IMEXRK solver;
 
     // these are the initial conditions for the current step
-    IMEXRK::MField u10(BoundaryCondition::Bounded);
-    IMEXRK::MField u20(BoundaryCondition::Bounded);
-    IMEXRK::MField u30(BoundaryCondition::Decaying);
-    IMEXRK::MField b0(BoundaryCondition::Bounded);
+    MField u10(BoundaryCondition::Bounded);
+    MField u20(BoundaryCondition::Bounded);
+    MField u30(BoundaryCondition::Decaying);
+    MField b0(BoundaryCondition::Bounded);
 
     // these are the initial conditions for the previous step - so we can reset if necessary
-    IMEXRK::MField previousu10(BoundaryCondition::Bounded);
-    IMEXRK::MField previousu20(BoundaryCondition::Bounded);
-    IMEXRK::MField previousu30(BoundaryCondition::Decaying);
-    IMEXRK::MField previousb0(BoundaryCondition::Bounded);
+    MField previousu10(BoundaryCondition::Bounded);
+    MField previousu20(BoundaryCondition::Bounded);
+    MField previousu30(BoundaryCondition::Decaying);
+    MField previousb0(BoundaryCondition::Bounded);
 
-    IMEXRK::M1D backgroundB(BoundaryCondition::Bounded);
+    M1D backgroundB(BoundaryCondition::Bounded);
 
-    IMEXRK::MField previousv1(BoundaryCondition::Bounded);
-    IMEXRK::MField previousv2(BoundaryCondition::Bounded);
-    IMEXRK::MField previousv3(BoundaryCondition::Decaying);
-    IMEXRK::MField previousvb(BoundaryCondition::Bounded);
+    MField previousv1(BoundaryCondition::Bounded);
+    MField previousv2(BoundaryCondition::Bounded);
+    MField previousv3(BoundaryCondition::Decaying);
+    MField previousvb(BoundaryCondition::Bounded);
 
     stratifloat previousIntegral = -1000;
 
@@ -65,10 +65,10 @@ int main(int argc, char *argv[])
 
         p = 0;
 
-        IMEXRK::MField initialU1(BoundaryCondition::Bounded);
-        IMEXRK::MField initialU2(BoundaryCondition::Bounded);
-        IMEXRK::MField initialU3(BoundaryCondition::Decaying);
-        IMEXRK::MField initialB(BoundaryCondition::Bounded);
+        MField initialU1(BoundaryCondition::Bounded);
+        MField initialU2(BoundaryCondition::Bounded);
+        MField initialU3(BoundaryCondition::Decaying);
+        MField initialB(BoundaryCondition::Bounded);
 
         // put energy in the lowest third of the spatial modes
         initialU1.RandomizeCoefficients(0.3);
@@ -77,22 +77,22 @@ int main(int argc, char *argv[])
         initialB.RandomizeCoefficients(0.3);
 
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
-        
+
+        solver.RemoveDivergence(0.0f);
+
+        // rescale energy
+        {
+            stratifloat energyBefore = solver.KE() + solver.PE();
+            stratifloat scale = sqrt(energy/energyBefore);
+
+            solver.u1 *= scale;
+            solver.u2 *= scale;
+            solver.u3 *= scale;
+            solver.b *= scale;
+        }
+
         // in this case, overwrite any old file
         energyFile.open("energy.dat", std::fstream::out);
-    }
-
-    solver.RemoveDivergence(0.0f);
-
-    // rescale energy
-    {
-        stratifloat energyBefore = solver.KE() + solver.PE();
-        stratifloat scale = sqrt(energy/energyBefore);
-
-        solver.u1 *= scale;
-        solver.u2 *= scale;
-        solver.u3 *= scale;
-        solver.b *= scale;
     }
 
     u10 = solver.u1;
@@ -100,35 +100,28 @@ int main(int argc, char *argv[])
     u30 = solver.u3;
     b0 = solver.b;
 
-    stratifloat E0 = -1;
-
-    stratifloat epsilon = 0.01;
+    stratifloat epsilon = 0.01; // gradient ascent step size
 
     for (; p<maxiterations; p++) // Direct-adjoint loop
     {
         // add background flow
         std::cout << "Setting background..." << std::endl;
         {
-            stratifloat R = 2;
-
-            IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
-            IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
-            Ubar.SetValue([](stratifloat z){return tanh(z);}, IMEXRK::L3);
-            Bbar.SetValue([R](stratifloat z){return -tanh(R*z);}, IMEXRK::L3);
+            N1D Ubar(BoundaryCondition::Bounded);
+            N1D Bbar(BoundaryCondition::Bounded);
+            Ubar.SetValue(InitialU, L3);
+            Bbar.SetValue(InitialB, L3);
 
             solver.SetBackground(Ubar, Bbar);
 
             Bbar.ToModal(backgroundB);
         }
 
-        E0 = solver.KE() + solver.PE();
-        std::cout << "E0: " << E0 << std::endl;
-
         stratifloat totalTime = 0.0f;
 
 
         stratifloat saveEvery = 1.0f;
-        int lastFrame = -1;
+        int lastFrame = 0;
         int step = 0;
         bool done = false;
 
@@ -136,9 +129,16 @@ int main(int argc, char *argv[])
 
         solver.PrepareRun("images/");
 
+        std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
+
         // save initial condition
         solver.StoreSnapshot(totalTime);
         solver.SaveFlow("ICs/"+std::to_string(p)+".fields");
+        energyFile << totalTime
+                   << " " << solver.KE()
+                   << " " << solver.PE()
+                   << " " << solver.JoverK()
+                   << std::endl;
 
         // also save images for animation
         solver.PlotAll(std::to_string(totalTime)+".png", true);
@@ -233,15 +233,15 @@ int main(int argc, char *argv[])
             b0 = previousb0;
 
             energyFile << "STEP " << p << " and residual= "
-                   << solver.Optimise(epsilon, E0, u10, u20, u30, b0, backgroundB)
+                   << solver.Optimise(epsilon, energy, u10, u20, u30, b0, backgroundB)
                    << std::endl;
 
             continue;
         }
 
         {
-            IMEXRK::N1D Ubar(BoundaryCondition::Bounded);
-            IMEXRK::N1D Bbar(BoundaryCondition::Bounded);
+            N1D Ubar(BoundaryCondition::Bounded);
+            N1D Bbar(BoundaryCondition::Bounded);
             solver.SetBackground(Ubar, Bbar);
         }
 
@@ -300,7 +300,7 @@ int main(int argc, char *argv[])
         previousv3 = solver.u3;
         previousvb = solver.b;
 
-        stratifloat residual = solver.Optimise(epsilon, E0, u10, u20, u30, b0, backgroundB);
+        stratifloat residual = solver.Optimise(epsilon, energy, u10, u20, u30, b0, backgroundB);
 
         energyFile << "STEP " << p << " and residual= " << residual << std::endl;
 

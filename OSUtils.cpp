@@ -4,8 +4,10 @@
 #include <string>
 #include <stdexcept>
 #include <memory>
+#include <fstream>
 
-std::string ExecuteShell(const std::string& cmd) {
+std::string ExecuteShell(const std::string& cmd)
+{
     std::array<char, 128> buffer;
     std::string result;
     std::shared_ptr<FILE> pipe(popen(cmd.c_str(), "r"), pclose);
@@ -21,4 +23,12 @@ void MakeCleanDir(const std::string& dir)
 {
     ExecuteShell("rm -rf " + dir);
     ExecuteShell("mkdir -p " + dir);
+}
+
+void LoadVariable(const std::string& filename, NField& into, int index)
+{
+    std::ifstream filestream(filename, std::ios::in | std::ios::binary);
+
+    filestream.seekg(N1*N2*N3*index*sizeof(stratifloat));
+    into.Load(filestream);
 }

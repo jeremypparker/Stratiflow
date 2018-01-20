@@ -54,7 +54,8 @@ add_library(StratiLib
     Graph.cpp
     Integration.cpp
     OSUtils.cpp
-    FFT.cpp)
+    FFT.cpp
+    OrrSommerfeld.cpp)
 
 add_subdirectory(tests)
 
@@ -66,3 +67,6 @@ target_link_libraries(DNS StratiLib)
 
 add_executable(SnapshotViewer SnapshotViewer.cpp)
 target_link_libraries(SnapshotViewer StratiLib)
+
+add_executable(OrrSommerfeld LargestGrowth.cpp)
+target_link_libraries(OrrSommerfeld StratiLib)

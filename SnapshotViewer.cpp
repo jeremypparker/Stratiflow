@@ -1,6 +1,6 @@
-#include "Field.h"
+#include "Stratiflow.h"
 #include "Graph.h"
-#include "IMEXRK.h"
+#include "OSUtils.h"
 
 #include <string>
 #include <fstream>
@@ -11,14 +11,14 @@
 
 int main(int argc, char *argv[])
 {
-    IMEXRK::NField loaded(BoundaryCondition::Decaying);
+    NField loaded(BoundaryCondition::Decaying);
 
-    IMEXRK::LoadVariable(argv[1], loaded, 2);
-    IMEXRK::MField loadedModal(BoundaryCondition::Decaying);
+    LoadVariable(argv[1], loaded, 2);
+    MField loadedModal(BoundaryCondition::Decaying);
 
     loaded.ToModal(loadedModal);
 
-    HeatPlot(loadedModal, IMEXRK::L1, IMEXRK::L3, 0, "output.png");
+    HeatPlot(loadedModal, L1, L3, 0, "output.png");
 
     return 0;
 }
