@@ -85,7 +85,20 @@ void Perform1DR2R(int size, const stratifloat* in, stratifloat* out, f3_r2r_kind
     f3_execute(plan);
     f3_destroy_plan(plan);
 
-
+    if (kind == FFTW_RODFT00)
+    {
+        for (int j=0; j<size; j++)
+        {
+            out[j] = -imag(fftData[j+1]);
+        }
+    }
+    else
+    {
+        for (int j=0; j<size; j++)
+        {
+            out[j] = real(fftData[j]);
+        }
+    }
 }
 
 #else
