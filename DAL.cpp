@@ -25,7 +25,6 @@ int main(int argc, char *argv[])
     MField previousu30(BoundaryCondition::Decaying);
     MField previousb0(BoundaryCondition::Bounded);
 
-    M1D backgroundB(BoundaryCondition::Bounded);
 
     MField previousv1(BoundaryCondition::Bounded);
     MField previousv2(BoundaryCondition::Bounded);
@@ -33,6 +32,14 @@ int main(int argc, char *argv[])
     MField previousvb(BoundaryCondition::Bounded);
 
     stratifloat previousIntegral = -1000;
+
+    M1D backgroundB(BoundaryCondition::Bounded);
+
+    {
+        N1D Bbar(BoundaryCondition::Bounded);
+        Bbar.SetValue(InitialB, L3);
+        Bbar.ToModal(backgroundB);
+    }
 
 
     // first optional parameter is the maximum number of DAL loops
@@ -81,15 +88,9 @@ int main(int argc, char *argv[])
         solver.RemoveDivergence(0.0f);
 
         // rescale energy
-        {
-            stratifloat energyBefore = solver.KE() + solver.PE();
-            stratifloat scale = sqrt(energy/energyBefore);
+        solver.SetBackground(InitialU, InitialB);
+        solver.RescaleForEnergy(energy);
 
-            solver.u1 *= scale;
-            solver.u2 *= scale;
-            solver.u3 *= scale;
-            solver.b *= scale;
-        }
 
         // in this case, overwrite any old file
         energyFile.open("energy.dat", std::fstream::out);
@@ -105,17 +106,7 @@ int main(int argc, char *argv[])
     for (; p<maxiterations; p++) // Direct-adjoint loop
     {
         // add background flow
-        std::cout << "Setting background..." << std::endl;
-        {
-            N1D Ubar(BoundaryCondition::Bounded);
-            N1D Bbar(BoundaryCondition::Bounded);
-            Ubar.SetValue(InitialU, L3);
-            Bbar.SetValue(InitialB, L3);
-
-            solver.SetBackground(Ubar, Bbar);
-
-            Bbar.ToModal(backgroundB);
-        }
+        solver.SetBackground(InitialU, InitialB);
 
         stratifloat totalTime = 0.0f;
 

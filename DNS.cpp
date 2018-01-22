@@ -4,7 +4,8 @@
 
 int main(int argc, char *argv[])
 {
-    stratifloat targetTime = 200.0;
+    stratifloat targetTime = 150.0;
+    stratifloat energy = 0.001;
 
     f3_init_threads();
     f3_plan_with_nthreads(omp_get_max_threads());
@@ -40,12 +41,6 @@ int main(int argc, char *argv[])
         initialu3.ToNodal(initialU3);
         initialb.ToNodal(initialB);
 
-        stratifloat scale = 0.5;
-        initialU1 *= scale;
-        initialU2 *= scale;
-        initialU3 *= scale;
-        initialB *= scale;
-
         // // add a perturbation to allow instabilities to develop
         // stratifloat bandmax = 4;
         // for (int j=0; j<N3; j++)
@@ -65,22 +60,17 @@ int main(int argc, char *argv[])
 
     //solver.RemoveDivergence(0.0f);
 
-    std::ofstream energyFile("energy.dat");
+    std::ofstream energyFile("flow_stats.dat");
 
     // add background flow
     std::cout << "Setting background..." << std::endl;
-    {
-        N1D Ubar(BoundaryCondition::Bounded);
-        N1D Bbar(BoundaryCondition::Bounded);
-        Ubar.SetValue(InitialU, L3);
-        Bbar.SetValue(InitialB, L3);
+    solver.SetBackground(InitialU, InitialB);
 
-        solver.SetBackground(Ubar, Bbar);
-    }
+    solver.RescaleForEnergy(energy);
 
     stratifloat totalTime = 0.0f;
 
-    stratifloat saveEvery = 1.0f;
+    stratifloat saveEvery = 0.5f;
     int lastFrame = -1;
     int step = 0;
 

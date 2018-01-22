@@ -442,6 +442,17 @@ public:
         buoyancy.ToModal(b_);
     }
 
+    void SetBackground(std::function<stratifloat(stratifloat)> velocity,
+                       std::function<stratifloat(stratifloat)> buoyancy)
+    {
+        N1D Ubar(BoundaryCondition::Bounded);
+        N1D Bbar(BoundaryCondition::Bounded);
+        Ubar.SetValue(velocity, L3);
+        Bbar.SetValue(buoyancy, L3);
+
+        SetBackground(Ubar, Bbar);
+    }
+
     // gives an upper bound on cfl number - also updates timestep
     stratifloat CFL()
     {
@@ -844,6 +855,27 @@ public:
 
         // return the residual
         return 1 - udotv*udotv/udotu/vdotv;
+    }
+
+    void RescaleForEnergy(stratifloat energy)
+    {
+        if (EnergyConstraint == EnergyType::Full)
+        {
+            assert(0);
+        }
+        else
+        {
+            // these energies are entirely quadratic
+            // which makes this easy
+
+            stratifloat energyBefore = KE() + PE();
+            stratifloat scale = sqrt(energy/energyBefore);
+
+            u1 *= scale;
+            u2 *= scale;
+            u3 *= scale;
+            b *= scale;
+        }
     }
 
 private:
