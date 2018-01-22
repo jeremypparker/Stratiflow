@@ -496,14 +496,23 @@ public:
 
     stratifloat KE() const
     {
+        stratifloat energy = 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u3, u3, L3));
+
         if(ThreeDimensional)
         {
-            return 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u2, u2, L3) + InnerProd(u3, u3, L3));
+            energy += 0.5f*InnerProd(u2, u2, L3);
         }
-        else
+
+        if (EnergyConstraint == EnergyType::Full)
         {
-            return 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u3, u3, L3));
+            u_.ToNodal(U_);
+            u1.ToNodal(U1);
+            nnTemp = U_;
+            energy += InnerProd(U1, nnTemp, L3);
         }
+
+        return energy;
+
     }
 
     stratifloat PE() const
@@ -530,8 +539,9 @@ public:
         }
         else
         {
-            assert(0);
-            return 0;
+            b.ToNodal(B);
+            nnTemp.SetValue([](stratifloat z){return z;}, L3);
+            return Ri*InnerProd(B, nnTemp, L3);
         }
     }
     void RemoveDivergence(stratifloat pressureMultiplier=1.0f)
@@ -859,9 +869,26 @@ public:
 
     void RescaleForEnergy(stratifloat energy)
     {
+        stratifloat scale;
+
         if (EnergyConstraint == EnergyType::Full)
         {
-            assert(0);
+            stratifloat c1 = 0.5*InnerProd(u1, u1, L3) + 0.5*InnerProd(u3, u3, L3);
+
+            if (ThreeDimensional)
+            {
+                c1 += 0.5*InnerProd(u2, u2, L3);
+            }
+
+
+            u1.ToNodal(U1);
+            u_.ToNodal(U_);
+            nnTemp = U_;
+            stratifloat c2 = InnerProd(U1, nnTemp, L3);
+            c2 += PE();
+
+            stratifloat c3 = -energy;
+            scale = SolveQuadratic(c1, c2, c3, true);
         }
         else
         {
@@ -869,13 +896,13 @@ public:
             // which makes this easy
 
             stratifloat energyBefore = KE() + PE();
-            stratifloat scale = sqrt(energy/energyBefore);
-
-            u1 *= scale;
-            u2 *= scale;
-            u3 *= scale;
-            b *= scale;
+            scale = sqrt(energy/energyBefore);
         }
+
+        u1 *= scale;
+        u2 *= scale;
+        u3 *= scale;
+        b *= scale;
     }
 
 private:
