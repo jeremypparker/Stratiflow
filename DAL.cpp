@@ -34,11 +34,16 @@ int main(int argc, char *argv[])
     stratifloat previousIntegral = -1000;
 
     M1D backgroundB(BoundaryCondition::Bounded);
+    M1D backgroundU(BoundaryCondition::Bounded);
 
     {
         N1D Bbar(BoundaryCondition::Bounded);
         Bbar.SetValue(InitialB, L3);
         Bbar.ToModal(backgroundB);
+
+        N1D Ubar(BoundaryCondition::Bounded);
+        Ubar.SetValue(InitialU, L3);
+        Ubar.ToModal(backgroundU);
     }
 
 
@@ -96,11 +101,6 @@ int main(int argc, char *argv[])
         energyFile.open("energy.dat", std::fstream::out);
     }
 
-    u10 = solver.u1;
-    u20 = solver.u2;
-    u30 = solver.u3;
-    b0 = solver.b;
-
     stratifloat epsilon = 0.01; // gradient ascent step size
 
     for (; p<maxiterations; p++) // Direct-adjoint loop
@@ -121,6 +121,8 @@ int main(int argc, char *argv[])
         solver.PrepareRun("images/");
 
         std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
+        solver.RescaleForEnergy(energy); // rescale to ensure we don't drift
+        std::cout << "E0 (after rescale): " << solver.KE() + solver.PE() << std::endl;
 
         // save initial condition
         solver.StoreSnapshot(totalTime);
@@ -130,6 +132,11 @@ int main(int argc, char *argv[])
                    << " " << solver.PE()
                    << " " << solver.JoverK()
                    << std::endl;
+
+        u10 = solver.u1;
+        u20 = solver.u2;
+        u30 = solver.u3;
+        b0 = solver.b;
 
         // also save images for animation
         solver.PlotAll(std::to_string(totalTime)+".png", true);
@@ -224,7 +231,7 @@ int main(int argc, char *argv[])
             b0 = previousb0;
 
             energyFile << "STEP " << p << " and residual= "
-                   << solver.Optimise(epsilon, energy, u10, u20, u30, b0, backgroundB)
+                   << solver.Optimise(epsilon, energy, u10, u20, u30, b0, backgroundB, backgroundU)
                    << std::endl;
 
             continue;
@@ -291,7 +298,7 @@ int main(int argc, char *argv[])
         previousv3 = solver.u3;
         previousvb = solver.b;
 
-        stratifloat residual = solver.Optimise(epsilon, energy, u10, u20, u30, b0, backgroundB);
+        stratifloat residual = solver.Optimise(epsilon, energy, u10, u20, u30, b0, backgroundB, backgroundU);
 
         energyFile << "STEP " << p << " and residual= " << residual << std::endl;
 

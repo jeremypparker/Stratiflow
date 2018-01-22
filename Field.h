@@ -981,12 +981,15 @@ public:
 
     void RandomizeCoefficients(stratifloat cutoff)
     {
+        this->Zero();
+
         assert(cutoff < 2.0/3.0);
 
         std::random_device rd;
         std::mt19937 generator(rd());
         std::uniform_real_distribution<stratifloat> rng(-1.0,1.0);
 
+        int j3max = 0;
         for (int j1=0; j1<0.5*cutoff*N1; j1++)
         {
             for (int j3=0; j3<cutoff*N3; j3++)
@@ -998,6 +1001,43 @@ public:
                 for (int j2=N2-1; j2>(1-0.5*cutoff)*N2; j2--)
                 {
                     this->operator()(j1,j2,j3) = rng(generator);
+                }
+
+                j3max = j3;
+            }
+        }
+
+        // use higher order mode to set value at infinity to zero
+        if (this->BC() == BoundaryCondition::Bounded)
+        {
+            for (int j1=0; j1<actualN1; j1++)
+            {
+                for (int j2=0; j2<N2; j2++)
+                {
+                    complex evensum = 0.5*this->operator()(j1, j2, 0);
+                    complex oddsum = 0;
+                    for (int j3=1; j3<=j3max; j3++)
+                    {
+                        if (j3%2 == 0)
+                        {
+                            evensum += this->operator()(j1, j2, j3);
+                        }
+                        else
+                        {
+                            oddsum += this->operator()(j1, j2, j3);
+                        }
+                    }
+
+                    if (j3max%2==0)
+                    {
+                        this->operator()(j1, j2, j3max+1) = -oddsum;
+                        this->operator()(j1, j2, j3max+2) = -evensum;
+                    }
+                    else
+                    {
+                        this->operator()(j1, j2, j3max+1) = -evensum;
+                        this->operator()(j1, j2, j3max+2) = -oddsum;
+                    }
                 }
             }
         }
