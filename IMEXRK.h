@@ -764,6 +764,18 @@ public:
     {
         PopulateNodalVariablesAdjoint();
 
+        stratifloat lambda;
+
+        static MField dLdu1(BoundaryCondition::Bounded);
+        static MField dLdu2(BoundaryCondition::Bounded);
+        static MField dLdu3(BoundaryCondition::Decaying);
+        static MField dLdb(BoundaryCondition::Bounded);
+
+        static MField dEdu1(BoundaryCondition::Bounded);
+        static MField dEdu2(BoundaryCondition::Bounded);
+        static MField dEdu3(BoundaryCondition::Decaying);
+        static MField dEdb(BoundaryCondition::Bounded);
+
         if (EnergyConstraint == EnergyType::Full)
         {
             // store u+U in a variable oldu1Full
@@ -802,23 +814,18 @@ public:
             stratifloat c3 = 0.5*epsilon*vdotv - udotv - Ri*InnerProd(B, z, L3);
 
             // take negative sign for quadratic, so it behaves correctly as epsilon->0
-            stratifloat lambda = SolveQuadratic(c1, c2, c3);
+            lambda = SolveQuadratic(c1, c2, c3);
 
-            // store the new values in old (which we no longer need after this)
-            oldu1 = oldu1 + -epsilon*u1 + -epsilon*lambda*oldu1Full;
-            oldu2 = (1-lambda*epsilon)*oldu2 + -epsilon*u2;
-            oldu3 = (1-lambda*epsilon)*oldu3 + -epsilon*u3;
+            dLdu1 = u1;
+            dLdu2 = u2;
+            dLdu3 = u3;
+            dLdb = b;
+
+            dEdu1 = oldu1Full;
+            dEdu2 = oldu2;
+            dEdu3 = oldu3;
             z.ToModal(boundedTemp);
-            oldb  = oldb  + -epsilon*b + -epsilon*lambda*Ri*boundedTemp;
-
-            // now actually update the values for the next step
-            u1 = oldu1;
-            u2 = oldu2;
-            u3 = oldu3;
-            b = oldb;
-            p.Zero();
-
-            return 1;
+            dEdb = Ri*boundedTemp;
         }
         else
         {
@@ -871,63 +878,69 @@ public:
                 udotv += InnerProd(u2, oldu2, L3);
             }
 
-            stratifloat lambda = SolveQuadratic(epsilon*udotu,
-                                                2*epsilon*udotv - 2*udotu,
-                                                epsilon*vdotv - 2*udotv);
+            lambda = SolveQuadratic(epsilon*udotu,
+                                    2*epsilon*udotv - 2*udotu,
+                                    epsilon*vdotv - 2*udotv);
 
-            static MField bscaled(BoundaryCondition::Bounded);
+            dLdu1 = u1;
+            dLdu2 = u2;
+            dLdu3 = u3;
+
 
             if (EnergyConstraint == EnergyType::MadeUp)
             {
-                bscaled = b;
+                dLdb = (1/Ri)*b;
             }
             else if (EnergyConstraint == EnergyType::Correct)
             {
-                nnTemp = -1*B*dB_dz;
-                nnTemp.ToModal(bscaled);
+                nnTemp = -(1/Ri)*B*dB_dz;
+                nnTemp.ToModal(dLdb);
             }
             else
             {
                 assert(0);
             }
 
-            // store the new values in old (which we no longer need after this)
-            oldu1 = (1-lambda*epsilon)*oldu1 + -epsilon*u1;
-            oldu2 = (1-lambda*epsilon)*oldu2 + -epsilon*u2;
-            oldu3 = (1-lambda*epsilon)*oldu3 + -epsilon*u3;
-            oldb  = (1-lambda*epsilon)*oldb  + -(1/Ri)*epsilon*bscaled;
-
-            stratifloat new2E0 = InnerProd(oldu1, oldu1, L3)
-                            + InnerProd(oldu3, oldu3, L3);
-
-            if (EnergyConstraint == EnergyType::MadeUp)
-            {
-                new2E0 += InnerProd(oldb, oldb, L3, Ri);
-            }
-            else if (EnergyConstraint == EnergyType::Correct)
-            {
-                new2E0 += InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
-            }
-            else
-            {
-                assert(0);
-            }
-
-            if (ThreeDimensional)
-            {
-                new2E0 += InnerProd(oldu2, oldu2, L3);
-            }
-
-            // now actually update the values for the next step
-            u1 = oldu1;
-            u2 = oldu2;
-            u3 = oldu3;
-            b = oldb;
-            p.Zero();
-
-            // return the residual
-            return 1 - udotv*udotv/udotu/vdotv;
+            dEdu1 = oldu1;
+            dEdu2 = oldu2;
+            dEdu3 = oldu3;
+            dEdb = oldb;
         }
+
+        // perform the gradient descent
+        oldu1 = oldu1 + -epsilon*dLdu1 + -epsilon*lambda*dEdu1;
+        oldu2 = oldu2 + -epsilon*dLdu2 + -epsilon*lambda*dEdu2;
+        oldu3 = oldu3 + -epsilon*dLdu3 + -epsilon*lambda*dEdu3;
+        oldb = oldb + -epsilon*dLdb + -epsilon*lambda*dEdb;
+
+        // now actually update the values for the next step
+        u1 = oldu1;
+        u2 = oldu2;
+        u3 = oldu3;
+        b = oldb;
+        p.Zero();
+
+        // find the residual
+        stratifloat residualNumerator = 0;
+
+        boundedTemp = dLdu1 + lambda*dEdu1;
+        residualNumerator += InnerProd(boundedTemp, boundedTemp, L3);
+        decayingTemp = dLdu3 + lambda*dEdu3;
+        residualNumerator += InnerProd(decayingTemp, decayingTemp, L3);
+        boundedTemp = dLdb + lambda*dEdb;
+        residualNumerator += InnerProd(boundedTemp, boundedTemp, L3);
+        if(ThreeDimensional)
+        {
+            boundedTemp = dLdu2 + lambda*dEdu2;
+            residualNumerator += InnerProd(boundedTemp, boundedTemp, L3);
+        }
+
+        stratifloat residualDenominator = InnerProd(dLdu1, dLdu1, L3)
+                                        + InnerProd(dLdu3, dLdu3, L3)
+                                        + InnerProd(dLdb, dLdb, L3)
+                                        + (ThreeDimensional?InnerProd(dLdu2, dLdu2, L3):0);
+
+        return residualNumerator/residualDenominator;
     }
 
     void RescaleForEnergy(stratifloat energy)
