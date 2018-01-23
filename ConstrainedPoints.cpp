@@ -35,8 +35,8 @@ int main(int argc, char *argv[])
         solver.SetBackground(InitialU, InitialB);
         solver.RescaleForEnergy(energy);
 
-        stratifloat velocityNorm = sqrt(InnerProd(solver.u1, solver.u1, L3) + InnerProd(solver.u3, solver.u3, L3));
-        stratifloat buoyancyNorm = sqrt(InnerProd(solver.b, solver.b, L3));
+        stratifloat velocityNorm = sqrt(solver.KE(EnergyType::Correct));
+        stratifloat buoyancyNorm = sqrt(solver.PE(EnergyType::Correct));
 
         std::cout << velocityNorm << " " << buoyancyNorm << std::endl;
     }

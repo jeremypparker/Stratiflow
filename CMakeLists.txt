@@ -62,3 +62,6 @@ target_link_libraries(SnapshotViewer StratiLib)
 
 add_executable(OrrSommerfeld LargestGrowth.cpp)
 target_link_libraries(OrrSommerfeld StratiLib)
+
+add_executable(ConstrainedPoints ConstrainedPoints.cpp)
+target_link_libraries(ConstrainedPoints StratiLib)

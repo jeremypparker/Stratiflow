@@ -496,6 +496,16 @@ public:
 
     stratifloat KE() const
     {
+        return KE(EnergyConstraint);
+    }
+
+    stratifloat PE() const
+    {
+        return PE(EnergyConstraint);
+    }
+
+    stratifloat KE(EnergyType energyType) const
+    {
         stratifloat energy = 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u3, u3, L3));
 
         if(ThreeDimensional)
@@ -503,7 +513,7 @@ public:
             energy += 0.5f*InnerProd(u2, u2, L3);
         }
 
-        if (EnergyConstraint == EnergyType::Full)
+        if (energyType == EnergyType::Full)
         {
             u_.ToNodal(U_);
             u1.ToNodal(U1);
@@ -516,7 +526,7 @@ public:
 
     }
 
-    stratifloat PE() const
+    stratifloat PE(EnergyType energyType) const
     {
         for (int j=0; j<N3; j++)
         {
@@ -530,11 +540,11 @@ public:
             }
         }
 
-        if (EnergyConstraint == EnergyType::MadeUp)
+        if (energyType == EnergyType::MadeUp)
         {
             return 0.5f*InnerProd(b, b, L3, Ri);
         }
-        else if (EnergyConstraint == EnergyType::Correct)
+        else if (energyType == EnergyType::Correct)
         {
             return 0.5f*InnerProd(b, b, L3, -Ri*nnTemp1D);
         }

@@ -1014,7 +1014,7 @@ public:
             {
                 for (int j2=0; j2<N2; j2++)
                 {
-                    complex evensum = 0.5*this->operator()(j1, j2, 0);
+                    complex evensum = 0.5f*this->operator()(j1, j2, 0);
                     complex oddsum = 0;
                     for (int j3=1; j3<=j3max; j3++)
                     {

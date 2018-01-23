@@ -16,7 +16,7 @@ constexpr bool ThreeDimensional = false; // whether to resolve spanwise directio
 
 constexpr bool SnapshotToMemory = false;
 
-constexpr EnergyType EnergyConstraint = EnergyType::Full;
+constexpr EnergyType EnergyConstraint = EnergyType::Correct;
 
 // FLOW PARAMETERS //
 constexpr stratifloat Re = 1000;
