@@ -58,6 +58,13 @@ void HorizontalAverage(const ModalField<N1,N2,N3>& integrand, Modal1D<N1,N2,N3>&
     into.Get() = real(integrand.stack(0,0));
 }
 
+template<int N1, int N2, int N3>
+void RemoveHorizontalAverage(ModalField<N1,N2,N3>& integrand)
+{
+    // the zero mode gives the horizontal average
+    integrand.stack(0,0).setZero();
+}
+
 template<typename C, typename T, int N1, int N2, int N3>
 stratifloat InnerProd(const NodalField<N1,N2,N3>& A, const NodalField<N1,N2,N3>& B, stratifloat L3, const StackContainer<C,T,N1,N2,N3>& weight)
 {
