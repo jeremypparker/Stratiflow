@@ -440,6 +440,8 @@ public:
     {
         velocity.ToModal(u_);
         buoyancy.ToModal(b_);
+
+        PopulateNodalVariables();
     }
 
     void SetBackground(std::function<stratifloat(stratifloat)> velocity,

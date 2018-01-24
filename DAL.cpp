@@ -92,16 +92,11 @@ int main(int argc, char *argv[])
 
         solver.RemoveDivergence(0.0f);
 
-        // rescale energy
-        solver.SetBackground(InitialU, InitialB);
-        solver.RescaleForEnergy(energy);
-
-
         // in this case, overwrite any old file
         energyFile.open("energy.dat", std::fstream::out);
     }
 
-    stratifloat epsilon = 0.01; // gradient ascent step size
+    stratifloat epsilon = 0.05; // gradient ascent step size
 
     for (; p<maxiterations; p++) // Direct-adjoint loop
     {
@@ -118,11 +113,11 @@ int main(int argc, char *argv[])
 
         stratifloat JoverKintegrated = 0;
 
-        solver.PrepareRun("images/");
-
         std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
         solver.RescaleForEnergy(energy); // rescale to ensure we don't drift
         std::cout << "E0 (after rescale): " << solver.KE() + solver.PE() << std::endl;
+
+        solver.PrepareRun("images/");
 
         // save initial condition
         solver.StoreSnapshot(totalTime);
