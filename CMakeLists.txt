@@ -65,3 +65,6 @@ target_link_libraries(OrrSommerfeld StratiLib)
 
 add_executable(ConstrainedPoints ConstrainedPoints.cpp)
 target_link_libraries(ConstrainedPoints StratiLib)
+
+add_executable(FieldNorms FieldNorms.cpp)
+target_link_libraries(FieldNorms StratiLib)
