@@ -849,19 +849,22 @@ public:
             }
 
             stratifloat udotu = InnerProd(oldu1, oldu1, L3)
-                            + InnerProd(oldu3, oldu3, L3);
+                              + InnerProd(oldu3, oldu3, L3)
+                              + (ThreeDimensional?InnerProd(oldu2, oldu2, L3):0);
 
             stratifloat vdotv = InnerProd(u1, u1, L3)
-                            + InnerProd(u3, u3, L3);
+                              + InnerProd(u3, u3, L3)
+                              + (ThreeDimensional?InnerProd(u2, u2, L3):0);
 
             stratifloat udotv = InnerProd(u1, oldu1, L3)
-                            + InnerProd(u3, oldu3, L3)
-                            + InnerProd(b, oldb, L3);
+                              + InnerProd(u3, oldu3, L3)
+                              + InnerProd(b, oldb, L3)
+                              + (ThreeDimensional?InnerProd(u2, oldu2, L3):0);
 
             if (EnergyConstraint == EnergyType::MadeUp)
             {
-                udotu += InnerProd(oldb, oldb, L3, Ri);
-                vdotv += InnerProd(b, b, L3, (1/Ri));
+                udotu += Ri*InnerProd(oldb, oldb, L3);
+                vdotv += InnerProd(b, b, L3)/Ri;
             }
             else if (EnergyConstraint == EnergyType::Correct)
             {
@@ -873,13 +876,6 @@ public:
                 assert(0);
             }
 
-            if (ThreeDimensional)
-            {
-                udotu += InnerProd(oldu2, oldu2, L3);
-                vdotv += InnerProd(u2, u2, L3);
-                udotv += InnerProd(u2, oldu2, L3);
-            }
-
             lambda = SolveQuadratic(epsilon*udotu,
                                     2*epsilon*udotv - 2*udotu,
                                     epsilon*vdotv - 2*udotv);
@@ -887,7 +883,6 @@ public:
             dLdu1 = u1;
             dLdu2 = u2;
             dLdu3 = u3;
-
 
             if (EnergyConstraint == EnergyType::MadeUp)
             {
@@ -897,10 +892,6 @@ public:
             {
                 nnTemp = -(1/Ri)*B*dB_dz;
                 nnTemp.ToModal(dLdb);
-            }
-            else
-            {
-                assert(0);
             }
 
             dEdu1 = oldu1;
