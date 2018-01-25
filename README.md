@@ -4,7 +4,12 @@ Stratiflow is a package for the direct numerical simulation (DNS) of stratified 
 
 ## Compilation and Usage
 
-Stratiflow uses CMake for builds. At a minimum you will require FFTW, and a C++ compiler supporting C++14.
+### Prerequisites
+* CMake, for building
+* A C++ compiler supporting C++14
+* FFTW
+* Eigen 3
+* Python with matplotlib for figures
 
 Stratiflow has only been tested on Linux, but it should be straightforward to port to Windows and hopefully works out-of-the-box on macOS.
 
