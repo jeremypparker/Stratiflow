@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.1.3)
 
 option(DOUBLE "Use double precision floating point")
 option(MKL "Use intel math kernel library")
+option(CUDA "Use CUDA for FFTs")
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,12 +26,12 @@ link_libraries(python2.7)
 link_libraries(m)
 
 if(DOUBLE)
-    if(NOT MKL)
+    if(NOT MKL AND NOT CUDA)
         link_libraries(fftw3 fftw3_omp)
     endif()
     add_definitions(-DUSE_DOUBLE)
 else()
-    if(NOT MKL)
+    if(NOT MKL AND NOT CUDA)
         link_libraries(fftw3f fftw3f_omp)
     endif()
 endif()
@@ -42,12 +43,19 @@ if(MKL)
     add_definitions(-DEIGEN_USE_MKL_ALL)
 endif()
 
-add_library(StratiLib Differentiation.cpp
-                      Field.cpp
-                      Graph.cpp
-                      Integration.cpp
-                      OSUtils.cpp
-                      OrrSommerfeld.cpp)
+if(CUDA)
+    link_libraries(cufft cufftw)
+    add_definitions(-DUSE_CUDA)
+endif()
+
+add_library(StratiLib
+    Differentiation.cpp
+    Field.cpp
+    Graph.cpp
+    Integration.cpp
+    OSUtils.cpp
+    FFT.cpp
+    OrrSommerfeld.cpp)
 
 add_subdirectory(tests)
 
