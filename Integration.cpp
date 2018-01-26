@@ -6,6 +6,8 @@ stratifloat SolveQuadratic(stratifloat a, stratifloat b, stratifloat c, bool pos
 
     if (discriminant < 0)
     {
+        std::cout << "Quadratic gives complex solutions!" << std::endl;
+        std::cout << "a=" << a << ", b=" << b << ", c=" << c << std::endl;
         return 0;
     }
 

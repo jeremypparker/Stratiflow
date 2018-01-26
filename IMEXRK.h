@@ -755,7 +755,7 @@ public:
         }
     }
 
-    stratifloat Optimise(stratifloat epsilon,
+    stratifloat Optimise(stratifloat& epsilon,
                          stratifloat E_0,
                          MField& oldu1,
                          MField& oldu2,
@@ -811,12 +811,21 @@ public:
             }
 
 
-            stratifloat c1 = 0.5*epsilon*udotu;
-            stratifloat c2 = epsilon*udotv - udotu - Ri*Ri*InnerProd(z, z, L3);
-            stratifloat c3 = 0.5*epsilon*vdotv - udotv - Ri*InnerProd(B, z, L3);
+            while(lambda==0)
+            {
+                stratifloat c1 = 0.5*epsilon*udotu;
+                stratifloat c2 = epsilon*udotv - udotu - Ri*Ri*InnerProd(z, z, L3);
+                stratifloat c3 = 0.5*epsilon*vdotv - udotv - Ri*InnerProd(B, z, L3);
 
-            // take negative sign for quadratic, so it behaves correctly as epsilon->0
-            lambda = SolveQuadratic(c1, c2, c3);
+                // take negative sign for quadratic, so it behaves correctly as epsilon->0
+                lambda = SolveQuadratic(c1, c2, c3);
+
+                if (lambda==0)
+                {
+                    std::cout << "Reducing step size" << std::endl;
+                    epsilon /= 2;
+                }
+            }
 
             dLdu1 = u1;
             dLdu2 = u2;
@@ -876,9 +885,17 @@ public:
                 assert(0);
             }
 
-            lambda = SolveQuadratic(epsilon*udotu,
-                                    2*epsilon*udotv - 2*udotu,
-                                    epsilon*vdotv - 2*udotv);
+            while(lambda==0)
+            {
+                lambda = SolveQuadratic(epsilon*udotu,
+                                        2*epsilon*udotv - 2*udotu,
+                                        epsilon*vdotv - 2*udotv);
+                if (lambda==0)
+                {
+                    std::cout << "Reducing step size" << std::endl;
+                    epsilon /= 2;
+                }
+            }
 
             dLdu1 = u1;
             dLdu2 = u2;
