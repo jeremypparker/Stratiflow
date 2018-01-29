@@ -303,13 +303,13 @@ public:
 
         PopulateNodalVariables();
 
-        MakeCleanDir(imageDirectory+"u1");
-        MakeCleanDir(imageDirectory+"u2");
-        MakeCleanDir(imageDirectory+"u3");
-        MakeCleanDir(imageDirectory+"buoyancy");
-        MakeCleanDir(imageDirectory+"pressure");
-        MakeCleanDir(imageDirectory+"vorticity");
-        MakeCleanDir(imageDirectory+"perturbvorticity");
+        MakeCleanDir(imageDirectory+"/u1");
+        MakeCleanDir(imageDirectory+"/u2");
+        MakeCleanDir(imageDirectory+"/u3");
+        MakeCleanDir(imageDirectory+"/buoyancy");
+        MakeCleanDir(imageDirectory+"/pressure");
+        MakeCleanDir(imageDirectory+"/vorticity");
+        MakeCleanDir(imageDirectory+"/perturbvorticity");
         MakeCleanDir(snapshotdir);
     }
 
@@ -332,13 +332,13 @@ public:
 
         BuildFilenameMap();
 
-        MakeCleanDir(imageDirectory+"u1");
-        MakeCleanDir(imageDirectory+"u2");
-        MakeCleanDir(imageDirectory+"u3");
-        MakeCleanDir(imageDirectory+"buoyancy");
-        MakeCleanDir(imageDirectory+"pressure");
-        MakeCleanDir(imageDirectory+"vorticity");
-        MakeCleanDir(imageDirectory+"perturbvorticity");
+        MakeCleanDir(imageDirectory+"/u1");
+        MakeCleanDir(imageDirectory+"/u2");
+        MakeCleanDir(imageDirectory+"/u3");
+        MakeCleanDir(imageDirectory+"/buoyancy");
+        MakeCleanDir(imageDirectory+"/pressure");
+        MakeCleanDir(imageDirectory+"/vorticity");
+        MakeCleanDir(imageDirectory+"/perturbvorticity");
     }
 
     void PlotBuoyancy(std::string filename, int j2, bool includeBackground = true) const

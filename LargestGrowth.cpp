@@ -8,7 +8,11 @@ int main()
     stratifloat kmax;
     stratifloat growthmax = -10000;
 
-    stratifloat k_lower = 0.001;
+    // the largest wavelength we want to consider
+    stratifloat lambdamax = 50.0;
+    stratifloat kmin = 2*pi/lambdamax;
+
+    stratifloat k_lower = kmin;
     stratifloat k_upper = 2.0;
 
     for (int n=0; n<5; n++)
@@ -26,7 +30,7 @@ int main()
             }
         }
 
-        k_lower = kmax - deltak;
+        k_lower = std::max(kmax - deltak, kmin);
         k_upper = kmax + deltak;
     }
 
