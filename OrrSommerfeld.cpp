@@ -56,11 +56,14 @@ ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen
 
     MatrixXc C22 = -I;
 
-    MatrixXc A(2*N3, 2*N3);
-    MatrixXc C(2*N3, 2*N3);
+    // values at infinity must be zero, so ignore those bits
+    MatrixXc A(2*(N3-2), 2*(N3-2));
+    MatrixXc C(2*(N3-2), 2*(N3-2));
 
-    A << A11, A12, A21, A22;
-    C << C11, C12, C21, C22;
+    A << A11.block(1, 1, N3-2, N3-2), A12.block(1, 1, N3-2, N3-2),
+         A21.block(1, 1, N3-2, N3-2), A22.block(1, 1, N3-2, N3-2);
+    C << C11.block(1, 1, N3-2, N3-2), C12.block(1, 1, N3-2, N3-2),
+         C21.block(1, 1, N3-2, N3-2), C22.block(1, 1, N3-2, N3-2);
 
     // eigen's generalised eigenvalue solver currently supports only real matrices
     // so this is a hack around that
@@ -70,15 +73,19 @@ ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen
     ComplexEigenSolver<MatrixXc> solver;
 
     solver.compute(CinvA);
+    if (solver.info() != Success)
+    {
+        std::cout << "Failed to converge!" << std::endl;
+    }
 
     if (w_eigen!=nullptr)
     {
-        *w_eigen = solver.eigenvectors().topRows(N3);
+        w_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().topRows(N3-2);
     }
 
     if (b_eigen!=nullptr)
     {
-        *b_eigen = solver.eigenvectors().bottomRows(N3);
+        b_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().bottomRows(N3-2);
     }
 
     return solver.eigenvalues();
@@ -88,8 +95,8 @@ stratifloat LargestGrowth(stratifloat k,
                           Field1D<complex, N1, N2, N3>* w,
                           Field1D<complex, N1, N2, N3>* b)
 {
-    MatrixXc w_eigen(N3,2*N3);
-    MatrixXc b_eigen(N3,2*N3);
+    MatrixXc w_eigen(N3,2*(N3-2));
+    MatrixXc b_eigen(N3,2*(N3-2));
 
     auto eigenvalues = CalculateEigenvalues(k, &w_eigen, &b_eigen);
 
