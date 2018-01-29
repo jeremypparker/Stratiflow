@@ -4,7 +4,7 @@
 
 int main(int argc, char *argv[])
 {
-    stratifloat targetTime = 150.0;
+    stratifloat targetTime = 80.0;
     stratifloat energy = 0.001;
 
     f3_init_threads();
@@ -33,9 +33,23 @@ int main(int argc, char *argv[])
         MField initialu3(BoundaryCondition::Decaying);
         MField initialb(BoundaryCondition::Bounded);
 
-        // add the eigenmode
         std::cout << "Calculating Eigenmode..." << std::endl;
-        EigenModes(2*pi/L1, initialu1, initialu2, initialu3, initialb);
+
+        // find which mode to use
+        int mode = 0;
+        stratifloat growth = -1000;
+        for (int m=1; m<5; m++)
+        {
+            stratifloat sigma = LargestGrowth(2*pi*m/L1);
+            if (sigma > growth)
+            {
+                growth = sigma;
+                mode = m;
+            }
+        }
+
+        // add the eigenmode
+        EigenModes(2*pi*mode/L1, initialu1, initialu2, initialu3, initialb);
         initialu1.ToNodal(initialU1);
         initialu2.ToNodal(initialU2);
         initialu3.ToNodal(initialU3);
