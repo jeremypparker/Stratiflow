@@ -105,7 +105,7 @@ public:
     , solveLaplacian(M1*N2)
     , implicitSolveBounded{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
     , implicitSolveDecaying{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
-
+    , implicitSolveBuoyancy{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
     {
         assert(ThreeDimensional || N2 == 1);
 
@@ -741,6 +741,10 @@ public:
 
                     implicitSolveBounded[k][j1*N2+j2].compute(solve);
 
+                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Pe).sparseView();
+
+                    implicitSolveBuoyancy[k][j1*N2+j2].compute(solve);
+
 
                     laplacian = dim3Derivative2Decaying;
                     laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
@@ -1054,27 +1058,41 @@ private:
         B_tot.ToModal(b_tot);
     }
 
-    void CNSolve(MField& solve, MField& into, int k)
+    void CNSolve(MField& solve, MField& into, int k, bool buoyancy = false)
     {
-        if (solve.BC() == BoundaryCondition::Bounded)
+        if (buoyancy)
         {
-            solve.Solve(implicitSolveBounded[k], into);
+            solve.Solve(implicitSolveBuoyancy[k], into);
         }
         else
         {
-            solve.Solve(implicitSolveDecaying[k], into);
+            if (solve.BC() == BoundaryCondition::Bounded)
+            {
+                solve.Solve(implicitSolveBounded[k], into);
+            }
+            else
+            {
+                solve.Solve(implicitSolveDecaying[k], into);
+            }
         }
     }
 
-    void CNSolve1D(M1D& solve, M1D& into, int k)
+    void CNSolve1D(M1D& solve, M1D& into, int k, bool buoyancy = false)
     {
-        if (solve.BC() == BoundaryCondition::Bounded)
+        if (buoyancy)
         {
-            solve.Solve(implicitSolveBounded[k][0], into);
+            solve.Solve(implicitSolveBuoyancy[k][0], into);
         }
         else
         {
-            solve.Solve(implicitSolveDecaying[k][0], into);
+            if (solve.BC() == BoundaryCondition::Bounded)
+            {
+                solve.Solve(implicitSolveBounded[k][0], into);
+            }
+            else
+            {
+                solve.Solve(implicitSolveDecaying[k][0], into);
+            }
         }
     }
 
@@ -1086,10 +1104,10 @@ private:
             CNSolve(R2, u2, k);
         }
         CNSolve(R3, u3, k);
-        CNSolve(RB, b, k);
+        CNSolve(RB, b, k, true);
 
         CNSolve1D(RU_, u_, k);
-        CNSolve1D(RB_, b_, k);
+        CNSolve1D(RB_, b_, k, true);
     }
 
     void ImplicitUpdateAdjoint(int k)
@@ -1100,7 +1118,7 @@ private:
             CNSolve(R2, u2, k);
         }
         CNSolve(R3, u3, k);
-        CNSolve(RB, b, k);
+        CNSolve(RB, b, k, true);
     }
 
     void ExplicitUpdate(int k)
@@ -1114,11 +1132,11 @@ private:
         R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
         }
         R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
-        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
 
         // // for the 1D variables u_ and b_ (background flow) we only use vertical derivative matrix
         RU_ = u_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, u_);
-        RB_ = b_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, b_);
+        RB_ = b_ + (0.5f*h[k]/Pe)*MatMul1D(dim3Derivative2Bounded, b_);
 
         // now construct explicit terms
         r1.Zero();
@@ -1213,7 +1231,7 @@ private:
         R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
         }
         R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
-        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
 
         // now construct explicit terms
         r1.Zero();
@@ -1409,6 +1427,7 @@ private:
 
     std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveBounded[3];
     std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveDecaying[3];
+    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveBuoyancy[3];
     std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> solveLaplacian;
 
     // for flow saving/loading

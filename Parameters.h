@@ -21,8 +21,9 @@ constexpr EnergyType EnergyConstraint = EnergyType::Correct;
 // FLOW PARAMETERS //
 constexpr stratifloat Re = 1000;
 constexpr stratifloat Ri = 1.0/6.0;
-constexpr stratifloat Pe = Re; // Pe != Re not yet supported!
-constexpr stratifloat R = 1;
+constexpr stratifloat R = 2.8284;
+constexpr stratifloat Pr = R*R;
+constexpr stratifloat Pe = Re*Pr;
 
 // background shear
 inline stratifloat InitialU(stratifloat z)
