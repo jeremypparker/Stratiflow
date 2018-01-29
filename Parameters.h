@@ -8,7 +8,7 @@ constexpr int N1 = 384; // Number of streamwise gridpoints
 constexpr int N2 = 1;   // Number of spanwise gridpoints
 constexpr int N3 = 440; // Number of vertical gridpoints
 
-constexpr stratifloat L1 = 14.228; // size of domain streamwise
+constexpr stratifloat L1 = 13.649; // size of domain streamwise
 constexpr stratifloat L2 = 4.0f;  // size of domain spanwise
 constexpr stratifloat L3 = 5.0f; // vertical scaling factor
 
@@ -20,7 +20,7 @@ constexpr EnergyType EnergyConstraint = EnergyType::Correct;
 
 // FLOW PARAMETERS //
 constexpr stratifloat Re = 1000;
-constexpr stratifloat Ri = 0.1;
+constexpr stratifloat Ri = 1.0/6.0;
 constexpr stratifloat Pe = Re; // Pe != Re not yet supported!
 constexpr stratifloat R = 1;
 
