@@ -3,27 +3,27 @@
 
 // These are the used-modifiable parameters for Stratiflow
 
-// SOLVER PARAMETERS //
-constexpr int N1 = 384; // Number of streamwise gridpoints
-constexpr int N2 = 1;   // Number of spanwise gridpoints
-constexpr int N3 = 440; // Number of vertical gridpoints
+// These are runtime parameters - values in Parameters.cpp
+extern stratifloat L1;
+extern stratifloat L2;
+extern stratifloat L3;
+extern stratifloat Re;
+extern stratifloat Ri;
+extern stratifloat R;
+extern stratifloat Pr;
+extern stratifloat Pe;
+extern EnergyType EnergyConstraint;
 
-constexpr stratifloat L1 = 13.649; // size of domain streamwise
-constexpr stratifloat L2 = 4.0f;  // size of domain spanwise
-constexpr stratifloat L3 = 5.0f; // vertical scaling factor
+// These must be defined at compile time
+
+// SOLVER PARAMETERS //
+constexpr int N1 = 512; // Number of streamwise gridpoints
+constexpr int N2 = 1;   // Number of spanwise gridpoints
+constexpr int N3 = 256; // Number of vertical gridpoints
 
 constexpr bool ThreeDimensional = false; // whether to resolve spanwise direction
 
 constexpr bool SnapshotToMemory = false;
-
-constexpr EnergyType EnergyConstraint = EnergyType::Correct;
-
-// FLOW PARAMETERS //
-constexpr stratifloat Re = 1000;
-constexpr stratifloat Ri = 1.0/6.0;
-constexpr stratifloat R = 2.8284;
-constexpr stratifloat Pr = R*R;
-constexpr stratifloat Pe = Re*Pr;
 
 // background shear
 inline stratifloat InitialU(stratifloat z)

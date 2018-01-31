@@ -55,7 +55,8 @@ add_library(StratiLib
     Integration.cpp
     OSUtils.cpp
     FFT.cpp
-    OrrSommerfeld.cpp)
+    OrrSommerfeld.cpp
+    Parameters.cpp)
 
 add_subdirectory(tests)
 

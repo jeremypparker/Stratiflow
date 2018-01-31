@@ -144,10 +144,15 @@ void EigenModes(stratifloat k, MField& u1, MField& u2, MField& u3, MField& b)
 
     for3D(N1,N2,N3)
     {
-        W(j1,j2,j3) = real(w_hat.Get()(j3) * exp(i*k*x(j1)));
+        // eigenvalues come in complex conjugate pairs, with hermitian symmetry of eigenfunctions
+        // make sure we include both parts equally
+        complex w_hat_j = w_hat.Get()(j3) + std::conj(w_hat.Get()(N3-j3-1));
+        complex b_hat_j = b_hat.Get()(j3) + std::conj(b_hat.Get()(N3-j3-1));
+
+        W(j1,j2,j3) = real(w_hat_j * exp(i*k*x(j1)));
 
         // todo: make consistent the definition of b
-        B(j1,j2,j3) = -real(b_hat.Get()(j3) * exp(i*k*x(j1)));
+        B(j1,j2,j3) = -real(b_hat_j * exp(i*k*x(j1)));
     } endfor3D
 
     W.ToModal(u3);
