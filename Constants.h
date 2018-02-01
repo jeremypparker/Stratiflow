@@ -62,6 +62,7 @@
 
 constexpr stratifloat pi = 3.14159265358979;
 constexpr std::complex<stratifloat> i(0, 1);
+constexpr stratifloat phi = 1.61803398874989;
 
 // this number should be tweaked depending on the cache size of the processor
 constexpr int LoopBlockSize = 16;

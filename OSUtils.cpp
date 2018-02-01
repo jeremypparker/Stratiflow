@@ -25,6 +25,12 @@ void MakeCleanDir(const std::string& dir)
     ExecuteShell("mkdir -p " + dir);
 }
 
+void MoveDirectory(const std::string& from, const std::string& to)
+{
+    ExecuteShell("rm -rf " + to);
+    ExecuteShell("mv " + from + " " + to);
+}
+
 void LoadVariable(const std::string& filename, NField& into, int index)
 {
     std::ifstream filestream(filename, std::ios::in | std::ios::binary);
