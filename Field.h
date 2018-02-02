@@ -1063,6 +1063,40 @@ public:
         }
     }
 
+    void Antisymmetrise()
+    {
+        if (this->BC() == BoundaryCondition::Decaying)
+        {
+            #pragma omp parallel for
+            for3D(actualN1,N2,N3)
+            {
+                if (j3%2 == 0)
+                {
+                    this->operator()(j1,j2,j3).imag(0); // imaginary part antisymmetric
+                }
+                else
+                {
+                    this->operator()(j1,j2,j3).real(0); // real part symmetric
+                }
+            } endfor3D
+        }
+        else
+        {
+            #pragma omp parallel for
+            for3D(actualN1,N2,N3)
+            {
+                if (j3%2 == 0)
+                {
+                    this->operator()(j1,j2,j3).real(0); // real part antisymmetric
+                }
+                else
+                {
+                    this->operator()(j1,j2,j3).imag(0); // imaginary part symmetric
+                }
+            } endfor3D
+        }
+    }
+
 private:
     static std::vector<stratifloat, aligned_allocator<stratifloat>> intermediateData;
     static f3_plan plan;

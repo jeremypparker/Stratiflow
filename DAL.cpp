@@ -113,6 +113,12 @@ int main(int argc, char *argv[])
 
         stratifloat JoverKintegrated = 0;
 
+        // slight hack: we expect all optimals to have symmetry, so enforce this
+        solver.u1.Antisymmetrise();
+        solver.u2.Antisymmetrise();
+        solver.u3.Antisymmetrise();
+        solver.b.Antisymmetrise();
+
         std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
         solver.RescaleForEnergy(energy); // rescale to ensure we don't drift
         std::cout << "E0 (after rescale): " << solver.KE() + solver.PE() << std::endl;
