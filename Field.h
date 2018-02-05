@@ -440,6 +440,11 @@ public:
         _data.setZero();
     }
 
+    void Zero()
+    {
+        _data.setZero();
+    }
+
     template<typename A>
     const Field1D<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
