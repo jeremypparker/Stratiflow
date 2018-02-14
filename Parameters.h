@@ -13,6 +13,7 @@ extern stratifloat R;
 extern stratifloat Pr;
 extern stratifloat Pe;
 extern EnergyType EnergyConstraint;
+extern bool EnforceSymmetry;
 
 // These must be defined at compile time
 

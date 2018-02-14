@@ -4,7 +4,8 @@
 
 int main(int argc, char *argv[])
 {
-    stratifloat targetTime = 80.0;
+    stratifloat targetTime = 120.0;
+    stratifloat integrateTarget = 47.0;
     stratifloat energy = 0.001;
 
     f3_init_threads();
@@ -90,6 +91,8 @@ int main(int argc, char *argv[])
 
     std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
 
+    MField wIntegrated(BoundaryCondition::Decaying);
+
     solver.PrepareRun("images/");
     solver.PlotAll(std::to_string(totalTime)+".png", true);
     while (totalTime < targetTime)
@@ -107,6 +110,11 @@ int main(int argc, char *argv[])
                     << ", " << solver.totalImplicit / (step+1)
                     << ", " << solver.totalDivergence / (step+1)
                     << std::endl;
+        }
+
+        if (totalTime < integrateTarget)
+        {
+            wIntegrated += solver.deltaT * solver.u3;
         }
 
         int frame = static_cast<int>(totalTime / saveEvery);
@@ -127,6 +135,8 @@ int main(int argc, char *argv[])
         step++;
 
     }
+
+    std::cout << InnerProd(wIntegrated, wIntegrated, L3) << std::endl;
 
 
     f3_cleanup_threads();
