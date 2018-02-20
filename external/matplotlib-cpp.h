@@ -290,6 +290,18 @@ namespace matplotlibcpp {
 
 #endif // WITHOUT_NUMPY
 
+	inline void axis(const std::string &axisstr)
+	{
+		PyObject* str = PyString_FromString(axisstr.c_str());
+		PyObject* args = PyTuple_New(1);
+		PyTuple_SetItem(args, 0, str);
+
+		PyObject* res = PyObject_CallObject(detail::_interpreter::get().s_python_function_axis, args);
+		if(!res) throw std::runtime_error("Call to title() failed.");
+
+		// if PyDeCRFF, the function doesn't work on Mac OS
+	}
+
 	template<typename Numeric>
 	bool plot(const std::vector<Numeric> &x, const std::vector<Numeric> &y, const std::map<std::string, std::string>& keywords)
 	{
@@ -682,18 +694,6 @@ namespace matplotlibcpp {
 		PyTuple_SetItem(args, 0, pytitlestr);
 
 		PyObject* res = PyObject_CallObject(detail::_interpreter::get().s_python_function_title, args);
-		if(!res) throw std::runtime_error("Call to title() failed.");
-
-		// if PyDeCRFF, the function doesn't work on Mac OS
-	}
-
-	inline void axis(const std::string &axisstr)
-	{
-		PyObject* str = PyString_FromString(axisstr.c_str());
-		PyObject* args = PyTuple_New(1);
-		PyTuple_SetItem(args, 0, str);
-
-		PyObject* res = PyObject_CallObject(detail::_interpreter::get().s_python_function_axis, args);
 		if(!res) throw std::runtime_error("Call to title() failed.");
 
 		// if PyDeCRFF, the function doesn't work on Mac OS
