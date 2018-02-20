@@ -344,10 +344,16 @@ namespace matplotlibcpp {
 		Py_DECREF(args);
 		if(res) Py_DECREF(res);
 
+		PyObject* kwargs2 = PyDict_New();
+		PyDict_SetItemString(kwargs2, "fraction", PyFloat_FromDouble(0.046));
+		PyDict_SetItemString(kwargs2, "pad", PyFloat_FromDouble(0.04));
+
 		PyObject* args2 = PyTuple_New(0);
-		res = PyObject_Call(detail::_interpreter::get().s_python_function_colorbar, args2, nullptr);
+		res = PyObject_Call(detail::_interpreter::get().s_python_function_colorbar, args2, kwargs2);
 		Py_DECREF(args2);
 		if(res) Py_DECREF(res);
+
+		axis("off");
 
 		return res;
 	}
