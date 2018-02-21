@@ -54,6 +54,7 @@ namespace matplotlibcpp {
 			PyObject *s_python_function_errorbar;
 			PyObject *s_python_function_annotate;
 			PyObject *s_python_function_tight_layout;
+			PyObject *s_python_function_LinearSegmentedColormap;
 			PyObject *s_python_empty_tuple;
 
 			/* For now, _interpreter is implemented as a singleton since its currently not possible to have
@@ -85,6 +86,7 @@ namespace matplotlibcpp {
 
 				PyObject* matplotlibname = PyString_FromString("matplotlib");
 				PyObject* pyplotname = PyString_FromString("matplotlib.pyplot");
+				PyObject* colorsname = PyString_FromString("matplotlib.colors");
 				PyObject* pylabname  = PyString_FromString("pylab");
 				if (!pyplotname || !pylabname || !matplotlibname) {
 					throw std::runtime_error("couldnt create string");
@@ -104,6 +106,9 @@ namespace matplotlibcpp {
 				Py_DECREF(pyplotname);
 				if(!pymod) { throw std::runtime_error("Error loading module matplotlib.pyplot!"); }
 
+				PyObject* colors = PyImport_Import(colorsname);
+				Py_DECREF(colorsname);
+				if(!colors) { throw std::runtime_error("Error loading module matplotlib.colors!"); }
 
 				PyObject* pylabmod = PyImport_Import(pylabname);
 				Py_DECREF(pylabname);
@@ -133,6 +138,7 @@ namespace matplotlibcpp {
 				s_python_function_clf = PyObject_GetAttrString(pymod, "clf");
 				s_python_function_errorbar = PyObject_GetAttrString(pymod, "errorbar");
 				s_python_function_tight_layout = PyObject_GetAttrString(pymod, "tight_layout");
+				s_python_function_LinearSegmentedColormap = PyObject_GetAttrString(colors, "LinearSegmentedColormap");
 
 				if(        !s_python_function_show
 					|| !s_python_function_draw
@@ -158,6 +164,7 @@ namespace matplotlibcpp {
 					|| !s_python_function_errorbar
 					|| !s_python_function_errorbar
 					|| !s_python_function_tight_layout
+					|| !s_python_function_LinearSegmentedColormap
 				) { throw std::runtime_error("Couldn't find required function!"); }
 
 				if (       !PyFunction_Check(s_python_function_show)
@@ -337,6 +344,35 @@ namespace matplotlibcpp {
 	{
 		assert(x.size() == N1*N2);
 
+		// create colormap
+		PyObject* dark = PyTuple_New(3);
+		PyTuple_SetItem(dark, 0, PyFloat_FromDouble(0));
+		PyTuple_SetItem(dark, 1, PyFloat_FromDouble(0.243));
+		PyTuple_SetItem(dark, 2, PyFloat_FromDouble(0.447));
+
+		PyObject* white = PyTuple_New(3);
+		PyTuple_SetItem(white, 0, PyFloat_FromDouble(1));
+		PyTuple_SetItem(white, 1, PyFloat_FromDouble(1));
+		PyTuple_SetItem(white, 2, PyFloat_FromDouble(1));
+
+		PyObject* light = PyTuple_New(3);
+		PyTuple_SetItem(light, 0, PyFloat_FromDouble(0.745));
+		PyTuple_SetItem(light, 1, PyFloat_FromDouble(0.302));
+		PyTuple_SetItem(light, 2, PyFloat_FromDouble(0.0));
+
+
+		PyObject* color_list = PyList_New(3);
+		PyList_SetItem(color_list, 0, dark);
+		PyList_SetItem(color_list, 1, white);
+		PyList_SetItem(color_list, 2, light);
+		PyObject* custom_cmap = PyObject_CallMethodObjArgs(detail::_interpreter::get().s_python_function_LinearSegmentedColormap, PyString_FromString("from_list"), PyString_FromString("damtpmap"), color_list, nullptr);
+
+		if (custom_cmap == nullptr)
+		{
+			std::cout << "Failed to create colormap" << std::endl;
+			return false;
+		}
+
 		// using numpy arrays
 		PyObject* xarray = get_array(x, N1, N2);
 
@@ -347,7 +383,7 @@ namespace matplotlibcpp {
 		// construct named args
 		PyObject* kwargs = PyDict_New();
 
-		PyDict_SetItemString(kwargs, "cmap", PyString_FromString("PRGn"));
+		PyDict_SetItemString(kwargs, "cmap", custom_cmap);
 		PyDict_SetItemString(kwargs, "interpolation", PyString_FromString("nearest"));
 
 		PyObject* res = PyObject_Call(detail::_interpreter::get().s_python_function_imshow, args, kwargs);
