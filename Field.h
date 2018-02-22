@@ -245,6 +245,16 @@ public:
         return *this;
     }
 
+    // seem to explicitly require this
+    const Field<T, N1, N2, N3>& operator=(const Field<T, N1, N2, N3>& other)
+    {
+        ParallelPerStack([&other,this](int j1, int j2){
+            stack(j1, j2) = other.stack(j1,j2);
+        });
+
+        return *this;
+    }
+
     bool operator==(const Field<T, N1, N2, N3>& other) const
     {
         if (other.BC() != BC())
@@ -426,7 +436,7 @@ private:
     // stored in column-major ordering of size (N1, N2, N3)
     std::vector<T, aligned_allocator<T>> _data;
 
-    BoundaryCondition _bc;
+    const BoundaryCondition _bc;
 };
 
 template<typename T, int N1, int N2, int N3>
@@ -525,7 +535,13 @@ class Modal1D : public Field1D<stratifloat, 1, 1, N3>
 {
 public:
     using Field1D<stratifloat, 1, 1, N3>::Field1D;
-    using Field1D<stratifloat, 1, 1, N3>::operator=;
+
+    template<typename A>
+    const Modal1D<N1, N2, N3>& operator=(const StackContainer<A,stratifloat, 1, 1, N3>& other)
+    {
+        Field1D<stratifloat, 1, 1, N3>::operator=(other);
+        return *this;
+    }
 
     void ToNodal(Nodal1D<N1,N2,N3>& other) const
     {
@@ -575,7 +591,13 @@ class Nodal1D : public Field1D<stratifloat, N1, N2, N3>
 {
 public:
     using Field1D<stratifloat, N1, N2, N3>::Field1D;
-    using Field1D<stratifloat, N1, N2, N3>::operator=;
+
+    template<typename A>
+    const Nodal1D<N1, N2, N3>& operator=(const StackContainer<A,stratifloat,N1,N2,N3>& other)
+    {
+        Field1D<stratifloat, N1, N2, N3>::operator=(other);
+        return *this;
+    }
 
     void ToModal(Modal1D<N1,N2,N3>& other) const
     {
@@ -627,7 +649,12 @@ template<int N1, int N2, int N3>
 class NodalField : public Field<stratifloat, N1, N2, N3>
 {
 public:
-    using Field<stratifloat, N1, N2, N3>::operator=;
+    template<typename A>
+    const NodalField<N1, N2, N3>& operator=(const StackContainer<A,stratifloat,N1,N2,N3>& other)
+    {
+        Field<stratifloat, N1, N2, N3>::operator=(other);
+        return *this;
+    }
 
     NodalField(BoundaryCondition bc)
     : Field<stratifloat, N1, N2, N3>(bc)
@@ -816,7 +843,12 @@ class ModalField : public Field<complex, N1/2+1, N2, N3>
 {
     static constexpr int actualN1 = N1/2 + 1;
 public:
-    using Field<complex, actualN1, N2, N3>::operator=;
+    template<typename A>
+    const ModalField<N1, N2, N3>& operator=(const StackContainer<A,complex, N1/2+1, N2, N3>& other)
+    {
+        Field<complex, N1/2+1, N2, N3>::operator=(other);
+        return *this;
+    }
 
     ModalField(BoundaryCondition bc)
     : Field<complex, N1/2+1, N2, N3>(bc)
@@ -1111,6 +1143,8 @@ template<int N1, int N2, int N3>
 std::vector<stratifloat, aligned_allocator<stratifloat>> ModalField<N1,N2,N3>::intermediateData(2*(N1/2+1)*N2*2*(N3-1), 0);
 template<int N1, int N2, int N3>
 f3_plan ModalField<N1,N2,N3>::plan(0);
+template<int N1, int N2, int N3>
+constexpr int ModalField<N1,N2,N3>::actualN1;
 
 template<typename A, typename T, int N1, int N2, int N3>
 ScalarProduct<A, T, N1, N2, N3> operator*(T scalar,
