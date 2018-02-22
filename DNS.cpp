@@ -73,15 +73,15 @@ int main(int argc, char *argv[])
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
     }
 
-    //solver.RemoveDivergence(0.0f);
-
     std::ofstream energyFile("flow_stats.dat");
 
     // add background flow
     std::cout << "Setting background..." << std::endl;
     solver.SetBackground(InitialU, InitialB);
 
+    solver.RemoveDivergence(0.0f);
     solver.RescaleForEnergy(energy);
+    solver.SolveForPressure();
 
     stratifloat totalTime = 0.0f;
 
