@@ -80,12 +80,12 @@ ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen
 
     if (w_eigen!=nullptr)
     {
-        w_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().topRows(N3-2);
+        w_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().block(0,0,N3-2,N3-2);
     }
 
     if (b_eigen!=nullptr)
     {
-        b_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().bottomRows(N3-2);
+        b_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().block(N3-2,0,N3-2,N3-2);
     }
 
     return solver.eigenvalues();
