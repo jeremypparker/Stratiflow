@@ -79,9 +79,11 @@ int main(int argc, char *argv[])
     std::cout << "Setting background..." << std::endl;
     solver.SetBackground(InitialU, InitialB);
 
+    solver.FilterAll();
+    solver.PopulateNodalVariables();
     solver.RemoveDivergence(0.0f);
     solver.RescaleForEnergy(energy);
-    solver.SolveForPressure();
+    //solver.SolveForPressure();
 
     stratifloat totalTime = 0.0f;
 
@@ -92,6 +94,8 @@ int main(int argc, char *argv[])
     std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
 
     MField wIntegrated(BoundaryCondition::Decaying);
+    stratifloat JoverKintegrated = 0;
+    stratifloat w2Integrated = 0;
 
     solver.PrepareRun("images/");
     solver.PlotAll(std::to_string(totalTime)+".png", true);
@@ -115,6 +119,8 @@ int main(int argc, char *argv[])
         if (totalTime < integrateTarget)
         {
             wIntegrated += solver.deltaT * solver.u3;
+            w2Integrated += solver.deltaT * InnerProd(solver.u3, solver.u3, L3);
+            JoverKintegrated += solver.deltaT * solver.JoverK();
         }
 
         int frame = static_cast<int>(totalTime / saveEvery);
@@ -136,7 +142,8 @@ int main(int argc, char *argv[])
 
     }
 
-    std::cout << InnerProd(wIntegrated, wIntegrated, L3) << std::endl;
+    std::cout << InnerProd(wIntegrated, wIntegrated, L3)/w2Integrated/integrateTarget << std::endl;
+    std::cout << JoverKintegrated << std::endl;
 
 
     f3_cleanup_threads();

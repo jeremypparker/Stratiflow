@@ -166,6 +166,7 @@ public:
             auto t2 = std::chrono::high_resolution_clock::now();
 
             RemoveDivergence(1/h[k]);
+            //SolveForPressure();
 
             auto t3 = std::chrono::high_resolution_clock::now();
 
@@ -236,7 +237,7 @@ public:
         // correct for instability in scheme towards infinity
         u_.ToNodal(U_);
         b_.ToNodal(B_);
-        for (int j=0; j<50; j++)
+        for (int j=0; j<30; j++)
         {
             U_.Get()(j) = 1;
             B_.Get()(j) = -1;
@@ -307,6 +308,7 @@ public:
         MakeCleanDir(imageDirectory+"/u2");
         MakeCleanDir(imageDirectory+"/u3");
         MakeCleanDir(imageDirectory+"/buoyancy");
+        MakeCleanDir(imageDirectory+"/buoyancyBG");
         MakeCleanDir(imageDirectory+"/pressure");
         MakeCleanDir(imageDirectory+"/vorticity");
         MakeCleanDir(imageDirectory+"/perturbvorticity");
@@ -353,6 +355,13 @@ public:
         {
             HeatPlot(b, L1, L3, j2, filename);
         }
+    }
+
+    void PlotBuoyancyBG(std::string filename, int j2) const
+    {
+        nnTemp = B_;
+        nnTemp.ToModal(boundedTemp);
+        HeatPlot(boundedTemp, L1, L3, j2, filename);
     }
 
     void PlotPressure(std::string filename, int j2) const
@@ -417,6 +426,7 @@ public:
         else
         {
             PlotPerturbationVorticity(imageDirectory+"/perturbvorticity/"+filename, N2/2);
+            PlotBuoyancyBG(imageDirectory+"/buoyancyBG/"+filename, N2/2);
         }
     }
 
@@ -532,7 +542,7 @@ public:
     {
         for (int j=0; j<N3; j++)
         {
-            if(dB_dz.Get()(j)>-0.00001 && dB_dz.Get()(j)<0.00001)
+            if(dB_dz.Get()(j)>-0.001 && dB_dz.Get()(j)<0.001)
             {
                 nnTemp1D.Get()(j) = 0;
             }
