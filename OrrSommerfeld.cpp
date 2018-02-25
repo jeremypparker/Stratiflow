@@ -2,11 +2,8 @@
 
 #include "Differentiation.h"
 
-ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen)
+MatrixXc OrrSommerfeldLHS(stratifloat k)
 {
-    // The result of this is the vertical profile of the vertical velocity and buoyancy
-
-
     N1D U(BoundaryCondition::Bounded);
     N1D B(BoundaryCondition::Bounded);
     U.SetValue(InitialU, L3);
@@ -48,6 +45,47 @@ ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen
     MatrixXc A22 = i*k*Um
                    -(1/Pe)*(D2-k*k*I);
 
+    // values at infinity must be zero, so ignore those bits
+    MatrixXc A(2*(N3-2), 2*(N3-2));
+
+    A << A11.block(1, 1, N3-2, N3-2), A12.block(1, 1, N3-2, N3-2),
+         A21.block(1, 1, N3-2, N3-2), A22.block(1, 1, N3-2, N3-2);
+
+    return A;
+}
+
+MatrixXc OrrSommerfeldRHS(stratifloat k)
+{
+    N1D U(BoundaryCondition::Bounded);
+    N1D B(BoundaryCondition::Bounded);
+    U.SetValue(InitialU, L3);
+    B.SetValue(InitialB, L3);
+
+    N1D Upp(BoundaryCondition::Bounded);
+    N1D Bp(BoundaryCondition::Decaying);
+
+    {
+        M1D u(BoundaryCondition::Bounded);
+        M1D b(BoundaryCondition::Bounded);
+        U.ToModal(u);
+        B.ToModal(b);
+
+        M1D bp(BoundaryCondition::Decaying);
+        M1D upp(BoundaryCondition::Bounded);
+        bp = ddz(b);
+        upp = ddz(ddz(u));
+
+        bp.ToNodal(Bp);
+        upp.ToNodal(Upp);
+    }
+
+    auto D2 = VerticalSecondDerivativeNodalMatrix(L3, N3);
+    auto I = MatrixX::Identity(N3, N3);
+
+    MatrixX Um = U.Get().matrix().asDiagonal();
+    MatrixX Uppm = Upp.Get().matrix().asDiagonal();
+    MatrixX Bpm = Bp.Get().matrix().asDiagonal();
+
     MatrixXc C11 = -(D2-k*k*I);
 
     MatrixXc C12 = MatrixXc::Zero(N3, N3);
@@ -57,17 +95,23 @@ ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen
     MatrixXc C22 = -I;
 
     // values at infinity must be zero, so ignore those bits
-    MatrixXc A(2*(N3-2), 2*(N3-2));
     MatrixXc C(2*(N3-2), 2*(N3-2));
 
-    A << A11.block(1, 1, N3-2, N3-2), A12.block(1, 1, N3-2, N3-2),
-         A21.block(1, 1, N3-2, N3-2), A22.block(1, 1, N3-2, N3-2);
     C << C11.block(1, 1, N3-2, N3-2), C12.block(1, 1, N3-2, N3-2),
          C21.block(1, 1, N3-2, N3-2), C22.block(1, 1, N3-2, N3-2);
 
+    return C;
+}
+
+ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen)
+{
+    // The result of this is the vertical profile of the vertical velocity and buoyancy
+
+    MatrixXc A = OrrSommerfeldLHS(k);
+    MatrixXc C = OrrSommerfeldRHS(k);
+
     // eigen's generalised eigenvalue solver currently supports only real matrices
     // so this is a hack around that
-
     MatrixXc CinvA = C.inverse() * A;
 
     ComplexEigenSolver<MatrixXc> solver;

@@ -2,6 +2,9 @@
 
 #include "Stratiflow.h"
 
+MatrixXc OrrSommerfeldLHS(stratifloat k);
+MatrixXc OrrSommerfeldRHS(stratifloat k);
+
 ArrayXc CalculateEigenvalues(stratifloat k,
                              MatrixXc *w_eigen = nullptr,
                              MatrixXc *b_eigen = nullptr);
