@@ -341,6 +341,7 @@ public:
         MakeCleanDir(imageDirectory+"/pressure");
         MakeCleanDir(imageDirectory+"/vorticity");
         MakeCleanDir(imageDirectory+"/perturbvorticity");
+        MakeCleanDir(imageDirectory+"/buoyancyBG");
     }
 
     void PlotBuoyancy(std::string filename, int j2, bool includeBackground = true) const
@@ -426,7 +427,7 @@ public:
         else
         {
             PlotPerturbationVorticity(imageDirectory+"/perturbvorticity/"+filename, N2/2);
-            PlotBuoyancyBG(imageDirectory+"/buoyancyBG/"+filename, N2/2);
+            //PlotBuoyancyBG(imageDirectory+"/buoyancyBG/"+filename, N2/2);
         }
     }
 
