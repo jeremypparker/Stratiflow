@@ -11,6 +11,7 @@ ArrayXc CalculateEigenvalues(stratifloat k,
 
 stratifloat LargestGrowth(stratifloat k,
                           Field1D<complex, N1, N2, N3>* w=nullptr,
-                          Field1D<complex, N1, N2, N3>* b=nullptr);
+                          Field1D<complex, N1, N2, N3>* b=nullptr,
+                          stratifloat* imag=nullptr);
 
 void EigenModes(stratifloat k, MField& u1, MField& u2, MField& u3, MField& b);

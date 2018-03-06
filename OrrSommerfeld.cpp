@@ -2,6 +2,8 @@
 
 #include "Differentiation.h"
 
+#include <unsupported/Eigen/MatrixFunctions>
+
 MatrixXc OrrSommerfeldLHS(stratifloat k)
 {
     N1D U(BoundaryCondition::Bounded);
@@ -34,16 +36,16 @@ MatrixXc OrrSommerfeldLHS(stratifloat k)
     MatrixX Uppm = Upp.Get().matrix().asDiagonal();
     MatrixX Bpm = Bp.Get().matrix().asDiagonal();
 
-    MatrixXc A11 = i*k*Um*(D2-k*k*I)
-                   -i*k*Uppm*I
-                   -(1/Re)*(D2-k*k*I)*(D2-k*k*I);
+    MatrixXc A11 = i*Um*(D2-k*k*I)
+                   -i*Uppm*I
+                   -(1/Re/k)*(D2-k*k*I)*(D2-k*k*I);
 
-    MatrixXc A12 = k*k*Ri*I;
+    MatrixXc A12 = k*Ri*I;
 
-    MatrixXc A21 = -Bpm;
+    MatrixXc A21 = (-1/k)*Bpm;
 
-    MatrixXc A22 = i*k*Um
-                   -(1/Pe)*(D2-k*k*I);
+    MatrixXc A22 = i*Um
+                   -(1/Pe/k)*(D2-k*k*I);
 
     // values at infinity must be zero, so ignore those bits
     MatrixXc A(2*(N3-2), 2*(N3-2));
@@ -116,7 +118,7 @@ ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen
 
     ComplexEigenSolver<MatrixXc> solver;
 
-    solver.compute(CinvA);
+    solver.compute(CinvA, w_eigen!=nullptr || b_eigen!=nullptr);
     if (solver.info() != Success)
     {
         std::cout << "Failed to converge!" << std::endl;
@@ -137,28 +139,57 @@ ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen
 
 stratifloat LargestGrowth(stratifloat k,
                           Field1D<complex, N1, N2, N3>* w,
-                          Field1D<complex, N1, N2, N3>* b)
+                          Field1D<complex, N1, N2, N3>* b,
+                          stratifloat* imagpart)
 {
+    if (w==nullptr && b==nullptr && imagpart!=nullptr)
+    {
+        MatrixXc A = OrrSommerfeldLHS(k);
+        MatrixXc C = OrrSommerfeldRHS(k);
+
+        MatrixXc CinvA = C.inverse() * A;
+
+        stratifloat T = 2000;
+
+        // matrix exponential means real part of eigenvalue becomes modulus of eigenvalue
+        MatrixXc M = (T*CinvA).exp();
+
+        // do power iteration on a random initial vector
+        VectorXc x = VectorXc::Random(CinvA.rows());
+        stratifloat lambda;
+        for (int j=0; j<400; j++)
+        {
+            x.normalize();
+
+            VectorXc Mx = M*x;
+
+            complex eigApprox = x.dot(Mx)/x.dot(x);
+
+            lambda = std::abs(eigApprox);
+
+            x = Mx; // iterate
+        }
+
+        return std::log(lambda)/T;
+    }
     MatrixXc w_eigen(N3,2*(N3-2));
     MatrixXc b_eigen(N3,2*(N3-2));
 
-    auto eigenvalues = CalculateEigenvalues(k, &w_eigen, &b_eigen);
-
-    // find maximum growth
-    stratifloat largest = -100000;
-    stratifloat jmax = -1;
-    for (int j=0; j<eigenvalues.size(); j++)
+    ArrayXc eigenvalues;
+    if (w!=nullptr|| b!=nullptr)
     {
-        auto eigenvalue = eigenvalues[j];
-
-        if (real(eigenvalue) > largest)
-        {
-            largest = real(eigenvalue);
-            jmax = j;
-        }
+        eigenvalues = CalculateEigenvalues(k, &w_eigen, &b_eigen);
+    }
+    else
+    {
+        eigenvalues = CalculateEigenvalues(k);
     }
 
-    std::cout << k << " : " << largest << std::endl;
+    // find maximum growth
+    int jmax;
+    stratifloat largest = eigenvalues.real().maxCoeff(&jmax);
+
+    //std::cout << k << " : " << largest << std::endl;
 
     if (w!=nullptr)
     {
@@ -167,6 +198,11 @@ stratifloat LargestGrowth(stratifloat k,
     if (b!=nullptr)
     {
         b->Get() = b_eigen.col(jmax);
+    }
+    if (imagpart!=nullptr)
+    {
+        // assume they come in conjugate pairs, so take abs
+        *imagpart = std::abs(eigenvalues.imag()(jmax));
     }
 
     return largest;

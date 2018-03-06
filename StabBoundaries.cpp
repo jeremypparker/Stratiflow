@@ -5,19 +5,17 @@
 
 int main()
 {
-    for (R=2.5f; R<3.5; R+=0.1)
+    for (R=0.5; R<3; R+=0.02)
     {
         Pr = R*R;
         Pe = Pr*Re;
 
         for (int j=1; j<=10; j++)
         {
-            stratifloat k=j/10.0;
-            MatrixXc A = OrrSommerfeldLHS(k);
-            JacobiSVD<MatrixXc> svd(A);
-            stratifloat cond = svd.singularValues()(0) / svd.singularValues()(svd.singularValues().size()-1);
+            stratifloat k=j/50.0;
+            stratifloat growth = LargestGrowth(k);
 
-            std::cout << k << " " << R << " " << cond << std::endl;
+            std::cout << k << " " << R << " " << growth << " " << std::endl;
         }
     }
 
