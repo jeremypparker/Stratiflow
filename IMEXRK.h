@@ -1077,7 +1077,15 @@ public:
             // which makes this easy
 
             stratifloat energyBefore = KE() + PE();
-            scale = sqrt(energy/energyBefore);
+
+            if (energyBefore!=0.0f)
+            {
+                scale = sqrt(energy/energyBefore);
+            }
+            else
+            {
+                scale = 0.0f;
+            }
         }
 
         u1 *= scale;
