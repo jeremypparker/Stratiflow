@@ -1026,11 +1026,11 @@ public:
             {
                 for (int j2=0; j2<0.5*cutoff*N2; j2++)
                 {
-                    this->operator()(j1,j2,j3) = rng(generator);
+                    this->operator()(j1,j2,j3) = rng(generator) + i*rng(generator);
                 }
                 for (int j2=N2-1; j2>(1-0.5*cutoff)*N2; j2--)
                 {
-                    this->operator()(j1,j2,j3) = rng(generator);
+                    this->operator()(j1,j2,j3) = rng(generator) + i*rng(generator);
                 }
 
                 j3max = j3;
