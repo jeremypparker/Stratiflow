@@ -509,16 +509,6 @@ public:
 
     stratifloat KE() const
     {
-        return KE(EnergyConstraint);
-    }
-
-    stratifloat PE() const
-    {
-        return PE(EnergyConstraint);
-    }
-
-    stratifloat KE(EnergyType energyType) const
-    {
         stratifloat energy = 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u3, u3, L3));
 
         if(ThreeDimensional)
@@ -526,20 +516,11 @@ public:
             energy += 0.5f*InnerProd(u2, u2, L3);
         }
 
-        if (energyType == EnergyType::Full)
-        {
-            u_.ToNodal(U_);
-            u1.ToNodal(U1);
-            nnTemp2.SetValue(zFilter, L3);
-            nnTemp = nnTemp2*U_;
-            energy += InnerProd(U1, nnTemp, L3);
-        }
-
         return energy;
 
     }
 
-    stratifloat PE(EnergyType energyType) const
+    stratifloat PE() const
     {
         for (int j=0; j<N3; j++)
         {
@@ -553,20 +534,7 @@ public:
             }
         }
 
-        if (energyType == EnergyType::MadeUp)
-        {
-            return 0.5f*InnerProd(b, b, L3, Ri);
-        }
-        else if (energyType == EnergyType::Correct)
-        {
-            return 0.5f*InnerProd(b, b, L3, -Ri*nnTemp1D);
-        }
-        else
-        {
-            b.ToNodal(B);
-            nnTemp.SetValue(zFunc, L3);
-            return Ri*InnerProd(B, nnTemp, L3);
-        }
+        return 0.5f*InnerProd(b, b, L3, -Ri*nnTemp1D);
     }
     void RemoveDivergence(stratifloat pressureMultiplier=1.0f)
     {
@@ -873,144 +841,62 @@ public:
         static MField dEdu3(BoundaryCondition::Decaying);
         static MField dEdb(BoundaryCondition::Bounded);
 
-        if (EnergyConstraint == EnergyType::Full)
+        db_dz = ddz(backgroundB);
+        db_dz.Filter();
+        db_dz.ToNodal(dB_dz);
+
+        static N1D Bgradientinv(BoundaryCondition::Decaying);
+        for (int j=0; j<N3; j++)
         {
-            // store u+U in a variable oldu1Full
-            static MField oldu1Full(BoundaryCondition::Bounded);
-            backgroundU.ToNodal(U_);
-            nnTemp2.SetValue(zFilter, L3);
-            oldu1.ToNodal(nnTemp);
-            nnTemp = nnTemp + nnTemp2*U_;
-            nnTemp.ToModal(oldu1Full);
-
-            // store z in a nodal variable
-            static NField z(BoundaryCondition::Bounded);
-            z.SetValue(zFunc, L3);
-
-            stratifloat udotu = InnerProd(oldu1Full, oldu1Full, L3) + InnerProd(oldu3, oldu3, L3);
-            if (ThreeDimensional)
+            if(dB_dz.Get()(j)>-0.00001 && dB_dz.Get()(j)<0.00001)
             {
-                udotu += InnerProd(oldu2, oldu2, L3);
-            }
-
-            stratifloat udotv = InnerProd(oldu1Full, u1, L3) + InnerProd(oldu3, u3, L3);
-            if (ThreeDimensional)
-            {
-                udotv += InnerProd(oldu2, u2, L3);
-            }
-
-            stratifloat vdotv = InnerProd(u1, u1, L3) + InnerProd(u3, u3, L3);
-            if (ThreeDimensional)
-            {
-                vdotv += InnerProd(u2, u2, L3);
-            }
-
-
-            while(lambda==0)
-            {
-                stratifloat c1 = 0.5*epsilon*udotu;
-                stratifloat c2 = epsilon*udotv - udotu - Ri*Ri*InnerProd(z, z, L3);
-                stratifloat c3 = 0.5*epsilon*vdotv - udotv - Ri*InnerProd(B, z, L3);
-
-                // take negative sign for quadratic, so it behaves correctly as epsilon->0
-                lambda = SolveQuadratic(c1, c2, c3);
-
-                if (lambda==0)
-                {
-                    std::cout << "Reducing step size" << std::endl;
-                    epsilon /= 2;
-                }
-            }
-
-            dLdu1 = u1;
-            dLdu2 = u2;
-            dLdu3 = u3;
-            dLdb = b;
-
-            dEdu1 = oldu1Full;
-            dEdu2 = oldu2;
-            dEdu3 = oldu3;
-            z.ToModal(boundedTemp);
-            dEdb = Ri*boundedTemp;
-        }
-        else
-        {
-            db_dz = ddz(backgroundB);
-            db_dz.Filter();
-            db_dz.ToNodal(dB_dz);
-
-            static N1D Bgradientinv(BoundaryCondition::Decaying);
-            for (int j=0; j<N3; j++)
-            {
-                if(dB_dz.Get()(j)>-0.00001 && dB_dz.Get()(j)<0.00001)
-                {
-                    Bgradientinv.Get()(j) = 0;
-                }
-                else
-                {
-                    Bgradientinv.Get()(j) = 1/dB_dz.Get()(j);
-                }
-            }
-
-            stratifloat udotu = InnerProd(oldu1, oldu1, L3)
-                              + InnerProd(oldu3, oldu3, L3)
-                              + (ThreeDimensional?InnerProd(oldu2, oldu2, L3):0);
-
-            stratifloat vdotv = InnerProd(u1, u1, L3)
-                              + InnerProd(u3, u3, L3)
-                              + (ThreeDimensional?InnerProd(u2, u2, L3):0);
-
-            stratifloat udotv = InnerProd(u1, oldu1, L3)
-                              + InnerProd(u3, oldu3, L3)
-                              + InnerProd(b, oldb, L3)
-                              + (ThreeDimensional?InnerProd(u2, oldu2, L3):0);
-
-            if (EnergyConstraint == EnergyType::MadeUp)
-            {
-                udotu += Ri*InnerProd(oldb, oldb, L3);
-                vdotv += InnerProd(b, b, L3)/Ri;
-            }
-            else if (EnergyConstraint == EnergyType::Correct)
-            {
-                udotu += InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
-                vdotv += InnerProd(b, b, L3, -(1/Ri)*dB_dz);
+                Bgradientinv.Get()(j) = 0;
             }
             else
             {
-                assert(0);
+                Bgradientinv.Get()(j) = 1/dB_dz.Get()(j);
             }
-
-            while(lambda==0)
-            {
-                lambda = SolveQuadratic(epsilon*udotu,
-                                        2*epsilon*udotv - 2*udotu,
-                                        epsilon*vdotv - 2*udotv);
-                if (lambda==0)
-                {
-                    std::cout << "Reducing step size" << std::endl;
-                    epsilon /= 2;
-                }
-            }
-
-            dLdu1 = u1;
-            dLdu2 = u2;
-            dLdu3 = u3;
-
-            if (EnergyConstraint == EnergyType::MadeUp)
-            {
-                dLdb = (1/Ri)*b;
-            }
-            else if (EnergyConstraint == EnergyType::Correct)
-            {
-                nnTemp = -(1/Ri)*B*dB_dz;
-                nnTemp.ToModal(dLdb);
-            }
-
-            dEdu1 = oldu1;
-            dEdu2 = oldu2;
-            dEdu3 = oldu3;
-            dEdb = oldb;
         }
+
+        stratifloat udotu = InnerProd(oldu1, oldu1, L3)
+                            + InnerProd(oldu3, oldu3, L3)
+                            + (ThreeDimensional?InnerProd(oldu2, oldu2, L3):0);
+
+        stratifloat vdotv = InnerProd(u1, u1, L3)
+                            + InnerProd(u3, u3, L3)
+                            + (ThreeDimensional?InnerProd(u2, u2, L3):0);
+
+        stratifloat udotv = InnerProd(u1, oldu1, L3)
+                            + InnerProd(u3, oldu3, L3)
+                            + InnerProd(b, oldb, L3)
+                            + (ThreeDimensional?InnerProd(u2, oldu2, L3):0);
+
+        udotu += InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
+        vdotv += InnerProd(b, b, L3, -(1/Ri)*dB_dz);
+
+        while(lambda==0)
+        {
+            lambda = SolveQuadratic(epsilon*udotu,
+                                    2*epsilon*udotv - 2*udotu,
+                                    epsilon*vdotv - 2*udotv);
+            if (lambda==0)
+            {
+                std::cout << "Reducing step size" << std::endl;
+                epsilon /= 2;
+            }
+        }
+
+        dLdu1 = u1;
+        dLdu2 = u2;
+        dLdu3 = u3;
+
+        nnTemp = -(1/Ri)*B*dB_dz;
+        nnTemp.ToModal(dLdb);
+
+        dEdu1 = oldu1;
+        dEdu2 = oldu2;
+        dEdu3 = oldu3;
+        dEdb = oldb;
 
         // perform the gradient descent
         oldu1 = oldu1 + -epsilon*dLdu1 + -epsilon*lambda*dEdu1;
@@ -1052,40 +938,18 @@ public:
     {
         stratifloat scale;
 
-        if (EnergyConstraint == EnergyType::Full)
+        // energies are entirely quadratic
+        // which makes this easy
+
+        stratifloat energyBefore = KE() + PE();
+
+        if (energyBefore!=0.0f)
         {
-            stratifloat c1 = 0.5*InnerProd(u1, u1, L3) + 0.5*InnerProd(u3, u3, L3);
-
-            if (ThreeDimensional)
-            {
-                c1 += 0.5*InnerProd(u2, u2, L3);
-            }
-
-            u_.ToNodal(U_);
-            u1.ToNodal(U1);
-            nnTemp2.SetValue(zFilter, L3);
-            nnTemp = nnTemp2*U_;
-            stratifloat c2 = InnerProd(U1, nnTemp, L3);
-            c2 += PE();
-
-            stratifloat c3 = -energy;
-            scale = SolveQuadratic(c1, c2, c3, true);
+            scale = sqrt(energy/energyBefore);
         }
         else
         {
-            // these energies are entirely quadratic
-            // which makes this easy
-
-            stratifloat energyBefore = KE() + PE();
-
-            if (energyBefore!=0.0f)
-            {
-                scale = sqrt(energy/energyBefore);
-            }
-            else
-            {
-                scale = 0.0f;
-            }
+            scale = 0.0f;
         }
 
         u1 *= scale;
