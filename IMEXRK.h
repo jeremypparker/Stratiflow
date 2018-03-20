@@ -183,6 +183,25 @@ public:
         }
     }
 
+    void TimeStepLinear(stratifloat time)
+    {
+        // see Numerical Renaissance
+        for (int k=0; k<s; k++)
+        {
+            LoadAtTime(time, false);
+            ExplicitUpdateLinear(k);
+            ImplicitUpdate(k);
+            RemoveDivergence(1/h[k]);
+            if (k==s-1)
+            {
+                FilterAll();
+            }
+            PopulateNodalVariables();
+
+            time += h[k];
+        }
+    }
+
     void TimeStepAdjoint(stratifloat time)
     {
         for (int k=0; k<s; k++)
@@ -333,6 +352,29 @@ public:
         PopulateNodalVariablesAdjoint();
 
         BuildFilenameMap();
+
+        MakeCleanDir(imageDirectory+"/u1");
+        MakeCleanDir(imageDirectory+"/u2");
+        MakeCleanDir(imageDirectory+"/u3");
+        MakeCleanDir(imageDirectory+"/buoyancy");
+        MakeCleanDir(imageDirectory+"/pressure");
+        MakeCleanDir(imageDirectory+"/vorticity");
+        MakeCleanDir(imageDirectory+"/perturbvorticity");
+        MakeCleanDir(imageDirectory+"/buoyancyBG");
+    }
+
+    void PrepareRunLinear(std::string imageDir)
+    {
+        imageDirectory = imageDir;
+
+        totalExplicit = 0;
+        totalImplicit = 0;
+        totalDivergence = 0;
+        totalForcing = 0;
+
+        PopulateNodalVariables();
+
+        BuildFilenameMap(false);
 
         MakeCleanDir(imageDirectory+"/u1");
         MakeCleanDir(imageDirectory+"/u2");
@@ -753,7 +795,7 @@ public:
         u2Forcing.Zero();
     }
 
-    void BuildFilenameMap()
+    void BuildFilenameMap(bool reverse=true)
     {
         filenames.clear();
 
@@ -769,8 +811,15 @@ public:
         }
         closedir(dir);
 
-        fileAbove = filenames.end();
-        fileAbove--;
+        if (reverse)
+        {
+            fileAbove = filenames.end();
+            fileAbove--;
+        }
+        else
+        {
+            fileAbove = filenames.begin();
+        }
     }
 
     void UpdateForTimestep()
@@ -959,13 +1008,24 @@ public:
     }
 
 private:
-    void LoadAtTime(stratifloat time)
+    void LoadAtTime(stratifloat time, bool reverse=true)
     {
-        while(fileAbove->first >= time && std::prev(fileAbove) != filenames.begin())
+        if (reverse)
         {
+            while(fileAbove->first >= time && std::prev(fileAbove) != filenames.begin())
+            {
+                fileAbove--;
+            }
+            fileAbove++;
+        }
+        else
+        {
+            while(fileAbove->first <= time && std::next(std::next(fileAbove)) != filenames.end())
+            {
+                fileAbove++;
+            }
             fileAbove--;
         }
-        fileAbove++;
 
         static stratifloat timeabove = -1;
         static stratifloat timebelow = -1;
@@ -998,14 +1058,32 @@ private:
                 LoadVariable(fileAbove->second, u3Above, 2);
                 LoadVariable(fileAbove->second, bAbove, 3);
             }
-            LoadVariable(std::prev(fileAbove)->second, u1Below, 0);
-            LoadVariable(std::prev(fileAbove)->second, u2Below, 1);
-            LoadVariable(std::prev(fileAbove)->second, u3Below, 2);
-            LoadVariable(std::prev(fileAbove)->second, bBelow, 3);
 
+            if (reverse)
+            {
+                LoadVariable(std::prev(fileAbove)->second, u1Below, 0);
+                LoadVariable(std::prev(fileAbove)->second, u2Below, 1);
+                LoadVariable(std::prev(fileAbove)->second, u3Below, 2);
+                LoadVariable(std::prev(fileAbove)->second, bBelow, 3);
+            }
+            else
+            {
+                LoadVariable(std::next(fileAbove)->second, u1Below, 0);
+                LoadVariable(std::next(fileAbove)->second, u2Below, 1);
+                LoadVariable(std::next(fileAbove)->second, u3Below, 2);
+                LoadVariable(std::next(fileAbove)->second, bBelow, 3);
+            }
 
             timeabove = fileAbove->first;
-            timebelow = std::prev(fileAbove)->first;
+
+            if (reverse)
+            {
+                timebelow = std::prev(fileAbove)->first;
+            }
+            else
+            {
+                timebelow = std::next(fileAbove)->first;
+            }
         }
 
         U1_tot = ((time-timebelow)/(timeabove-timebelow))*u1Above + ((timeabove-time)/(timeabove-timebelow))*u1Below;
@@ -1188,6 +1266,88 @@ private:
         RB += (h[k]*beta[k])*rB;
     }
 
+    void ExplicitUpdateLinear(int k)
+    {
+        // build up right hand sides for the implicit solve in R
+
+        //   old      last rk step         pressure         explicit CN
+        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Bounded, u1));
+        if(ThreeDimensional)
+        {
+        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
+        }
+        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
+
+        // now construct explicit terms
+        r1.Zero();
+        if(ThreeDimensional)
+        {
+            r2.Zero();
+        }
+        r3.Zero();
+        rB.Zero();
+
+        ndTemp = Ri*B;// buoyancy force
+        ndTemp.ToModal(decayingTemp);
+        r3 -= decayingTemp;
+
+        //////// NONLINEAR TERMS ////////
+        nnTemp = 2.0*U1_tot*U1;
+        nnTemp.ToModal(boundedTemp);
+        r1 -= ddx(boundedTemp);
+
+        ndTemp = U1_tot*U3 + U3_tot*U1;
+        ndTemp.ToModal(decayingTemp);
+        r3 -= ddx(decayingTemp);
+        r1 -= ddz(decayingTemp);
+
+        nnTemp = 2.0*U3_tot*U3;
+        nnTemp.ToModal(boundedTemp);
+        r3 -= ddz(boundedTemp);
+
+        if(ThreeDimensional)
+        {
+            nnTemp = 2.0*U2_tot*U2;
+            nnTemp.ToModal(boundedTemp);
+            r2 -= ddy(boundedTemp);
+
+            ndTemp = U2*U3_tot + U3*U2_tot;
+            ndTemp.ToModal(decayingTemp);
+            r3 -= ddy(decayingTemp);
+            r2 -= ddz(decayingTemp);
+
+            nnTemp = U1_tot*U2 + U2_tot*U1;
+            nnTemp.ToModal(boundedTemp);
+            r1 -= ddy(boundedTemp);
+            r2 -= ddx(boundedTemp);
+        }
+
+        // buoyancy nonlinear terms
+        nnTemp = U1_tot*B + B_tot*U1;
+        nnTemp.ToModal(boundedTemp);
+        rB -= ddx(boundedTemp);
+
+        if(ThreeDimensional)
+        {
+            nnTemp = U2_tot*B + U2*B_tot;
+            nnTemp.ToModal(boundedTemp);
+            rB -= ddy(boundedTemp);
+        }
+
+        ndTemp = U3*B_tot + U3_tot*B;
+        ndTemp.ToModal(decayingTemp);
+        rB -= ddz(decayingTemp);
+
+        // now add on explicit terms to RHS
+        R1 += (h[k]*beta[k])*r1;
+        if(ThreeDimensional)
+        {
+            R2 += (h[k]*beta[k])*r2;
+        }
+        R3 += (h[k]*beta[k])*r3;
+        RB += (h[k]*beta[k])*rB;
+    }
 
     void ExplicitUpdateAdjoint(int k)
     {

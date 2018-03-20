@@ -80,3 +80,6 @@ target_link_libraries(ConstrainedPoints StratiLib)
 
 add_executable(FieldNorms FieldNorms.cpp)
 target_link_libraries(FieldNorms StratiLib)
+
+add_executable(NewtonKrylov NewtonKrylov.cpp)
+target_link_libraries(NewtonKrylov StratiLib)
