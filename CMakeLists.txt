@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.1.3)
 option(DOUBLE "Use double precision floating point")
 option(MKL "Use intel math kernel library")
 option(CUDA "Use CUDA for FFTs")
+option(DEBUGPLOT "Plot full range of graphs")
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -24,6 +25,10 @@ include_directories(SYSTEM external)
 link_directories(/home/jpp39/installs/lib)
 link_libraries(python2.7)
 link_libraries(m)
+
+if(DEBUGPLOT)
+    add_definitions(-DDEBUG_PLOT)
+endif()
 
 if(DOUBLE)
     if(NOT MKL AND NOT CUDA)
