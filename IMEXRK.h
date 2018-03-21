@@ -133,11 +133,11 @@ public:
                 // prevent singularity - first row gives average value at infinity
                 if (j1 == 0 && j2 == 0)
                 {
-                    laplacian.row(0).setConstant(1);
+                    laplacian.row(0).setConstant(2);
 
                     // because these terms are different in expansion
-                    laplacian(0,0) = 2;
-                    laplacian(0,N3-1) = 2;
+                    laplacian(0,0) = 1;
+                    laplacian(0,N3-1) = 1;
                 }
 
                 solve = laplacian.sparseView();
