@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
     solver.PopulateNodalVariables();
     solver.RemoveDivergence(0.0f);
     solver.RescaleForEnergy(energy);
-    //solver.SolveForPressure();
+    solver.SolveForPressure();
 
     stratifloat totalTime = 0.0f;
 
