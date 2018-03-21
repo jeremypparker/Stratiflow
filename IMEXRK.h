@@ -103,9 +103,9 @@ public:
     , bForcing(B)
 
     , solveLaplacian(M1*N2)
-    , implicitSolveBounded{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
-    , implicitSolveDecaying{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
-    , implicitSolveBuoyancy{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
+    , implicitSolveBounded{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
+    , implicitSolveDecaying{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
+    , implicitSolveBuoyancy{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
     {
         assert(ThreeDimensional || N2 == 1);
 
@@ -1394,10 +1394,10 @@ private:
     MatrixX dim3Derivative2Bounded;
     MatrixX dim3Derivative2Decaying;
 
-    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveBounded[3];
-    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveDecaying[3];
-    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveBuoyancy[3];
-    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> solveLaplacian;
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBounded[3];
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveDecaying[3];
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBuoyancy[3];
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> solveLaplacian;
 
     // for flow saving/loading
     std::map<stratifloat, std::string> filenames;

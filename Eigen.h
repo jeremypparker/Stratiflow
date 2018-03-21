@@ -3,7 +3,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
-#include <Eigen/SparseCholesky>
+#include <Eigen/SparseLU>
 #include <Eigen/Eigenvalues>
 
 using namespace Eigen;
