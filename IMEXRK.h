@@ -103,9 +103,9 @@ public:
     , bForcing(B)
 
     , solveLaplacian(M1*N2)
-    , implicitSolveBounded{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
-    , implicitSolveDecaying{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
-    , implicitSolveBuoyancy{std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>>(M1*N2)}
+    , implicitSolveBounded{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
+    , implicitSolveDecaying{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
+    , implicitSolveBuoyancy{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
     {
         assert(ThreeDimensional || N2 == 1);
 
@@ -130,17 +130,15 @@ public:
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
-                // prevent singularity - first row gives average value at infinity
+                // prevent singularity - first row gives average value
                 if (j1 == 0 && j2 == 0)
                 {
-                    laplacian.row(0).setConstant(1);
-
-                    // because these terms are different in expansion
-                    laplacian(0,0) = 2;
-                    laplacian(0,N3-1) = 2;
+                    laplacian.row(0).setConstant(0);
+                    laplacian(0,0) = 1;
                 }
 
                 solve = laplacian.sparseView();
+                solve.makeCompressed();
 
                 solveLaplacian[j1*N2+j2].compute(solve);
             }
@@ -846,10 +844,12 @@ public:
                     laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
+                    solve.makeCompressed();
 
                     implicitSolveBounded[k][j1*N2+j2].compute(solve);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Pe).sparseView();
+                    solve.makeCompressed();
 
                     implicitSolveBuoyancy[k][j1*N2+j2].compute(solve);
 
@@ -859,6 +859,7 @@ public:
                     laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
+                    solve.makeCompressed();
 
                     implicitSolveDecaying[k][j1*N2+j2].compute(solve);
                 }
@@ -1554,10 +1555,10 @@ private:
     MatrixX dim3Derivative2Bounded;
     MatrixX dim3Derivative2Decaying;
 
-    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveBounded[3];
-    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveDecaying[3];
-    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> implicitSolveBuoyancy[3];
-    std::vector<SimplicialLDLT<SparseMatrix<stratifloat>>> solveLaplacian;
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBounded[3];
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveDecaying[3];
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBuoyancy[3];
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> solveLaplacian;
 
     // for flow saving/loading
     std::map<stratifloat, std::string> filenames;

@@ -197,63 +197,63 @@ TEST_CASE("Dim 2 fourier derivatives")
     REQUIRE(f6 == expected2);
 }
 
-TEST_CASE("Inverse Laplacian")
-{
-    constexpr int N1 = 20;
-    constexpr int N2 = 22;
-    constexpr int N3 = 40;
+// TEST_CASE("Inverse Laplacian")
+// {
+//     constexpr int N1 = 20;
+//     constexpr int N2 = 22;
+//     constexpr int N3 = 40;
 
-    constexpr stratifloat L1 = 14.0f;
-    constexpr stratifloat L2 = 3.5;
-    constexpr stratifloat L3 = 3.0f;
+//     constexpr stratifloat L1 = 14.0f;
+//     constexpr stratifloat L2 = 3.5;
+//     constexpr stratifloat L3 = 3.0f;
 
-    auto dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
-    auto dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2, 2);
+//     auto dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
+//     auto dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2, 2);
 
-    std::vector<ColPivHouseholderQR<MatrixXc>> solveLaplacian((N1/2 + 1)*N2);
+//     std::vector<ColPivHouseholderQR<MatrixXc>> solveLaplacian((N1/2 + 1)*N2);
 
-    // we solve each vetical line separately, so N1*N2 total solves
-    for (int j1=0; j1<N1/2 + 1; j1++)
-    {
-        for (int j2=0; j2<N2; j2++)
-        {
-            MatrixX laplacian = VerticalSecondDerivativeMatrix(BoundaryCondition::Bounded, L3, N3);
+//     // we solve each vetical line separately, so N1*N2 total solves
+//     for (int j1=0; j1<N1/2 + 1; j1++)
+//     {
+//         for (int j2=0; j2<N2; j2++)
+//         {
+//             MatrixX laplacian = VerticalSecondDerivativeMatrix(BoundaryCondition::Bounded, L3, N3);
 
-            // add terms for horizontal derivatives
-            laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
-            laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
-
-
-            solveLaplacian[j1*N2+j2].compute(laplacian);
-        }
-    }
-
-    // create field in physical space
-    NodalField<N1, N2, N3> physicalRHS(BoundaryCondition::Bounded);
-    auto x = VerticalPoints(L3, N3);
-    physicalRHS.SetValue([L1](stratifloat x, stratifloat y, stratifloat z)
-    {
-        return (4*(z+2)*(z+2) - 2 -4*pi*pi/L1/L1)*
-               exp(-(z+2)*(z+2))*sin(2*pi*x/L1);
-    }, L1, L2, L3);
-
-    ModalField<N1, N2, N3> q(BoundaryCondition::Bounded);
-
-    ModalField<N1, N2, N3> rhs(BoundaryCondition::Bounded);
-    physicalRHS.ToModal(rhs, false);
+//             // add terms for horizontal derivatives
+//             laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
+//             laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
 
-    rhs.Solve(solveLaplacian, q);
+//             solveLaplacian[j1*N2+j2].compute(laplacian);
+//         }
+//     }
 
-    NodalField<N1, N2, N3> physicalSolution(BoundaryCondition::Bounded);
-    q.ToNodal(physicalSolution);
+//     // create field in physical space
+//     NodalField<N1, N2, N3> physicalRHS(BoundaryCondition::Bounded);
+//     auto x = VerticalPoints(L3, N3);
+//     physicalRHS.SetValue([L1](stratifloat x, stratifloat y, stratifloat z)
+//     {
+//         return (4*(z+2)*(z+2) - 2 -4*pi*pi/L1/L1)*
+//                exp(-(z+2)*(z+2))*sin(2*pi*x/L1);
+//     }, L1, L2, L3);
 
-    NodalField<N1, N2, N3> expectedSolution(BoundaryCondition::Bounded);
-    expectedSolution.SetValue([L1](stratifloat x, stratifloat y, stratifloat z)
-    {
-        return exp(-(z+2)*(z+2))*sin(2*pi*x/L1);
-    }, L1, L2, L3);
+//     ModalField<N1, N2, N3> q(BoundaryCondition::Bounded);
+
+//     ModalField<N1, N2, N3> rhs(BoundaryCondition::Bounded);
+//     physicalRHS.ToModal(rhs, false);
 
 
-    REQUIRE(physicalSolution == expectedSolution);
-}
+//     rhs.Solve(solveLaplacian, q);
+
+//     NodalField<N1, N2, N3> physicalSolution(BoundaryCondition::Bounded);
+//     q.ToNodal(physicalSolution);
+
+//     NodalField<N1, N2, N3> expectedSolution(BoundaryCondition::Bounded);
+//     expectedSolution.SetValue([L1](stratifloat x, stratifloat y, stratifloat z)
+//     {
+//         return exp(-(z+2)*(z+2))*sin(2*pi*x/L1);
+//     }, L1, L2, L3);
+
+
+//     REQUIRE(physicalSolution == expectedSolution);
+// }

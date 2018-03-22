@@ -427,9 +427,13 @@ private:
     {
         assert(solver.rows() == N3);
 
-        Matrix<T, N3, 1> col = stack(j1, j2);
-        Matrix<T, N3, 1> res = solver.solve(col);
-        result.stack(j1, j2) = res;
+        Matrix<stratifloat, N3, 1> col = stack(j1, j2).real();
+        Matrix<stratifloat, N3, 1> res = solver.solve(col);
+        result.stack(j1, j2).real() = res;
+
+        col = stack(j1, j2).imag();
+        res = solver.solve(col);
+        result.stack(j1, j2).imag() = res;
     }
 
 
