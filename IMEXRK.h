@@ -130,17 +130,15 @@ public:
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
-                // prevent singularity - first row gives average value at infinity
+                // prevent singularity - first row gives average value
                 if (j1 == 0 && j2 == 0)
                 {
-                    laplacian.row(0).setConstant(2);
-
-                    // because these terms are different in expansion
+                    laplacian.row(0).setConstant(0);
                     laplacian(0,0) = 1;
-                    laplacian(0,N3-1) = 1;
                 }
 
                 solve = laplacian.sparseView();
+                solve.makeCompressed();
 
                 solveLaplacian[j1*N2+j2].compute(solve);
             }
@@ -797,10 +795,12 @@ public:
                     laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
+                    solve.makeCompressed();
 
                     implicitSolveBounded[k][j1*N2+j2].compute(solve);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Pe).sparseView();
+                    solve.makeCompressed();
 
                     implicitSolveBuoyancy[k][j1*N2+j2].compute(solve);
 
@@ -810,6 +810,7 @@ public:
                     laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
+                    solve.makeCompressed();
 
                     implicitSolveDecaying[k][j1*N2+j2].compute(solve);
                 }
