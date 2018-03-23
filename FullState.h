@@ -11,6 +11,7 @@ public:
     , u3(BoundaryCondition::Decaying)
     , b(BoundaryCondition::Bounded)
     , p(BoundaryCondition::Bounded)
+    , solver()
     {}
 
     FullState(const FullState& other)
@@ -18,6 +19,7 @@ public:
     , u3(other.u3)
     , b(other.b)
     , p(other.p)
+    , solver()
     {
     }
 
@@ -51,6 +53,7 @@ public:
         int step = 0;
 
         solver.PrepareRun("images/");
+        solver.PlotAll(std::to_string(t)+".png", true);
         while (t < T)
         {
             solver.TimeStep();
@@ -67,7 +70,10 @@ public:
             }
 
             step++;
+            std::cout << step << " " << t << std::endl;
         }
+
+        solver.PlotAll(std::to_string(t)+".png", true);
 
         CopyFromSolver(result);
     }
@@ -84,7 +90,10 @@ public:
 
         int step = 0;
 
-        solver.PrepareRunLinear("images/");
+        static int runnum = 0;
+        runnum++;
+        solver.PrepareRunLinear(std::string("images-linear-")+std::to_string(runnum)+"/");
+        solver.PlotAll(std::to_string(t)+".png", false);
         while (t < T)
         {
             solver.TimeStepLinear(t);
@@ -92,12 +101,14 @@ public:
 
             if(step%50==0)
             {
-                stratifloat cfl = solver.CFL();
+                stratifloat cfl = solver.CFLadjoint();
             }
 
             step++;
+            std::cout << step << " " << t << std::endl;
         }
 
+        solver.PlotAll(std::to_string(t)+".png", false);
         CopyFromSolver(result);
     }
 
@@ -159,6 +170,14 @@ public:
     stratifloat Norm() const
     {
         return sqrt(Dot(*this));
+    }
+
+    void Zero()
+    {
+        u1.Zero();
+        u3.Zero();
+        b.Zero();
+        p.Zero();
     }
 
 private:

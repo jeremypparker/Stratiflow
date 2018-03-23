@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
 #include <Eigen/SparseLU>
+#include <Eigen/QR>
 #include <Eigen/Eigenvalues>
 
 using namespace Eigen;

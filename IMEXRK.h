@@ -192,7 +192,7 @@ public:
             RemoveDivergence(1/h[k]);
             if (k==s-1)
             {
-                FilterAll();
+                FilterAllLinear();
             }
             PopulateNodalVariables();
 
@@ -266,6 +266,19 @@ public:
 
         u_.Filter();
         b_.Filter();
+    }
+
+    void FilterAllLinear()
+    {
+        // To prevent anything dodgy accumulating in the unused coefficients
+        u1.Filter();
+        if(ThreeDimensional)
+        {
+            u2.Filter();
+        }
+        u3.Filter();
+        b.Filter();
+        p.Filter();
     }
 
     void FilterAllAdjoint()
@@ -616,76 +629,76 @@ public:
         // build up RHS for poisson eqn for p in p itself
         p.Zero();
 
-        // diagonal terms of ∇u..∇u
-        boundedTemp = ddx(u1);
-        boundedTemp.ToNodal(nnTemp);
-        nnTemp2 = nnTemp*nnTemp;
-        nnTemp2.ToModal(boundedTemp);
-        p -= boundedTemp;
+        // // diagonal terms of ∇u..∇u
+        // boundedTemp = ddx(u1);
+        // boundedTemp.ToNodal(nnTemp);
+        // nnTemp2 = nnTemp*nnTemp;
+        // nnTemp2.ToModal(boundedTemp);
+        // p -= boundedTemp;
 
 
-        if (ThreeDimensional)
-        {
-        boundedTemp = ddy(u2);
-        boundedTemp.ToNodal(nnTemp);
-        nnTemp2 = nnTemp*nnTemp;
-        nnTemp2.ToModal(boundedTemp);
-        p -= boundedTemp;
-        }
+        // if (ThreeDimensional)
+        // {
+        // boundedTemp = ddy(u2);
+        // boundedTemp.ToNodal(nnTemp);
+        // nnTemp2 = nnTemp*nnTemp;
+        // nnTemp2.ToModal(boundedTemp);
+        // p -= boundedTemp;
+        // }
 
-        boundedTemp = ddz(u3);
-        boundedTemp.ToNodal(nnTemp);
-        nnTemp2 = nnTemp*nnTemp;
-        nnTemp2.ToModal(boundedTemp);
-        p -= boundedTemp;
+        // boundedTemp = ddz(u3);
+        // boundedTemp.ToNodal(nnTemp);
+        // nnTemp2 = nnTemp*nnTemp;
+        // nnTemp2.ToModal(boundedTemp);
+        // p -= boundedTemp;
 
-        // cross terms
-        decayingTemp = ddx(u3);
-        decayingTemp.ToNodal(ndTemp);
-        decayingTemp = ddz(u1);
-        decayingTemp.ToNodal(ndTemp2);
-        nnTemp2 = ndTemp*ndTemp2;
-        nnTemp2.ToModal(boundedTemp);
-        p -= 2.0*boundedTemp;
+        // // cross terms
+        // decayingTemp = ddx(u3);
+        // decayingTemp.ToNodal(ndTemp);
+        // decayingTemp = ddz(u1);
+        // decayingTemp.ToNodal(ndTemp2);
+        // nnTemp2 = ndTemp*ndTemp2;
+        // nnTemp2.ToModal(boundedTemp);
+        // p -= 2.0*boundedTemp;
 
-        if (ThreeDimensional)
-        {
-        boundedTemp = ddy(u1);
-        boundedTemp.ToNodal(nnTemp);
-        boundedTemp = ddx(u2);
-        boundedTemp.ToNodal(nnTemp2);
-        nnTemp2 = nnTemp*nnTemp2;
-        nnTemp2.ToModal(boundedTemp);
-        p -= 2.0*boundedTemp;
+        // if (ThreeDimensional)
+        // {
+        // boundedTemp = ddy(u1);
+        // boundedTemp.ToNodal(nnTemp);
+        // boundedTemp = ddx(u2);
+        // boundedTemp.ToNodal(nnTemp2);
+        // nnTemp2 = nnTemp*nnTemp2;
+        // nnTemp2.ToModal(boundedTemp);
+        // p -= 2.0*boundedTemp;
 
-        decayingTemp = ddy(u3);
-        decayingTemp.ToNodal(ndTemp);
-        decayingTemp = ddz(u2);
-        decayingTemp.ToNodal(ndTemp2);
-        nnTemp2 = ndTemp*ndTemp2;
-        nnTemp2.ToModal(boundedTemp);
-        p -= 2.0*boundedTemp;
-        }
+        // decayingTemp = ddy(u3);
+        // decayingTemp.ToNodal(ndTemp);
+        // decayingTemp = ddz(u2);
+        // decayingTemp.ToNodal(ndTemp2);
+        // nnTemp2 = ndTemp*ndTemp2;
+        // nnTemp2.ToModal(boundedTemp);
+        // p -= 2.0*boundedTemp;
+        // }
 
-        // background
-        decayingTemp1D = ddz(u_);
-        decayingTemp = ddx(u3);
-        decayingTemp1D.ToNodal(ndTemp1D);
-        decayingTemp.ToNodal(ndTemp);
-        nnTemp2 = ndTemp*ndTemp1D;
-        nnTemp2.ToModal(boundedTemp);
-        p -= 2.0*boundedTemp;
+        // // background
+        // decayingTemp1D = ddz(u_);
+        // decayingTemp = ddx(u3);
+        // decayingTemp1D.ToNodal(ndTemp1D);
+        // decayingTemp.ToNodal(ndTemp);
+        // nnTemp2 = ndTemp*ndTemp1D;
+        // nnTemp2.ToModal(boundedTemp);
+        // p -= 2.0*boundedTemp;
 
-        // buoyancy
-        decayingTemp = ddz(b);
-        decayingTemp.ToNodal(ndTemp);
-        nnTemp = ndTemp;
-        nnTemp.ToModal(boundedTemp);
-        p -= Ri*boundedTemp;
+        // // buoyancy
+        // decayingTemp = ddz(b);
+        // decayingTemp.ToNodal(ndTemp);
+        // nnTemp = ndTemp;
+        // nnTemp.ToModal(boundedTemp);
+        // p -= Ri*boundedTemp;
 
-        // Now solve the poisson equation
-        p(0,0,0) = 0; //BC
-        p.Solve(solveLaplacian, p);
+        // // Now solve the poisson equation
+        // p(0,0,0) = 0; //BC
+        // p.Solve(solveLaplacian, p);
     }
 
     void SaveFlow(const std::string& filename) const
