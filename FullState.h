@@ -180,6 +180,12 @@ public:
         p.Zero();
     }
 
+    void LoadFromFile(const std::string& filename)
+    {
+        solver.LoadFlow(filename);
+        CopyFromSolver();
+    }
+
 private:
     void CopyToSolver() const
     {

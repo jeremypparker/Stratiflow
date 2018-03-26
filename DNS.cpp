@@ -4,7 +4,7 @@
 
 int main(int argc, char *argv[])
 {
-    stratifloat targetTime = 120.0;
+    stratifloat targetTime = 1500.0;
     stratifloat integrateTarget = 47.0;
     stratifloat energy = 0.001;
 
@@ -130,6 +130,7 @@ int main(int argc, char *argv[])
             lastFrame=frame;
 
             solver.PlotAll(std::to_string(totalTime)+".png", true);
+            solver.SaveFlow("snapshots/"+std::to_string(totalTime)+".fields");
 
             energyFile << totalTime
                     << " " << solver.KE()

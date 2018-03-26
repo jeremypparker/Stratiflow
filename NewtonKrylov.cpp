@@ -21,7 +21,7 @@ public:
             std::cout << "NEWTON STEP " << n << ", RESIDUAL: " << residual << std::endl;
 
             // solve matrix system
-            GMRES(rhs, dx);
+            GMRES(rhs, dx, 0.001);
 
             // update
             x += dx;
@@ -32,9 +32,9 @@ private:
     // solves A x = G-x0 for x
     // where A = I-G_x
     // GMRES is a Krylov-subspace method, hence Newton-Krylov
-    void GMRES(const FullState& rhs, FullState& x) const
+    void GMRES(const FullState& rhs, FullState& x, stratifloat epsilon) const
     {
-        int K = 100;
+        int K = 128; // max iterations
 
         std::vector<FullState> q(K);
 
@@ -84,9 +84,15 @@ private:
             MatrixX subH = H.block(0,0,k+1,k);
             y = subH.colPivHouseholderQr().solve(Beta);
 
-            stratifloat residual = (subH*y - Beta).norm();
+            stratifloat residual = (subH*y - Beta).norm()/beta;
 
             std::cout << "GMRES STEP " << k << ", RESIDUAL: " << residual << std::endl;
+
+            if (residual < epsilon)
+            {
+                K = k+1;
+                break;
+            }
         }
 
         // Now compute the solution using the basis vectors
@@ -96,25 +102,31 @@ private:
         }
     }
 
-    int N = 100; // max iterations
+    int N = 10; // max iterations
     stratifloat T = 5; // time interval for integration
 };
 
-int main()
+int main(int argc, char *argv[])
 {
-    // check it converges to steady state
-
     NewtonKrylov solver;
 
     FullState stationaryPoint;
 
-    stationaryPoint.u1.RandomizeCoefficients(0.3);
-    stationaryPoint.u3.RandomizeCoefficients(0.3);
-    stationaryPoint.b.RandomizeCoefficients(0.3);
+    if (argc == 2)
+    {
+        stationaryPoint.LoadFromFile(argv[1]);
+    }
+    else
+    {
+        // check it converges to steady state
+        stationaryPoint.u1.RandomizeCoefficients(0.3);
+        stationaryPoint.u3.RandomizeCoefficients(0.3);
+        stationaryPoint.b.RandomizeCoefficients(0.3);
 
-    stationaryPoint.u1 *= 0.0001;
-    stationaryPoint.u3 *= 0.0001;
-    stationaryPoint.b *= 0.0001;
+        stationaryPoint.u1 *= 0.0001;
+        stationaryPoint.u3 *= 0.0001;
+        stationaryPoint.b *= 0.0001;
+    }
 
     solver.NewtonRaphson(stationaryPoint);
 }
