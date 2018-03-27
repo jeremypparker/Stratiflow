@@ -254,15 +254,23 @@ public:
         // correct for instability in scheme towards infinity
         u_.ToNodal(U_);
         b_.ToNodal(B_);
-        for (int j=0; j<30; j++)
+        u3.ToNodal(U3);
+        b.ToNodal(B);
+        for (int j=0; j<4; j++)
         {
             U_.Get()(j) = 1;
             B_.Get()(j) = -1;
             U_.Get()(N3-1-j) = -1;
             B_.Get()(N3-1-j) = 1;
+            U3.slice(j).setZero();
+            U3.slice(N3-1-j).setZero();
+            B.slice(j).setZero();
+            B.slice(N3-1-j).setZero();
         }
         U_.ToModal(u_);
         B_.ToModal(b_);
+        U3.ToModal(u3);
+        B.ToModal(b);
 
         u_.Filter();
         b_.Filter();
@@ -279,6 +287,19 @@ public:
         u3.Filter();
         b.Filter();
         p.Filter();
+
+        // correct for instability in scheme towards infinity
+        u3.ToNodal(U3);
+        b.ToNodal(B);
+        for (int j=0; j<4; j++)
+        {
+            U3.slice(j).setZero();
+            U3.slice(N3-1-j).setZero();
+            B.slice(j).setZero();
+            B.slice(N3-1-j).setZero();
+        }
+        U3.ToModal(u3);
+        B.ToModal(b);
     }
 
     void FilterAllAdjoint()

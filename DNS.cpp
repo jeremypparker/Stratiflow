@@ -4,7 +4,7 @@
 
 int main(int argc, char *argv[])
 {
-    stratifloat targetTime = 1500.0;
+    stratifloat targetTime = 15000.0;
     stratifloat integrateTarget = 47.0;
     stratifloat energy = 0.001;
 
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 
     stratifloat totalTime = 0.0f;
 
-    stratifloat saveEvery = 0.5f;
+    stratifloat saveEvery = 5.0f;
     int lastFrame = -1;
     int step = 0;
 

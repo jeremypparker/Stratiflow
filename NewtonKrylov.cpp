@@ -8,7 +8,6 @@ public:
     void NewtonRaphson(FullState& x)
     {
         FullState dx; // update, solve into here to save reallocating memory
-        dx = x; // initial guess for update
         for (int n=0; n<N; n++)
         {
             // first nonlinearly evolve current state
@@ -43,16 +42,11 @@ private:
 
         VectorX y; // result in new basis
 
-        FullState r; // r = rhs - A x = rhs + G_x x - x
-        x.LinearEvolve(T, r);
-        r += rhs;
-        r -= x;
-
-        stratifloat beta = r.Norm();
+        stratifloat beta = rhs.Norm();
 
         std::cout << beta << std::endl;
 
-        q[0] = r;
+        q[0] = rhs;
         q[0] *= 1/beta;
         for (int k=1; k<K; k++)
         {

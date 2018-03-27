@@ -52,10 +52,22 @@ public:
 
         int step = 0;
 
-        solver.PrepareRun("images/");
+        bool done = false;
+
+        static int runnum = 0;
+        runnum++;
+        solver.PrepareRun(std::string("images-")+std::to_string(runnum)+"/");
         solver.PlotAll(std::to_string(t)+".png", true);
         while (t < T)
         {
+            // on last step, arrive exactly
+            if (t + solver.deltaT > T)
+            {
+                solver.deltaT = T - t;
+                solver.UpdateForTimestep();
+                done = true;
+            }
+
             solver.TimeStep();
             t += solver.deltaT;
 
@@ -71,6 +83,11 @@ public:
 
             step++;
             std::cout << step << " " << t << std::endl;
+
+            if (done)
+            {
+                break;
+            }
         }
 
         solver.PlotAll(std::to_string(t)+".png", true);
@@ -90,12 +107,22 @@ public:
 
         int step = 0;
 
+        bool done = false;
+
         static int runnum = 0;
         runnum++;
         solver.PrepareRunLinear(std::string("images-linear-")+std::to_string(runnum)+"/");
         solver.PlotAll(std::to_string(t)+".png", false);
         while (t < T)
         {
+            // on last step, arrive exactly
+            if (t + solver.deltaT > T)
+            {
+                solver.deltaT = T - t;
+                solver.UpdateForTimestep();
+                done = true;
+            }
+
             solver.TimeStepLinear(t);
             t += solver.deltaT;
 
@@ -106,6 +133,11 @@ public:
 
             step++;
             std::cout << step << " " << t << std::endl;
+
+            if (done)
+            {
+                break;
+            }
         }
 
         solver.PlotAll(std::to_string(t)+".png", false);
