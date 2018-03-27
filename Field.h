@@ -23,7 +23,6 @@ class StackContainer
 {
 public:
     virtual A stack(int n1, int n2) const = 0;
-    virtual BoundaryCondition BC() const = 0;
 };
 
 template<typename A, typename T, int N1, int N2, int N3>
@@ -40,10 +39,6 @@ public:
         stack(int n1, int n2) const override
     {
         return scalar*rhs->stack(n1, n2);
-    }
-    virtual BoundaryCondition BC() const override
-    {
-        return rhs->BC();
     }
 private:
     const StackContainer<A, T, N1, N2, N3>* rhs;
@@ -64,17 +59,6 @@ public:
     {
         return lhs->stack(n1, n2) + rhs->stack(n1, n2);
     }
-    virtual BoundaryCondition BC() const override
-    {
-        if(lhs->BC() == BoundaryCondition::Decaying && rhs->BC() == BoundaryCondition::Decaying)
-        {
-            return BoundaryCondition::Decaying;
-        }
-        else
-        {
-            return BoundaryCondition::Bounded;
-        }
-    }
 private:
     const StackContainer<A, T, N1, N2, N3>* lhs;
     const StackContainer<B, T, N1, N2, N3>* rhs;
@@ -93,17 +77,6 @@ public:
         stack(int n1, int n2) const override
     {
         return lhs->stack(n1, n2) * rhs->stack(n1, n2);
-    }
-    virtual BoundaryCondition BC() const override
-    {
-        if(lhs->BC() == BoundaryCondition::Decaying || rhs->BC() == BoundaryCondition::Decaying)
-        {
-            return BoundaryCondition::Decaying;
-        }
-        else
-        {
-            return BoundaryCondition::Bounded;
-        }
     }
 private:
     const StackContainer<A, T, N1, N2, N3>* lhs;
@@ -125,10 +98,6 @@ public:
     {
         return matrix.diagonal()(n1)*field.stack(n1, n2);
     }
-    virtual BoundaryCondition BC() const override
-    {
-        return field.BC();
-    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const DiagonalMatrix<T1, -1>& matrix;
@@ -149,10 +118,6 @@ public:
     {
         return matrix.diagonal()(n2)*field.stack(n1, n2);
     }
-    virtual BoundaryCondition BC() const override
-    {
-        return field.BC();
-    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const DiagonalMatrix<T1, -1>& matrix;
@@ -162,16 +127,9 @@ template<typename A, typename T1, typename T2, int N1, int N2, int N3>
 class Dim3MatMul : public StackContainer<ArrayWrapper<const Product<Matrix<T1,-1,-1>, MatrixWrapper<A>>>, T2, N1, N2, N3>
 {
 public:
-    Dim3MatMul(const Matrix<T1, -1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field, BoundaryCondition resultingBC)
-    : matrix(matrix)
-    , field(field)
-    , resultingBC(resultingBC)
-    {}
-
     Dim3MatMul(const Matrix<T1, -1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field)
     : matrix(matrix)
     , field(field)
-    , resultingBC(field.BC())
     {}
 
     virtual
@@ -180,14 +138,9 @@ public:
     {
         return (matrix*field.stack(n1, n2).matrix()).array();
     }
-    virtual BoundaryCondition BC() const override
-    {
-        return resultingBC;
-    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const Matrix<T1, -1, -1>& matrix;
-    BoundaryCondition resultingBC;
 };
 
 template<typename A, typename T1, typename T2, int N1, int N2, int N3>
@@ -197,7 +150,6 @@ public:
     MatMul(const std::vector<Matrix<T1, -1, -1>>& matrices, const StackContainer<A, T2, N1, N2, N3>& field)
     : matrices(matrices)
     , field(field)
-    , resultingBC(field.BC())
     {}
 
 
@@ -207,37 +159,28 @@ public:
     {
         return (matrices[n1*N2+n2]*field.stack(n1, n2).matrix()).array();
     }
-    virtual BoundaryCondition BC() const override
-    {
-        return resultingBC;
-    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const std::vector<Matrix<T1, -1, -1>>& matrices;
-    BoundaryCondition resultingBC;
 };
 
 template<typename T, int N1, int N2, int N3>
 class Field : public StackContainer<Map<const Array<T, -1, 1>, Aligned16>,T,N1,N2,N3>
 {
 public:
-    Field(BoundaryCondition bc)
+    Field()
     : _data(N1*N2*N3, 0)
-    , _bc(bc)
     {
     }
 
     Field(const Field<T, N1, N2, N3>& other)
     : _data(other._data)
-    , _bc(other._bc)
     {
     }
 
     template<typename A>
     const Field<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
-        //assert(BC() == BoundaryCondition::Bounded || other.BC() == BoundaryCondition::Decaying);
-
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) = other.stack(j1,j2);
         });
@@ -257,11 +200,6 @@ public:
 
     bool operator==(const Field<T, N1, N2, N3>& other) const
     {
-        if (other.BC() != BC())
-        {
-            return false;
-        }
-
         // because of the way isApprox works, need to fail on both slice and stack to count
         bool failedSlice = false;
         for (int j=0; j<N3; j++)
@@ -305,8 +243,6 @@ public:
     template<typename A>
     const Field<T, N1, N2, N3>& operator+=(const StackContainer<A, T, N1, N2, N3>& other)
     {
-        assert(other.BC()==BC());
-
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) += other.stack(j1, j2);
         });
@@ -316,8 +252,6 @@ public:
     template<typename A>
     const Field<T, N1, N2, N3>& operator-=(const StackContainer<A, T, N1, N2, N3>& other)
     {
-        assert(other.BC()==BC());
-
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) -= other.stack(j1, j2);
         });
@@ -370,11 +304,6 @@ public:
     const T* Raw() const
     {
         return _data.data();
-    }
-
-    virtual BoundaryCondition BC() const override
-    {
-        return _bc;
     }
 
     void Zero()
@@ -440,16 +369,14 @@ private:
     // stored in column-major ordering of size (N1, N2, N3)
     std::vector<T, aligned_allocator<T>> _data;
 
-    const BoundaryCondition _bc;
 };
 
 template<typename T, int N1, int N2, int N3>
 class Field1D : public StackContainer<Map<const Array<T, -1, 1>, Aligned16>, T, N1, N2, N3>
 {
 public:
-    Field1D(BoundaryCondition bc)
+    Field1D()
     : _data(N3)
-    , _bc(bc)
     {
         _data.setZero();
     }
@@ -462,8 +389,6 @@ public:
     template<typename A>
     const Field1D<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
-        //assert(other.BC() == BC());
-
         Get() = other.stack(0, 0);
 
         return *this;
@@ -471,11 +396,6 @@ public:
 
     bool operator==(const Field1D<T, N1, N2, N3>& other) const
     {
-        if (other.BC() != BC())
-        {
-            return false;
-        }
-
         return Get().isApprox(other.Get(), 0.05);
     }
 
@@ -503,11 +423,6 @@ public:
         result.Get() = out;
     }
 
-    virtual BoundaryCondition BC() const override
-    {
-        return _bc;
-    }
-
     T* Raw()
     {
         return _data.data();
@@ -527,67 +442,7 @@ public:
         return _data;
     }
 private:
-    BoundaryCondition _bc;
     Array<T, -1, 1> _data;
-};
-
-template<int N1, int N2, int N3>
-class Nodal1D;
-
-template<int N1, int N2, int N3>
-class Modal1D : public Field1D<stratifloat, 1, 1, N3>
-{
-public:
-    using Field1D<stratifloat, 1, 1, N3>::Field1D;
-
-    template<typename A>
-    const Modal1D<N1, N2, N3>& operator=(const StackContainer<A,stratifloat, 1, 1, N3>& other)
-    {
-        Field1D<stratifloat, 1, 1, N3>::operator=(other);
-        return *this;
-    }
-
-    void ToNodal(Nodal1D<N1,N2,N3>& other) const
-    {
-        int size;
-        f3_r2r_kind kind;
-
-        stratifloat* in = const_cast<stratifloat*>(this->Raw());
-        stratifloat* out = other.Raw();
-
-        if (this->BC() == BoundaryCondition::Bounded)
-        {
-            kind = FFTW_REDFT00;
-            size = N3;
-        }
-        else
-        {
-            kind = FFTW_RODFT00;
-            in += 1;
-            out += 1;
-            size = N3-2;
-        }
-
-        Perform1DR2R(size, in, out, kind);
-
-        if (this->BC() == BoundaryCondition::Decaying)
-        {
-            other.Raw()[0] = 0.0f;
-            other.Raw()[N3-1] = 0.0f;
-        }
-    }
-
-    void Filter()
-    {
-        if (N3>2)
-        {
-            for (int j3=2*N3/3; j3<N3; j3++)
-            {
-                this->Raw()[j3] = 0;
-            }
-        }
-    }
-
 };
 
 template<int N1, int N2, int N3>
@@ -601,38 +456,6 @@ public:
     {
         Field1D<stratifloat, N1, N2, N3>::operator=(other);
         return *this;
-    }
-
-    void ToModal(Modal1D<N1,N2,N3>& other) const
-    {
-        int size;
-        f3_r2r_kind kind;
-
-        stratifloat* in = const_cast<stratifloat*>(this->Raw());
-        stratifloat* out = other.Raw();
-
-        if (this->BC() == BoundaryCondition::Bounded)
-        {
-            kind = FFTW_REDFT00;
-            size = N3;
-        }
-        else
-        {
-            kind = FFTW_RODFT00;
-            in += 1;
-            out += 1;
-            size = N3-2;
-        }
-
-        Perform1DR2R(size, in, out, kind);
-
-        other *= 1/static_cast<stratifloat>(2*(N3-1));
-
-        if (this->BC() == BoundaryCondition::Decaying)
-        {
-            other.Raw()[0] = 0.0f;
-            other.Raw()[N3-1] = 0.0f;
-        }
     }
 
     void SetValue(std::function<stratifloat(stratifloat)> f, stratifloat L3)
@@ -660,117 +483,33 @@ public:
         return *this;
     }
 
-    NodalField(BoundaryCondition bc)
-    : Field<stratifloat, N1, N2, N3>(bc)
+    NodalField()
+    : Field<stratifloat, N1, N2, N3>()
     {
-        if (!plan)
-        {
-            plan = f3_plan_dft_r2c_3d(2*(N3-1),
-                                      N2,
-                                      N1,
-                                      intermediateData.data(),
-                                      reinterpret_cast<f3_complex*>(intermediateData.data()),
-                                      FFTW_MEASURE);
-
-            assert(plan);
-            f3_execute(plan);
-        }
     }
 
-    void ToModal(ModalField<N1, N2, N3>& other, bool filter = true) const
+    void ToModal(ModalField<N1,N2,N3>& other, bool filter = true) const
     {
-        assert(other.BC() == this->BC());
+        // do FFT in 1st and 2nd dimensions
 
-        // first transpose to format required for fft (and use symmetry to pad out)
-
-        int n1 = 2*(N1/2+1);
-        int n2 = N2;
-        int n3 = 2*(N3-1);
-
-        // if statement outside the loops, though harder to read and gives code duplication
-        // is much more efficient (compiler doesn't seem clever enough to break it out in this case)
-        if (this->BC() == BoundaryCondition::Decaying)
-        {
-            // loop in blocks for cache efficiency
-            #pragma omp parallel for
-            for3D(N1,n2,n3)
-            {
-                stratifloat& outVal = intermediateData[j3*n1*n2 + j2*n1 + j1];
-
-                if (j3 == 0 || j3 == N3-1)
-                {
-                    outVal = 0;
-                }
-                else if (j3<N3)
-                {
-                    outVal = this->operator()(j1,j2,j3);
-                }
-                else
-                {
-                    // odd symmetry gives a sine transform in 3rd direction
-                    outVal = -this->operator()(j1,j2,n3-j3);
-                }
-            } endfor3D
-        }
-        else
-        {
-            // loop in blocks for cache efficiency
-            #pragma omp parallel for
-            for3D(N1,n2,n3)
-            {
-                stratifloat& outVal = intermediateData[j3*n1*n2 + j2*n1 + j1];
-
-                if (j3<N3)
-                {
-                    outVal = this->operator()(j1,j2,j3);
-                }
-                else
-                {
-                    // even symmetry gives a cosine transform in 3rd dim
-                    outVal = this->operator()(j1,j2,n3-j3);
-                }
-            } endfor3D
-        }
-
-
-        // then actually perform fft
+        int dims[] = {N2, N1};
+        int odims[] = {N2, N1/2+1};
+        auto plan = f3_plan_many_dft_r2c(2,
+                                        dims,
+                                        N3,
+                                        const_cast<stratifloat*>(this->Raw()),
+                                        dims,
+                                        N3,
+                                        1,
+                                        reinterpret_cast<f3_complex*>(other.Raw()),
+                                        odims,
+                                        N3,
+                                        1,
+                                        FFTW_ESTIMATE);
         f3_execute(plan);
+        f3_destroy_plan(plan);
 
-        // we use an inplace transform, so the complex result is stored in a real array
-        complex *fftResult = reinterpret_cast<complex*>(intermediateData.data());
-
-        // then transpose back
-
-        n1 = N1/2 + 1;
-        n2 = N2;
-        n3 = N3; // actually the output has 2*(N3-1) entries, but with symmetry
-
-        if (this->BC() == BoundaryCondition::Bounded)
-        {
-            #pragma omp parallel for
-            for3D(n1,n2,n3)
-            {
-                // this is a transpose in disguise, as the access order of operator()
-                // is 3, 1, 2
-                other(j1,j2,j3) = fftResult[j3*n2*n1 + j2*n1 + j1];
-            } endfor3D
-        }
-        else
-        {
-            #pragma omp parallel for
-            for3D(n1,n2,n3)
-            {
-                other(j1,j2,j3) = i*fftResult[j3*n2*n1 + j2*n1 + j1];
-            } endfor3D
-        }
-
-        other *= 1/static_cast<stratifloat>(N1*N2*2*(N3-1));
-
-        if (this->BC() == BoundaryCondition::Decaying)
-        {
-            other.slice(0).setZero();
-            other.slice(N3-1).setZero();
-        }
+        other *= 1/static_cast<stratifloat>(N1*N2);
 
         if (filter)
         {
@@ -854,28 +593,14 @@ public:
         return *this;
     }
 
-    ModalField(BoundaryCondition bc)
-    : Field<complex, N1/2+1, N2, N3>(bc)
+    ModalField()
+    : Field<complex, N1/2+1, N2, N3>()
     {
-        if (!plan)
-        {
-            plan = f3_plan_dft_c2r_3d(2*(N3-1),
-                                      N2,
-                                      N1,
-                                      reinterpret_cast<f3_complex*>(intermediateData.data()),
-                                      intermediateData.data(),
-                                      FFTW_MEASURE);
-
-            assert(plan);
-            f3_execute(plan);
-        }
     }
 
 
-    void ToNodalHorizontal(NodalField<N1, N2, N3>& other) const
+    void ToNodal(NodalField<N1, N2, N3>& other) const
     {
-        assert(other.BC() == this->BC());
-
         // do IFT in 1st and 2nd dimensions
 
         // make a copy of the input data as it is modified by the transform
@@ -903,91 +628,8 @@ public:
         f3_destroy_plan(plan);
     }
 
-    void ToNodal(NodalField<N1, N2, N3>& other) const
-    {
-        assert(other.BC() == this->BC());
-
-        // we use an inplace transform, so the complex input is stored in a real array
-        complex *fftInput = reinterpret_cast<complex*>(intermediateData.data());
-
-        // transpose
-
-        int n1 = N1/2+1;
-        int n2 = N2;
-        int n3 = 2*(N3-1);
-
-        if (this->BC() == BoundaryCondition::Bounded)
-        {
-            #pragma omp parallel for
-            for3D(n1,n2,n3)
-            {
-                complex val;
-                if (j3<N3)
-                {
-                    val = this->operator()(j1,j2,j3);
-                }
-                else
-                {
-                    val = this->operator()(j1,j2,n3-j3);
-                }
-
-                fftInput[j3*n2*n1 + j2*n1 + j1] = val;
-            } endfor3D
-        }
-        else
-        {
-            #pragma omp parallel for
-            for3D(n1,n2,n3)
-            {
-                complex val;
-                if (j3 == 0 || j3 == N3-1)
-                {
-                    val = 0;
-                }
-                else if (j3<N3)
-                {
-                    val = this->operator()(j1,j2,j3);
-                }
-                else
-                {
-                    val = -this->operator()(j1,j2,n3-j3);
-                }
-
-                fftInput[j3*n2*n1 + j2*n1 + j1] = -i*val;
-            } endfor3D
-        }
-
-        // transform
-        f3_execute(plan);
-
-        // transpose back
-
-        #pragma omp parallel for
-        for3D(N1,N2,N3)
-        {
-            other(j1,j2,j3) = intermediateData[j3*2*n1*n2 + j2*2*n1 + j1];
-        } endfor3D
-
-        if (this->BC() == BoundaryCondition::Decaying)
-        {
-            // now enforce zeros
-            other.slice(0).setZero();
-            other.slice(N3-1).setZero();
-        }
-
-    }
-
     void Filter()
     {
-        if (N3>2)
-        {
-            #pragma omp parallel for
-            for (int j3=2*N3/3; j3<N3; j3++)
-            {
-                this->slice(j3).setZero();
-            }
-        }
-
         if (N1>2)
         {
             #pragma omp parallel for collapse(2)
@@ -1023,10 +665,9 @@ public:
         std::mt19937 generator(rd());
         std::uniform_real_distribution<stratifloat> rng(-1.0,1.0);
 
-        int j3max = 0;
         for (int j1=0; j1<0.5*cutoff*N1; j1++)
         {
-            for (int j3=0; j3<cutoff*N3; j3++)
+            for (int j3=0; j3<N3; j3++)
             {
                 for (int j2=0; j2<0.5*cutoff*N2; j2++)
                 {
@@ -1035,43 +676,6 @@ public:
                 for (int j2=N2-1; j2>(1-0.5*cutoff)*N2; j2--)
                 {
                     this->operator()(j1,j2,j3) = rng(generator) + i*rng(generator);
-                }
-
-                j3max = j3;
-            }
-        }
-
-        // use higher order mode to set value at infinity to zero
-        if (this->BC() == BoundaryCondition::Bounded)
-        {
-            for (int j1=0; j1<actualN1; j1++)
-            {
-                for (int j2=0; j2<N2; j2++)
-                {
-                    complex evensum = 0.5f*this->operator()(j1, j2, 0);
-                    complex oddsum = 0;
-                    for (int j3=1; j3<=j3max; j3++)
-                    {
-                        if (j3%2 == 0)
-                        {
-                            evensum += this->operator()(j1, j2, j3);
-                        }
-                        else
-                        {
-                            oddsum += this->operator()(j1, j2, j3);
-                        }
-                    }
-
-                    if (j3max%2==0)
-                    {
-                        this->operator()(j1, j2, j3max+1) = -oddsum;
-                        this->operator()(j1, j2, j3max+2) = -evensum;
-                    }
-                    else
-                    {
-                        this->operator()(j1, j2, j3max+1) = -evensum;
-                        this->operator()(j1, j2, j3max+2) = -oddsum;
-                    }
                 }
             }
         }
@@ -1106,47 +710,41 @@ public:
 
     void Antisymmetrise()
     {
-        if (this->BC() == BoundaryCondition::Decaying)
-        {
-            #pragma omp parallel for
-            for3D(actualN1,N2,N3)
-            {
-                if (j3%2 == 0)
-                {
-                    this->operator()(j1,j2,j3).imag(0); // imaginary part antisymmetric
-                }
-                else
-                {
-                    this->operator()(j1,j2,j3).real(0); // real part symmetric
-                }
-            } endfor3D
-        }
-        else
-        {
-            #pragma omp parallel for
-            for3D(actualN1,N2,N3)
-            {
-                if (j3%2 == 0)
-                {
-                    this->operator()(j1,j2,j3).real(0); // real part antisymmetric
-                }
-                else
-                {
-                    this->operator()(j1,j2,j3).imag(0); // imaginary part symmetric
-                }
-            } endfor3D
-        }
+        // if (this->BC() == BoundaryCondition::Decaying)
+        // {
+        //     #pragma omp parallel for
+        //     for3D(actualN1,N2,N3)
+        //     {
+        //         if (j3%2 == 0)
+        //         {
+        //             this->operator()(j1,j2,j3).imag(0); // imaginary part antisymmetric
+        //         }
+        //         else
+        //         {
+        //             this->operator()(j1,j2,j3).real(0); // real part symmetric
+        //         }
+        //     } endfor3D
+        // }
+        // else
+        // {
+        //     #pragma omp parallel for
+        //     for3D(actualN1,N2,N3)
+        //     {
+        //         if (j3%2 == 0)
+        //         {
+        //             this->operator()(j1,j2,j3).real(0); // real part antisymmetric
+        //         }
+        //         else
+        //         {
+        //             this->operator()(j1,j2,j3).imag(0); // imaginary part symmetric
+        //         }
+        //     } endfor3D
+        // }
     }
 
 private:
-    static std::vector<stratifloat, aligned_allocator<stratifloat>> intermediateData;
-    static f3_plan plan;
 };
 
-template<int N1, int N2, int N3>
-std::vector<stratifloat, aligned_allocator<stratifloat>> ModalField<N1,N2,N3>::intermediateData(2*(N1/2+1)*N2*2*(N3-1), 0);
-template<int N1, int N2, int N3>
-f3_plan ModalField<N1,N2,N3>::plan(0);
 template<int N1, int N2, int N3>
 constexpr int ModalField<N1,N2,N3>::actualN1;
 

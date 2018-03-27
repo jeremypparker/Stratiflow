@@ -22,17 +22,17 @@ int main(int argc, char *argv[])
     else
     {
         std::cout << "Setting ICs..." << std::endl;
-        NField initialU1(BoundaryCondition::Bounded);
-        NField initialU2(BoundaryCondition::Bounded);
-        NField initialU3(BoundaryCondition::Decaying);
-        NField initialB(BoundaryCondition::Bounded);
+        NField initialU1;
+        NField initialU2;
+        NField initialU3;
+        NField initialB;
         auto x3 = VerticalPoints(L3, N3);
 
 
-        MField initialu1(BoundaryCondition::Bounded);
-        MField initialu2(BoundaryCondition::Bounded);
-        MField initialu3(BoundaryCondition::Decaying);
-        MField initialb(BoundaryCondition::Bounded);
+        MField initialu1;
+        MField initialu2;
+        MField initialu3;
+        MField initialb;
 
         std::cout << "Calculating Eigenmode..." << std::endl;
 
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 
     std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
 
-    MField wIntegrated(BoundaryCondition::Decaying);
+    MField wIntegrated;
     stratifloat JoverKintegrated = 0;
     stratifloat w2Integrated = 0;
 

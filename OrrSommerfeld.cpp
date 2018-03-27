@@ -6,28 +6,15 @@
 
 MatrixXc OrrSommerfeldLHS(stratifloat k)
 {
-    N1D U(BoundaryCondition::Bounded);
-    N1D B(BoundaryCondition::Bounded);
+    N1D U;
+    N1D B;
     U.SetValue(InitialU, L3);
     B.SetValue(InitialB, L3);
 
-    N1D Upp(BoundaryCondition::Bounded);
-    N1D Bp(BoundaryCondition::Decaying);
-
-    {
-        M1D u(BoundaryCondition::Bounded);
-        M1D b(BoundaryCondition::Bounded);
-        U.ToModal(u);
-        B.ToModal(b);
-
-        M1D bp(BoundaryCondition::Decaying);
-        M1D upp(BoundaryCondition::Bounded);
-        bp = ddz(b);
-        upp = ddz(ddz(u));
-
-        bp.ToNodal(Bp);
-        upp.ToNodal(Upp);
-    }
+    N1D Upp;
+    Upp = ddz(ddz(U));
+    N1D Bp;
+    Bp = ddz(B);
 
     auto D2 = VerticalSecondDerivativeNodalMatrix(L3, N3);
     auto I = MatrixX::Identity(N3, N3);
@@ -58,28 +45,15 @@ MatrixXc OrrSommerfeldLHS(stratifloat k)
 
 MatrixXc OrrSommerfeldRHS(stratifloat k)
 {
-    N1D U(BoundaryCondition::Bounded);
-    N1D B(BoundaryCondition::Bounded);
+    N1D U;
+    N1D B;
     U.SetValue(InitialU, L3);
     B.SetValue(InitialB, L3);
 
-    N1D Upp(BoundaryCondition::Bounded);
-    N1D Bp(BoundaryCondition::Decaying);
-
-    {
-        M1D u(BoundaryCondition::Bounded);
-        M1D b(BoundaryCondition::Bounded);
-        U.ToModal(u);
-        B.ToModal(b);
-
-        M1D bp(BoundaryCondition::Decaying);
-        M1D upp(BoundaryCondition::Bounded);
-        bp = ddz(b);
-        upp = ddz(ddz(u));
-
-        bp.ToNodal(Bp);
-        upp.ToNodal(Upp);
-    }
+    N1D Upp;
+    Upp = ddz(ddz(U));
+    N1D Bp;
+    Bp = ddz(B);
 
     auto D2 = VerticalSecondDerivativeNodalMatrix(L3, N3);
     auto I = MatrixX::Identity(N3, N3);
@@ -211,14 +185,14 @@ stratifloat LargestGrowth(stratifloat k,
 void EigenModes(stratifloat k, MField& u1, MField& u2, MField& u3, MField& b)
 {
     // find the vertical profile of eigenmodes
-    Field1D<complex, N1, N2, N3> w_hat(BoundaryCondition::Decaying);
-    Field1D<complex, N1, N2, N3> b_hat(BoundaryCondition::Decaying);
+    Field1D<complex, N1, N2, N3> w_hat;
+    Field1D<complex, N1, N2, N3> b_hat;
 
     LargestGrowth(k, &w_hat, &b_hat);
 
     // multiply out the modes
-    NField W(BoundaryCondition::Decaying);
-    NField B(BoundaryCondition::Bounded);
+    NField W;
+    NField B;
 
     auto x = FourierPoints(L1, N1);
 

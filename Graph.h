@@ -4,49 +4,6 @@
 
 #include <matplotlib-cpp.h>
 
-ArrayX Evaluate(const ArrayX& a, const ArrayX& x, stratifloat L, BoundaryCondition bc)
-{
-    ArrayX y = ArrayX::Zero(x.size());
-
-    ArrayX theta = atan(L/x);
-
-    for (int j=0; j<theta.size(); j++)
-    {
-        if (theta(j)<0)
-        {
-            theta(j) += pi;
-        }
-    }
-
-
-    for (int k=0; k<a.size(); k++)
-    {
-        stratifloat c = 2;
-        if (k==0 || k==a.size()-1)
-        {
-            if (bc==BoundaryCondition::Bounded)
-            {
-                c = 1;
-            }
-            else
-            {
-                c = 0;
-            }
-        }
-
-        if (bc==BoundaryCondition::Bounded)
-        {
-            y += c*a(k)*cos(k*theta);
-        }
-        else
-        {
-            y += c*a(k)*sin(k*theta);
-        }
-    }
-
-    return y;
-}
-
 template<int N1, int N2, int N3>
 inline void HeatPlot1D(const Nodal1D<N1, N2, N3> &U, std::string filename)
 {
@@ -97,7 +54,7 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
 template<int N1, int N2, int N3>
 inline void HeatPlot(const ModalField<N1, N2, N3> &u, stratifloat L1, stratifloat L3, int j2, std::string filename)
 {
-    NodalField<N1, N2, N3> U(u.BC());
+    NodalField<N1, N2, N3> U;
 
     u.ToNodal(U);
 

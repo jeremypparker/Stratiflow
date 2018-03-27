@@ -79,10 +79,4 @@ for (int j1 = k1; j1 < std::min(n1, k1 + LoopBlockSize); j1++)
 #define endfor3D \
 }}}}}
 
-enum class BoundaryCondition
-{
-    Decaying,
-    Bounded
-};
-
 using complex = std::complex<stratifloat>;

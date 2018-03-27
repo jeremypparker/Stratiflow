@@ -3,74 +3,6 @@
 #include "Eigen.h"
 #include "Field.h"
 
-MatrixX VerticalDerivativeMatrix(BoundaryCondition originalBC, stratifloat L, int N)
-{
-    MatrixX D = MatrixX::Zero(N,N);
-
-    for (int j=0; j<N; j++)
-    {
-        if(j==0)
-        {
-            D(j,j+2) = j+2;
-        }
-        else if(j==1)
-        {
-            // use (anti)symmetry of basis function to replace missing mode
-            if (originalBC==BoundaryCondition::Bounded)
-            {
-                D(j, j) = -3*j;
-            }
-            else
-            {
-                D(j, j) = -1*j;
-            }
-            D(j, j+2) = j+2;
-        }
-        else
-        {
-            D(j, j-2) = j-2;
-
-            if(j+2 < N)
-            {
-                D(j,j) = -2*j;
-                D(j,j+2) = j+2;
-            }
-            else // have lost some terms, modify others to keep consistency at infinity
-            {
-                D(j,j) = -j;
-            }
-        }
-    }
-
-    D /= (4*L);
-    if (originalBC==BoundaryCondition::Bounded)
-    {
-        D = -D;
-    }
-
-    D.row(0) *= 2;
-    D.col(0) /= 2;
-    D.row(N-1) *= 2;
-    D.col(N-1) /= 2;
-
-    return D;
-}
-
-
-MatrixX VerticalSecondDerivativeMatrix(BoundaryCondition bc, stratifloat L, int N)
-{
-    if (bc == BoundaryCondition::Bounded)
-    {
-        return VerticalDerivativeMatrix(BoundaryCondition::Decaying, L, N)
-                * VerticalDerivativeMatrix(BoundaryCondition::Bounded, L, N);
-    }
-    else
-    {
-        return VerticalDerivativeMatrix(BoundaryCondition::Bounded, L, N)
-                * VerticalDerivativeMatrix(BoundaryCondition::Decaying, L, N);
-    }
-}
-
 MatrixX VerticalSecondDerivativeNodalMatrix(stratifloat L, int N)
 {
     ArrayX x = VerticalPoints(L, N);
@@ -90,6 +22,31 @@ MatrixX VerticalSecondDerivativeNodalMatrix(stratifloat L, int N)
             D(j,j-1) = h2/denom;
             D(j,j) = -(h1+h2)/denom;
             D(j,j+1) = h1/denom;
+        }
+    }
+
+    return D;
+}
+
+MatrixX VerticalDerivativeNodalMatrix(stratifloat L, int N)
+{
+    ArrayX x = VerticalPoints(L, N);
+    ArrayX d = x.head(N-1) - x.tail(N-1);
+
+    MatrixX D = MatrixX::Zero(N,N);
+
+    for (int j=0; j<N; j++)
+    {
+        if (j!=0 && j!=N-1) // ends are at infinity, so derivative is zero there
+        {
+            stratifloat h1 = d(j-1);
+            stratifloat h2 = d(j);
+
+            stratifloat denom = (h1+h2)*h1*h2;
+
+            D(j,j-1) = h2*h2/denom;
+            D(j,j) = (h1*h1-h2*h2)/denom;
+            D(j,j+1) = -h1*h1/denom;
         }
     }
 

@@ -37,10 +37,10 @@ int main()
     std::cout << "Maximum growth rate " << growthmax << " at " << kmax << std::endl;
     std::cout << "Wavelength of fastest growing mode is " << 2*pi/kmax << std::endl;
 
-    MField u(BoundaryCondition::Bounded);
-    MField v(BoundaryCondition::Bounded);
-    MField w(BoundaryCondition::Decaying);
-    MField b(BoundaryCondition::Bounded);
+    MField u;
+    MField v;
+    MField w;
+    MField b;
 
     EigenModes(kmax, u, v, w, b);
 

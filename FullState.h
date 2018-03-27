@@ -7,11 +7,7 @@ class FullState
 {
 public:
     FullState()
-    : u1(BoundaryCondition::Bounded)
-    , u3(BoundaryCondition::Decaying)
-    , b(BoundaryCondition::Bounded)
-    , p(BoundaryCondition::Bounded)
-    , solver()
+    : solver()
     {}
 
     FullState(const FullState& other)

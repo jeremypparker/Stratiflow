@@ -3,11 +3,7 @@
 ArrayX VerticalPoints(stratifloat L, int N)
 {
     assert(N%4 == 0); // need for alignment
-    ArrayX ret =  L/(tan(ArrayX::LinSpaced(N, 0, pi)));
-
-    // fix infinities
-    ret(0) = 100000000000;
-    ret(N-1) = -100000000000;
+    ArrayX ret =  L/(tan(ArrayX::LinSpaced(N, pi/(2*N), pi-pi/(2*N))));
 
     return ret;
 }

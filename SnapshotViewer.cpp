@@ -11,10 +11,10 @@
 
 int main(int argc, char *argv[])
 {
-    NField loaded(BoundaryCondition::Decaying);
+    NField loaded;
 
     LoadVariable(argv[1], loaded, 2);
-    MField loadedModal(BoundaryCondition::Decaying);
+    MField loadedModal;
 
     loaded.ToModal(loadedModal);
 

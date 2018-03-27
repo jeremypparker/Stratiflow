@@ -24,7 +24,7 @@
 #define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
 #define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
 #define MatMulDim3 Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
-#define MatMul1D Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, 1, 1, N3>
+#define MatMul1D Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, N1, N2, N3>
 
 class IMEXRK
 {
@@ -38,13 +38,6 @@ public:
 
     struct State
     {
-        State()
-        : U1(BoundaryCondition::Bounded)
-        , U2(BoundaryCondition::Bounded)
-        , U3(BoundaryCondition::Decaying)
-        , B(BoundaryCondition::Bounded)
-        {}
-
         NField U1;
         NField U2;
         NField U3;
@@ -53,58 +46,8 @@ public:
 
 public:
     IMEXRK()
-    : u1(BoundaryCondition::Bounded)
-    , u2(BoundaryCondition::Bounded)
-    , u3(BoundaryCondition::Decaying)
-    , p(BoundaryCondition::Bounded)
-    , b(BoundaryCondition::Bounded)
-
-    , u_(BoundaryCondition::Bounded)
-    , b_(BoundaryCondition::Bounded)
-    , db_dz(BoundaryCondition::Decaying)
-
-    , u1_tot(BoundaryCondition::Bounded)
-    , u2_tot(BoundaryCondition::Bounded)
-    , u3_tot(BoundaryCondition::Decaying)
-    , b_tot(BoundaryCondition::Bounded)
-
-    , U1_tot(BoundaryCondition::Bounded)
-    , U2_tot(BoundaryCondition::Bounded)
-    , U3_tot(BoundaryCondition::Decaying)
-    , B_tot(BoundaryCondition::Bounded)
-
-
-    , R1(u1), R2(u2), R3(u3), RB(b)
-    , RU_(u_), RB_(b_)
-    , r1(u1), r2(u2), r3(u3), rB(b)
-    , U1(BoundaryCondition::Bounded)
-    , U2(BoundaryCondition::Bounded)
-    , U3(BoundaryCondition::Decaying)
-    , B(BoundaryCondition::Bounded)
-    , U_(BoundaryCondition::Bounded)
-    , B_(BoundaryCondition::Bounded)
-    , dB_dz(BoundaryCondition::Decaying)
-    , decayingTemp(BoundaryCondition::Decaying)
-    , boundedTemp(BoundaryCondition::Bounded)
-    , decayingTemp1D(BoundaryCondition::Decaying)
-    , boundedTemp1D(BoundaryCondition::Bounded)
-    , ndTemp1D(BoundaryCondition::Decaying)
-    , nnTemp1D(BoundaryCondition::Bounded)
-    , ndTemp(BoundaryCondition::Decaying)
-    , nnTemp(BoundaryCondition::Bounded)
-    , ndTemp2(BoundaryCondition::Decaying)
-    , nnTemp2(BoundaryCondition::Bounded)
-    , divergence(boundedTemp)
-    , q(boundedTemp)
-
-    , u1Forcing(U1)
-    , u2Forcing(U2)
-    , u3Forcing(U3)
-    , bForcing(B)
-
-    , solveLaplacian(M1*N2)
-    , implicitSolveBounded{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
-    , implicitSolveDecaying{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
+    : solveLaplacian(M1*N2)
+    , implicitSolveVelocity{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
     , implicitSolveBuoyancy{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
     {
         assert(ThreeDimensional || N2 == 1);
@@ -113,8 +56,7 @@ public:
 
         dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
         dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2, 2);
-        dim3Derivative2Bounded = VerticalSecondDerivativeMatrix(BoundaryCondition::Bounded, L3, N3);
-        dim3Derivative2Decaying = VerticalSecondDerivativeMatrix(BoundaryCondition::Decaying, L3, N3);
+        dim3Derivative2 = VerticalSecondDerivativeNodalMatrix(L3, N3);
 
         MatrixX laplacian;
         SparseMatrix<stratifloat> solve;
@@ -124,18 +66,19 @@ public:
         {
             for (int j2=0; j2<N2; j2++)
             {
-                laplacian = dim3Derivative2Bounded;
+                laplacian = dim3Derivative2;
 
                 // add terms for horizontal derivatives
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
-                // prevent singularity - first row gives average value
-                if (j1 == 0 && j2 == 0)
-                {
-                    laplacian.row(0).setConstant(0);
-                    laplacian(0,0) = 1;
-                }
+                // neumann BC at infinity
+                laplacian.row(0).setZero();
+                laplacian(0,0) = 1;
+                //laplacian(0,1) = -1;
+                laplacian.row(N3-1).setZero();
+                laplacian(N3-1,N3-1) = 1;
+                //laplacian(N3-1,N3-2) = -1;
 
                 solve = laplacian.sparseView();
                 solve.makeCompressed();
@@ -192,7 +135,7 @@ public:
             RemoveDivergence(1/h[k]);
             if (k==s-1)
             {
-                FilterAllLinear();
+                FilterAll();
             }
             PopulateNodalVariables();
 
@@ -225,7 +168,7 @@ public:
 
             if (k==s-1)
             {
-                FilterAllAdjoint();
+                FilterAll();
             }
 
             PopulateNodalVariablesAdjoint();
@@ -250,79 +193,11 @@ public:
         u3.Filter();
         b.Filter();
         p.Filter();
-
-        // correct for instability in scheme towards infinity
-        u_.ToNodal(U_);
-        b_.ToNodal(B_);
-        u3.ToNodal(U3);
-        b.ToNodal(B);
-        for (int j=0; j<4; j++)
-        {
-            U_.Get()(j) = 1;
-            B_.Get()(j) = -1;
-            U_.Get()(N3-1-j) = -1;
-            B_.Get()(N3-1-j) = 1;
-            U3.slice(j).setZero();
-            U3.slice(N3-1-j).setZero();
-            B.slice(j).setZero();
-            B.slice(N3-1-j).setZero();
-        }
-        U_.ToModal(u_);
-        B_.ToModal(b_);
-        U3.ToModal(u3);
-        B.ToModal(b);
-
-        u_.Filter();
-        b_.Filter();
-    }
-
-    void FilterAllLinear()
-    {
-        // To prevent anything dodgy accumulating in the unused coefficients
-        u1.Filter();
-        if(ThreeDimensional)
-        {
-            u2.Filter();
-        }
-        u3.Filter();
-        b.Filter();
-        p.Filter();
-
-        // correct for instability in scheme towards infinity
-        u3.ToNodal(U3);
-        b.ToNodal(B);
-        for (int j=0; j<4; j++)
-        {
-            U3.slice(j).setZero();
-            U3.slice(N3-1-j).setZero();
-            B.slice(j).setZero();
-            B.slice(N3-1-j).setZero();
-        }
-        U3.ToModal(u3);
-        B.ToModal(b);
-    }
-
-    void FilterAllAdjoint()
-    {
-        // To prevent anything dodgy accumulating in the unused coefficients
-        u1.Filter();
-        if(ThreeDimensional)
-        {
-            u2.Filter();
-        }
-        u3.Filter();
-        b.Filter();
-        p.Filter();
     }
 
     void PopulateNodalVariables()
     {
-        u_.ToNodal(U_);
-        b_.ToNodal(B_);
-
-        db_dz = ddz(b_);
-        db_dz.Filter();
-        db_dz.ToNodal(dB_dz);
+        dB_dz = ddz(B_);
 
         u1.ToNodal(U1);
         if (ThreeDimensional)
@@ -523,17 +398,15 @@ public:
 
     void SetBackground(N1D velocity, N1D buoyancy)
     {
-        velocity.ToModal(u_);
-        buoyancy.ToModal(b_);
-
-        PopulateNodalVariables();
+        U_ = velocity;
+        B_ = buoyancy;
     }
 
     void SetBackground(std::function<stratifloat(stratifloat)> velocity,
                        std::function<stratifloat(stratifloat)> buoyancy)
     {
-        N1D Ubar(BoundaryCondition::Bounded);
-        N1D Bbar(BoundaryCondition::Bounded);
+        N1D Ubar;
+        N1D Bbar;
         Ubar.SetValue(velocity, L3);
         Bbar.SetValue(buoyancy, L3);
 
@@ -622,8 +495,9 @@ public:
             divergence = ddx(u1) + ddz(u3);
         }
 
-        // constant term - set value at infinity to zero
-        divergence(0,0,0) = 0;
+        // set value at infinity to zero
+        divergence.slice(0).setZero();
+        divergence.slice(N3-1).setZero();
 
         // solve Δq = ∇·u as linear system Aq = divergence
         divergence.Solve(solveLaplacian, q);
@@ -770,8 +644,8 @@ public:
 
     stratifloat JoverK()
     {
-        static MField u1_total(BoundaryCondition::Bounded);
-        static MField b_total(BoundaryCondition::Bounded);
+        static MField u1_total;
+        static MField b_total;
 
         nnTemp = U1 + U_;
         nnTemp.ToModal(u1_total);
@@ -790,18 +664,14 @@ public:
                                        const MField& b_total)
     {
         // work out variation of buoyancy from average
-        static M1D bAveModal(BoundaryCondition::Bounded);
-        HorizontalAverage(b_total, bAveModal);
-        static N1D bAveNodal(BoundaryCondition::Bounded);
-        bAveModal.ToNodal(bAveNodal);
+        static N1D bAve;
+        HorizontalAverage(b_total, bAve);
 
-        static M1D wAveModal(BoundaryCondition::Decaying);
-        HorizontalAverage(u3_total, wAveModal);
-        static N1D wAveNodal(BoundaryCondition::Decaying);
-        wAveModal.ToNodal(wAveNodal);
+        static N1D wAve;
+        HorizontalAverage(u3_total, wAve);
 
         b_total.ToNodal(B_tot);
-        nnTemp = B_tot + -1*bAveNodal;
+        nnTemp = B_tot + -1*bAve;
 
         // (b-<b>)*w
         u3_total.ToNodal(U3_tot);
@@ -809,19 +679,17 @@ public:
         ndTemp.ToModal(decayingTemp);
 
         // construct integrand for J
-        static M1D bwAve(BoundaryCondition::Decaying);
-        HorizontalAverage(decayingTemp, bwAve);
-        static N1D Jintegrand(BoundaryCondition::Decaying);
-        bwAve.ToNodal(Jintegrand);
+        static N1D Jintegrand;
+        HorizontalAverage(decayingTemp, Jintegrand);
         J = IntegrateVertically(Jintegrand, L3);
 
         K = 2;
 
         // forcing term for u3
-        u3Forcing = (-1/K)*(B_tot+(-1)*bAveNodal);
+        u3Forcing = (-1/K)*(B_tot+(-1)*bAve);
 
         // forcing term for b
-        bForcing = (-1/K)*(U3_tot+(-1)*wAveNodal);
+        bForcing = (-1/K)*(U3_tot+(-1)*wAve);
 
         u1Forcing.Zero();
         u2Forcing.Zero();
@@ -873,29 +741,19 @@ public:
             {
                 for (int k=0; k<s; k++)
                 {
-                    laplacian = dim3Derivative2Bounded;
+                    laplacian = dim3Derivative2;
                     laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
                     laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
                     solve.makeCompressed();
 
-                    implicitSolveBounded[k][j1*N2+j2].compute(solve);
+                    implicitSolveVelocity[k][j1*N2+j2].compute(solve);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Pe).sparseView();
                     solve.makeCompressed();
 
                     implicitSolveBuoyancy[k][j1*N2+j2].compute(solve);
-
-
-                    laplacian = dim3Derivative2Decaying;
-                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
-                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
-
-                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
-                    solve.makeCompressed();
-
-                    implicitSolveDecaying[k][j1*N2+j2].compute(solve);
                 }
 
             }
@@ -908,28 +766,26 @@ public:
                          MField& oldu2,
                          MField& oldu3,
                          MField& oldb,
-                         M1D& backgroundB,
-                         M1D& backgroundU)
+                         N1D& backgroundB,
+                         N1D& backgroundU)
     {
         PopulateNodalVariablesAdjoint();
 
         stratifloat lambda;
 
-        static MField dLdu1(BoundaryCondition::Bounded);
-        static MField dLdu2(BoundaryCondition::Bounded);
-        static MField dLdu3(BoundaryCondition::Decaying);
-        static MField dLdb(BoundaryCondition::Bounded);
+        static MField dLdu1;
+        static MField dLdu2;
+        static MField dLdu3;
+        static MField dLdb;
 
-        static MField dEdu1(BoundaryCondition::Bounded);
-        static MField dEdu2(BoundaryCondition::Bounded);
-        static MField dEdu3(BoundaryCondition::Decaying);
-        static MField dEdb(BoundaryCondition::Bounded);
+        static MField dEdu1;
+        static MField dEdu2;
+        static MField dEdu3;
+        static MField dEdb;
 
-        db_dz = ddz(backgroundB);
-        db_dz.Filter();
-        db_dz.ToNodal(dB_dz);
+        dB_dz = ddz(backgroundB);
 
-        static N1D Bgradientinv(BoundaryCondition::Decaying);
+        static N1D Bgradientinv;
         for (int j=0; j<N3; j++)
         {
             if(dB_dz.Get()(j)>-0.00001 && dB_dz.Get()(j)<0.00001)
@@ -1065,17 +921,17 @@ private:
         static stratifloat timeabove = -1;
         static stratifloat timebelow = -1;
 
-        static NField u1Above(BoundaryCondition::Bounded);
-        static NField u1Below(BoundaryCondition::Bounded);
+        static NField u1Above;
+        static NField u1Below;
 
-        static NField u2Above(BoundaryCondition::Bounded);
-        static NField u2Below(BoundaryCondition::Bounded);
+        static NField u2Above;
+        static NField u2Below;
 
-        static NField u3Above(BoundaryCondition::Decaying);
-        static NField u3Below(BoundaryCondition::Decaying);
+        static NField u3Above;
+        static NField u3Below;
 
-        static NField bAbove(BoundaryCondition::Bounded);
-        static NField bBelow(BoundaryCondition::Bounded);
+        static NField bAbove;
+        static NField bBelow;
 
         if (timeabove != fileAbove->first)
         {
@@ -1142,18 +998,11 @@ private:
         }
         else
         {
-            if (solve.BC() == BoundaryCondition::Bounded)
-            {
-                solve.Solve(implicitSolveBounded[k], into);
-            }
-            else
-            {
-                solve.Solve(implicitSolveDecaying[k], into);
-            }
+            solve.Solve(implicitSolveVelocity[k], into);
         }
     }
 
-    void CNSolve1D(M1D& solve, M1D& into, int k, bool buoyancy = false)
+    void CNSolve1D(N1D& solve, N1D& into, int k, bool buoyancy = false)
     {
         if (buoyancy)
         {
@@ -1161,14 +1010,7 @@ private:
         }
         else
         {
-            if (solve.BC() == BoundaryCondition::Bounded)
-            {
-                solve.Solve(implicitSolveBounded[k][0], into);
-            }
-            else
-            {
-                solve.Solve(implicitSolveDecaying[k][0], into);
-            }
+            solve.Solve(implicitSolveVelocity[k][0], into);
         }
     }
 
@@ -1184,8 +1026,8 @@ private:
 
         if (EvolveBackground)
         {
-            CNSolve1D(RU_, u_, k);
-            CNSolve1D(RB_, b_, k, true);
+            CNSolve1D(RU_, U_, k);
+            CNSolve1D(RB_, B_, k, true);
         }
     }
 
@@ -1205,19 +1047,19 @@ private:
         // build up right hand sides for the implicit solve in R
 
         //   old      last rk step         pressure         explicit CN
-        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Bounded, u1));
+        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2, u1));
         if(ThreeDimensional)
         {
-        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
+        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2, u2));
         }
-        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
-        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
+        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2, u3));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2, b));
 
         if (EvolveBackground)
         {
             // for the 1D variables u_ and b_ (background flow) we only use vertical derivative matrix
-            RU_ = u_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Bounded, u_);
-            RB_ = b_ + (0.5f*h[k]/Pe)*MatMul1D(dim3Derivative2Bounded, b_);
+            RU_ = U_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2, U_);
+            RB_ = B_ + (0.5f*h[k]/Pe)*MatMul1D(dim3Derivative2, B_);
         }
 
         // now construct explicit terms
@@ -1306,13 +1148,13 @@ private:
         // build up right hand sides for the implicit solve in R
 
         //   old      last rk step         pressure         explicit CN
-        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Bounded, u1));
+        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2, u1));
         if(ThreeDimensional)
         {
-        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
+        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2, u2));
         }
-        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
-        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
+        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2, u3));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2, b));
 
         // now construct explicit terms
         r1.Zero();
@@ -1389,13 +1231,13 @@ private:
         // build up right hand sides for the implicit solve in R
 
         //   old      last rk step         pressure         explicit CN
-        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Bounded, u1));
+        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2, u1));
         if(ThreeDimensional)
         {
-        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Bounded, u2));
+        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2, u2));
         }
-        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Decaying, u3));
-        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Bounded, b));
+        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2, u3));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2, b));
 
         // now construct explicit terms
         r1.Zero();
@@ -1548,8 +1390,7 @@ public:
     MField p;
 private:
     // background flow
-    M1D u_, b_;
-    mutable M1D db_dz;
+    N1D U_, B_, dB_dz;
 
     // direct flow (used for adjoint evolution)
     MField u1_tot, u2_tot, u3_tot, b_tot;
@@ -1571,26 +1412,22 @@ private:
 
     // these are intermediate variables used in the computation, preallocated for efficiency
     MField R1, R2, R3, RB;
-    M1D RU_, RB_;
+    N1D RU_, RB_;
     MField r1, r2, r3, rB;
     mutable NField U1_tot, U2_tot, U3_tot, B_tot;
-    mutable N1D U_, B_, dB_dz;
     mutable NField ndTemp, nnTemp;
     mutable NField ndTemp2, nnTemp2;
     mutable MField decayingTemp, boundedTemp;
-    mutable M1D decayingTemp1D, boundedTemp1D;
     mutable N1D ndTemp1D, nnTemp1D;
-    MField& divergence; // reference to share memory
-    MField& q;
+    MField divergence;
+    MField q;
 
     // these are precomputed matrices for performing and solving derivatives
     DiagonalMatrix<stratifloat, -1> dim1Derivative2;
     DiagonalMatrix<stratifloat, -1> dim2Derivative2;
-    MatrixX dim3Derivative2Bounded;
-    MatrixX dim3Derivative2Decaying;
+    MatrixX dim3Derivative2;
 
-    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBounded[3];
-    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveDecaying[3];
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveVelocity[3];
     std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBuoyancy[3];
     std::vector<SparseLU<SparseMatrix<stratifloat>>> solveLaplacian;
 

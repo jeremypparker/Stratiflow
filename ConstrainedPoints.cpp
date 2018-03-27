@@ -8,10 +8,10 @@ int main(int argc, char *argv[])
 
     for (int p=0; p<1000; p++)
     {
-        MField initialU1(BoundaryCondition::Bounded);
-        MField initialU2(BoundaryCondition::Bounded);
-        MField initialU3(BoundaryCondition::Decaying);
-        MField initialB(BoundaryCondition::Bounded);
+        MField initialU1;
+        MField initialU2;
+        MField initialU3;
+        MField initialB;
 
         std::random_device rd;
         std::mt19937 generator(rd());

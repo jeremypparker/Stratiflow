@@ -14,37 +14,29 @@ int main(int argc, char *argv[])
     IMEXRK solver;
 
     // these are the initial conditions for the current step
-    MField u10(BoundaryCondition::Bounded);
-    MField u20(BoundaryCondition::Bounded);
-    MField u30(BoundaryCondition::Decaying);
-    MField b0(BoundaryCondition::Bounded);
+    MField u10;
+    MField u20;
+    MField u30;
+    MField b0;
 
     // these are the initial conditions for the previous step - so we can reset if necessary
-    MField previousu10(BoundaryCondition::Bounded);
-    MField previousu20(BoundaryCondition::Bounded);
-    MField previousu30(BoundaryCondition::Decaying);
-    MField previousb0(BoundaryCondition::Bounded);
+    MField previousu10;
+    MField previousu20;
+    MField previousu30;
+    MField previousb0;
 
 
-    MField previousv1(BoundaryCondition::Bounded);
-    MField previousv2(BoundaryCondition::Bounded);
-    MField previousv3(BoundaryCondition::Decaying);
-    MField previousvb(BoundaryCondition::Bounded);
+    MField previousv1;
+    MField previousv2;
+    MField previousv3;
+    MField previousvb;
 
     stratifloat previousIntegral = -1000;
 
-    M1D backgroundB(BoundaryCondition::Bounded);
-    M1D backgroundU(BoundaryCondition::Bounded);
-
-    {
-        N1D Bbar(BoundaryCondition::Bounded);
-        Bbar.SetValue(InitialB, L3);
-        Bbar.ToModal(backgroundB);
-
-        N1D Ubar(BoundaryCondition::Bounded);
-        Ubar.SetValue(InitialU, L3);
-        Ubar.ToModal(backgroundU);
-    }
+    N1D backgroundB;
+    N1D backgroundU;
+    backgroundB.SetValue(InitialB, L3);
+    backgroundU.SetValue(InitialU, L3);
 
 
     // first optional parameter is the maximum number of DAL loops
@@ -77,10 +69,10 @@ int main(int argc, char *argv[])
 
         p = 0;
 
-        MField initialU1(BoundaryCondition::Bounded);
-        MField initialU2(BoundaryCondition::Bounded);
-        MField initialU3(BoundaryCondition::Decaying);
-        MField initialB(BoundaryCondition::Bounded);
+        MField initialU1;
+        MField initialU2;
+        MField initialU3;
+        MField initialB;
 
         // put energy in the lowest third of the spatial modes
         initialU1.RandomizeCoefficients(0.3);
@@ -242,8 +234,8 @@ int main(int argc, char *argv[])
         }
 
         {
-            N1D Ubar(BoundaryCondition::Bounded);
-            N1D Bbar(BoundaryCondition::Bounded);
+            N1D Ubar;
+            N1D Bbar;
             solver.SetBackground(Ubar, Bbar);
         }
 
