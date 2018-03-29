@@ -20,7 +20,7 @@ public:
             std::cout << "NEWTON STEP " << n << ", RESIDUAL: " << residual << std::endl;
 
             // solve matrix system
-            GMRES(rhs, dx, 0.001);
+            GMRES(rhs, dx, 0.01);
 
             // update
             x += dx;

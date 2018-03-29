@@ -72,13 +72,12 @@ public:
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
-                // neumann BC at infinity
+                // impose pressure 0 at boundary
                 laplacian.row(0).setZero();
                 laplacian(0,0) = 1;
-                //laplacian(0,1) = -1;
+
                 laplacian.row(N3-1).setZero();
                 laplacian(N3-1,N3-1) = 1;
-                //laplacian(N3-1,N3-2) = -1;
 
                 solve = laplacian.sparseView();
                 solve.makeCompressed();
@@ -133,10 +132,10 @@ public:
             ExplicitUpdateLinear(k);
             ImplicitUpdate(k);
             RemoveDivergence(1/h[k]);
-            if (k==s-1)
-            {
+            //if (k==s-1)
+            //{
                 FilterAll();
-            }
+            //}
             PopulateNodalVariables();
 
             time += h[k];
@@ -193,6 +192,25 @@ public:
         u3.Filter();
         b.Filter();
         p.Filter();
+
+        // BCs
+
+        // free slip
+        u1.slice(0) = u1.slice(1);
+        u1.slice(N3-1) = u1.slice(N3-2);
+        if (ThreeDimensional)
+        {
+            u2.slice(0) = u2.slice(1);
+            u2.slice(N3-1) = u2.slice(N3-2);
+        }
+
+        // no penetration
+        u3.slice(0).setZero();
+        u3.slice(N3-1).setZero();
+
+        // // ?
+        // p.slice(0) = p.slice(1);
+        // p.slice(N3-1) = p.slice(N3-2);
     }
 
     void PopulateNodalVariables()
@@ -495,7 +513,7 @@ public:
             divergence = ddx(u1) + ddz(u3);
         }
 
-        // set value at infinity to zero
+        // set value at boundary to zero
         divergence.slice(0).setZero();
         divergence.slice(N3-1).setZero();
 

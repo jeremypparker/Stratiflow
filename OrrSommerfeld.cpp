@@ -35,10 +35,10 @@ MatrixXc OrrSommerfeldLHS(stratifloat k)
                    -(1/Pe/k)*(D2-k*k*I);
 
     // values at infinity must be zero, so ignore those bits
-    MatrixXc A(2*(N3-2), 2*(N3-2));
+    MatrixXc A(2*N3, 2*N3);
 
-    A << A11.block(1, 1, N3-2, N3-2), A12.block(1, 1, N3-2, N3-2),
-         A21.block(1, 1, N3-2, N3-2), A22.block(1, 1, N3-2, N3-2);
+    A << A11, A12,
+         A21, A22;
 
     return A;
 }
@@ -71,10 +71,10 @@ MatrixXc OrrSommerfeldRHS(stratifloat k)
     MatrixXc C22 = -I;
 
     // values at infinity must be zero, so ignore those bits
-    MatrixXc C(2*(N3-2), 2*(N3-2));
+    MatrixXc C(2*N3, 2*N3);
 
-    C << C11.block(1, 1, N3-2, N3-2), C12.block(1, 1, N3-2, N3-2),
-         C21.block(1, 1, N3-2, N3-2), C22.block(1, 1, N3-2, N3-2);
+    C << C11, C12,
+         C21, C22;
 
     return C;
 }
@@ -100,12 +100,12 @@ ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen
 
     if (w_eigen!=nullptr)
     {
-        w_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().block(0,0,N3-2,N3-2);
+        *w_eigen = solver.eigenvectors().block(0,0,N3,N3);
     }
 
     if (b_eigen!=nullptr)
     {
-        b_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().block(N3-2,0,N3-2,N3-2);
+        *b_eigen = solver.eigenvectors().block(N3,0,N3,N3);
     }
 
     return solver.eigenvalues();
@@ -146,8 +146,8 @@ stratifloat LargestGrowth(stratifloat k,
 
         return std::log(lambda)/T;
     }
-    MatrixXc w_eigen(N3,2*(N3-2));
-    MatrixXc b_eigen(N3,2*(N3-2));
+    MatrixXc w_eigen(N3,N3);
+    MatrixXc b_eigen(N3,N3);
 
     ArrayXc eigenvalues;
     if (w!=nullptr|| b!=nullptr)

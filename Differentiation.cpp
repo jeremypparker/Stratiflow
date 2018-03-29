@@ -12,8 +12,32 @@ MatrixX VerticalSecondDerivativeNodalMatrix(stratifloat L, int N)
 
     for (int j=0; j<N; j++)
     {
-        if (j!=0 && j!=N-1) // ends are at infinity, so derivative is zero there
+        if (j==0)
         {
+            // one sided (second order) derivatives at ends
+            stratifloat h1 = d(0);
+            stratifloat h2 = d(1);
+
+            stratifloat denom = (h1+h2)*h1*h2/2.0;
+
+            D(0,2) = h1/denom;
+            D(0,1) = -(h1+h2)/denom;
+            D(0,0) = h2/denom;
+        }
+        else if (j==N-1)
+        {
+            stratifloat h1 = d(N-2);
+            stratifloat h2 = d(N-3);
+
+            stratifloat denom = (h1+h2)*h1*h2/2.0;
+
+            D(N-1,N-3) = h1/denom;
+            D(N-1,N-2) = -(h1+h2)/denom;
+            D(N-1,N-1) = h2/denom;
+        }
+        else
+        {
+            // second order finite difference everywhere else
             stratifloat h1 = d(j-1);
             stratifloat h2 = d(j);
 
@@ -37,8 +61,32 @@ MatrixX VerticalDerivativeNodalMatrix(stratifloat L, int N)
 
     for (int j=0; j<N; j++)
     {
-        if (j!=0 && j!=N-1) // ends are at infinity, so derivative is zero there
+        if (j==0)
         {
+            // one sided (second order) derivatives at ends
+            stratifloat h1 = d(0);
+            stratifloat h2 = d(1);
+
+            stratifloat denom = (h1+h2)*h1*h2;
+
+            D(0,2) = h1*h1/denom;
+            D(0,1) = -(h1+h2)*(h1+h2)/denom;
+            D(0,0) = -(h1*h1 - (h1+h2)*(h1+h2))/denom;
+        }
+        else if (j==N-1)
+        {
+            stratifloat h1 = d(N-2);
+            stratifloat h2 = d(N-3);
+
+            stratifloat denom = (h1+h2)*h1*h2;
+
+            D(N-1,N-3) = -h1*h1/denom;
+            D(N-1,N-2) = (h1+h2)*(h1+h2)/denom;
+            D(N-1,N-1) = (h1*h1 - (h1+h2)*(h1+h2))/denom;
+        }
+        else
+        {
+            // second order finite difference everywhere else
             stratifloat h1 = d(j-1);
             stratifloat h2 = d(j);
 
