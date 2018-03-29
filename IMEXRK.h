@@ -102,11 +102,13 @@ public:
         {
             auto t0 = std::chrono::high_resolution_clock::now();
 
-            ExplicitUpdate(k);
+            ExplicitCN(k, EvolveBackground);
+            BuildRHS();
+            FinishRHS(k);
 
             auto t1 = std::chrono::high_resolution_clock::now();
 
-            ImplicitUpdate(k);
+            ImplicitUpdate(k, EvolveBackground);
 
             auto t2 = std::chrono::high_resolution_clock::now();
 
@@ -134,7 +136,11 @@ public:
         for (int k=0; k<s; k++)
         {
             LoadAtTime(time, false);
-            ExplicitUpdateLinear(k);
+
+            ExplicitCN(k);
+            BuildRHSLinear();
+            FinishRHS(k);
+
             ImplicitUpdate(k);
             RemoveDivergence(1/h[k]);
             //if (k==s-1)
@@ -158,11 +164,13 @@ public:
 
             auto t0 = std::chrono::high_resolution_clock::now();
 
-            ExplicitUpdateAdjoint(k);
+            ExplicitCN(k);
+            BuildRHSAdjoint();
+            FinishRHS(k);
 
             auto t1 = std::chrono::high_resolution_clock::now();
 
-            ImplicitUpdateAdjoint(k);
+            ImplicitUpdate(k);
 
             auto t2 = std::chrono::high_resolution_clock::now();
 
@@ -1054,7 +1062,7 @@ private:
         }
     }
 
-    void ImplicitUpdate(int k)
+    void ImplicitUpdate(int k, bool evolveBackground = false)
     {
         CNSolve(R1, u1, k);
         if(ThreeDimensional)
@@ -1071,21 +1079,20 @@ private:
         }
     }
 
-    void ImplicitUpdateAdjoint(int k)
+    void FinishRHS(int k)
     {
-        CNSolve(R1, u1, k);
+        // now add on explicit terms to RHS
+        R1 += (h[k]*beta[k])*r1;
         if(ThreeDimensional)
         {
-            CNSolve(R2, u2, k);
+            R2 += (h[k]*beta[k])*r2;
         }
-        CNSolve(R3, u3, k, true);
-        CNSolve(RB, b, k, false, true);
+        R3 += (h[k]*beta[k])*r3;
+        RB += (h[k]*beta[k])*rB;
     }
 
-    void ExplicitUpdate(int k)
+    void ExplicitCN(int k, bool evolveBackground = false)
     {
-        // build up right hand sides for the implicit solve in R
-
         //   old      last rk step         pressure         explicit CN
         R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2, u1));
         if(ThreeDimensional)
@@ -1095,7 +1102,7 @@ private:
         R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2, u3));
         RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2, b));
 
-        if (EvolveBackground)
+        if (evolveBackground)
         {
             // for the 1D variables u_ and b_ (background flow) we only use vertical derivative matrix
             RU_ = U_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2, U_);
@@ -1110,6 +1117,11 @@ private:
         }
         r3.Zero();
         rB.Zero();
+    }
+
+    void BuildRHS()
+    {
+        // build up right hand sides for the implicit solve in R
 
         ndTemp = Ri*B;// buoyancy force
         ndTemp.ToModal(decayingTemp);
@@ -1173,38 +1185,11 @@ private:
         nnTemp = U3*dB_dz;
         nnTemp.ToModal(boundedTemp);
         rB -= boundedTemp;
-
-        // now add on explicit terms to RHS
-        R1 += (h[k]*beta[k])*r1;
-        if(ThreeDimensional)
-        {
-            R2 += (h[k]*beta[k])*r2;
-        }
-        R3 += (h[k]*beta[k])*r3;
-        RB += (h[k]*beta[k])*rB;
     }
 
-    void ExplicitUpdateLinear(int k)
+    void BuildRHSLinear()
     {
         // build up right hand sides for the implicit solve in R
-
-        //   old      last rk step         pressure         explicit CN
-        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2, u1));
-        if(ThreeDimensional)
-        {
-        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2, u2));
-        }
-        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2, u3));
-        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2, b));
-
-        // now construct explicit terms
-        r1.Zero();
-        if(ThreeDimensional)
-        {
-            r2.Zero();
-        }
-        r3.Zero();
-        rB.Zero();
 
         ndTemp = Ri*B;// buoyancy force
         ndTemp.ToModal(decayingTemp);
@@ -1257,38 +1242,11 @@ private:
         ndTemp = U3*B_tot + U3_tot*B;
         ndTemp.ToModal(decayingTemp);
         rB -= ddz(decayingTemp);
-
-        // now add on explicit terms to RHS
-        R1 += (h[k]*beta[k])*r1;
-        if(ThreeDimensional)
-        {
-            R2 += (h[k]*beta[k])*r2;
-        }
-        R3 += (h[k]*beta[k])*r3;
-        RB += (h[k]*beta[k])*rB;
     }
 
-    void ExplicitUpdateAdjoint(int k)
+    void BuildRHSAdjoint()
     {
         // build up right hand sides for the implicit solve in R
-
-        //   old      last rk step         pressure         explicit CN
-        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2, u1));
-        if(ThreeDimensional)
-        {
-        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2, u2));
-        }
-        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2, u3));
-        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2, b));
-
-        // now construct explicit terms
-        r1.Zero();
-        if(ThreeDimensional)
-        {
-            r2.Zero();
-        }
-        r3.Zero();
-        rB.Zero();
 
         // adjoint buoyancy
         bForcing -= Ri*U3;
@@ -1415,15 +1373,6 @@ private:
         r3 += decayingTemp;
         bForcing.ToModal(boundedTemp);
         rB += boundedTemp;
-
-        // now add on explicit terms to RHS
-        R1 += (h[k]*beta[k])*r1;
-        if(ThreeDimensional)
-        {
-            R2 += (h[k]*beta[k])*r2;
-        }
-        R3 += (h[k]*beta[k])*r3;
-        RB += (h[k]*beta[k])*rB;
     }
 
 public:
