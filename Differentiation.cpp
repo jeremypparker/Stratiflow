@@ -3,7 +3,7 @@
 #include "Eigen.h"
 #include "Field.h"
 
-MatrixX VerticalSecondDerivativeNodalMatrix(stratifloat L, int N)
+MatrixX VerticalSecondDerivativeMatrix(stratifloat L, int N)
 {
     ArrayX x = VerticalPoints(L, N);
     ArrayX d = x.head(N-1) - x.tail(N-1);
@@ -52,7 +52,7 @@ MatrixX VerticalSecondDerivativeNodalMatrix(stratifloat L, int N)
     return D;
 }
 
-MatrixX VerticalDerivativeNodalMatrix(stratifloat L, int N)
+MatrixX VerticalDerivativeMatrix(stratifloat L, int N)
 {
     ArrayX x = VerticalPoints(L, N);
     ArrayX d = x.head(N-1) - x.tail(N-1);

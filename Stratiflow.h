@@ -28,7 +28,7 @@ Dim2MatMul<T, complex, complex, M1, N2, N3> ddy(const StackContainer<T, complex,
 template<typename A, typename T, int K1, int K2, int K3>
 Dim3MatMul<A, stratifloat, T, K1, K2, K3> ddz(const StackContainer<A, T, K1, K2, K3>& f)
 {
-    static MatrixX dim3Derivative = VerticalDerivativeNodalMatrix(L3, N3);
+    static MatrixX dim3Derivative = VerticalDerivativeMatrix(L3, N3);
 
     return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(dim3Derivative, f);
 }

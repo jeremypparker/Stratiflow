@@ -47,7 +47,8 @@ public:
 public:
     IMEXRK()
     : solveLaplacian(M1*N2)
-    , implicitSolveVelocity{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
+    , implicitSolveVelocityNeumann{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
+    , implicitSolveVelocityDirichlet{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
     , implicitSolveBuoyancy{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
     {
         assert(ThreeDimensional || N2 == 1);
@@ -56,7 +57,7 @@ public:
 
         dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
         dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2, 2);
-        dim3Derivative2 = VerticalSecondDerivativeNodalMatrix(L3, N3);
+        dim3Derivative2 = VerticalSecondDerivativeMatrix(L3, N3);
 
         MatrixX laplacian;
         SparseMatrix<stratifloat> solve;
@@ -72,12 +73,16 @@ public:
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
-                // impose pressure 0 at boundary
-                laplacian.row(0).setZero();
-                laplacian(0,0) = 1;
+                Neumannify(laplacian);
 
-                laplacian.row(N3-1).setZero();
-                laplacian(N3-1,N3-1) = 1;
+                // correct for singularity
+                if (j1==0 && j2==0)
+                {
+                    laplacian.row(0).setZero();
+                    laplacian(0,0) = 1;
+                    laplacian.row(N3-1).setZero();
+                    laplacian(N3-1,N3-1) = 1;
+                }
 
                 solve = laplacian.sparseView();
                 solve.makeCompressed();
@@ -195,6 +200,8 @@ public:
 
         // BCs
 
+        // possibly not necessary, but to correct after pressure remove
+
         // free slip
         u1.slice(0) = u1.slice(1);
         u1.slice(N3-1) = u1.slice(N3-2);
@@ -208,9 +215,9 @@ public:
         u3.slice(0).setZero();
         u3.slice(N3-1).setZero();
 
-        // // ?
-        // p.slice(0) = p.slice(1);
-        // p.slice(N3-1) = p.slice(N3-2);
+        // buoyancy bcs
+        b.slice(0) = b.slice(1);
+        b.slice(N3-1) = b.slice(N3-2);
     }
 
     void PopulateNodalVariables()
@@ -514,8 +521,7 @@ public:
         }
 
         // set value at boundary to zero
-        divergence.slice(0).setZero();
-        divergence.slice(N3-1).setZero();
+        divergence.ZeroEnds();
 
         // solve Δq = ∇·u as linear system Aq = divergence
         divergence.Solve(solveLaplacian, q);
@@ -602,7 +608,7 @@ public:
         // nnTemp2.ToModal(boundedTemp);
         // p -= 2.0*boundedTemp;
 
-        // // buoyancy
+        // // buoyancy // todo: no hydrostatic
         // decayingTemp = ddz(b);
         // decayingTemp.ToNodal(ndTemp);
         // nnTemp = ndTemp;
@@ -610,7 +616,7 @@ public:
         // p -= Ri*boundedTemp;
 
         // // Now solve the poisson equation
-        // p(0,0,0) = 0; //BC
+        // p.ZeroEnds();
         // p.Solve(solveLaplacian, p);
     }
 
@@ -764,11 +770,17 @@ public:
                     laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
-                    solve.makeCompressed();
 
-                    implicitSolveVelocity[k][j1*N2+j2].compute(solve);
+                    Neumannify(solve);
+                    solve.makeCompressed();
+                    implicitSolveVelocityNeumann[k][j1*N2+j2].compute(solve);
+
+                    Dirichlify(solve);
+                    solve.makeCompressed();
+                    implicitSolveVelocityDirichlet[k][j1*N2+j2].compute(solve);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Pe).sparseView();
+                    Neumannify(solve);
                     solve.makeCompressed();
 
                     implicitSolveBuoyancy[k][j1*N2+j2].compute(solve);
@@ -1008,27 +1020,37 @@ private:
         B_tot.ToModal(b_tot);
     }
 
-    void CNSolve(MField& solve, MField& into, int k, bool buoyancy = false)
+    void CNSolve(MField& solve, MField& into, int k, bool dirichlet=false, bool buoyancy = false)
     {
+        solve.ZeroEnds();
+
         if (buoyancy)
         {
             solve.Solve(implicitSolveBuoyancy[k], into);
         }
         else
         {
-            solve.Solve(implicitSolveVelocity[k], into);
+            if (dirichlet)
+            {
+                solve.Solve(implicitSolveVelocityDirichlet[k], into);
+            }
+            else
+            {
+                solve.Solve(implicitSolveVelocityNeumann[k], into);
+            }
         }
     }
 
     void CNSolve1D(N1D& solve, N1D& into, int k, bool buoyancy = false)
     {
+        // todo: handle bcs properly
         if (buoyancy)
         {
             solve.Solve(implicitSolveBuoyancy[k][0], into);
         }
         else
         {
-            solve.Solve(implicitSolveVelocity[k][0], into);
+            solve.Solve(implicitSolveVelocityNeumann[k][0], into);
         }
     }
 
@@ -1039,8 +1061,8 @@ private:
         {
             CNSolve(R2, u2, k);
         }
-        CNSolve(R3, u3, k);
-        CNSolve(RB, b, k, true);
+        CNSolve(R3, u3, k, true);
+        CNSolve(RB, b, k, false, true);
 
         if (EvolveBackground)
         {
@@ -1056,8 +1078,8 @@ private:
         {
             CNSolve(R2, u2, k);
         }
-        CNSolve(R3, u3, k);
-        CNSolve(RB, b, k, true);
+        CNSolve(R3, u3, k, true);
+        CNSolve(RB, b, k, false, true);
     }
 
     void ExplicitUpdate(int k)
@@ -1091,6 +1113,7 @@ private:
 
         ndTemp = Ri*B;// buoyancy force
         ndTemp.ToModal(decayingTemp);
+        RemoveHorizontalAverage(decayingTemp); // this part is cancelled by hydrostatic pressure
         r3 -= decayingTemp;
 
         //////// NONLINEAR TERMS ////////
@@ -1185,6 +1208,7 @@ private:
 
         ndTemp = Ri*B;// buoyancy force
         ndTemp.ToModal(decayingTemp);
+        RemoveHorizontalAverage(decayingTemp); // this part is cancelled by hydrostatic pressure
         r3 -= decayingTemp;
 
         //////// NONLINEAR TERMS ////////
@@ -1445,7 +1469,8 @@ private:
     DiagonalMatrix<stratifloat, -1> dim2Derivative2;
     MatrixX dim3Derivative2;
 
-    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveVelocity[3];
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveVelocityNeumann[3];
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveVelocityDirichlet[3];
     std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBuoyancy[3];
     std::vector<SparseLU<SparseMatrix<stratifloat>>> solveLaplacian;
 

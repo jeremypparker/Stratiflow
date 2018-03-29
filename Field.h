@@ -349,6 +349,12 @@ public:
         filestream.read(reinterpret_cast<char*>(Raw()), sizeof(T)*N1*N2*N3);
     }
 
+    void ZeroEnds()
+    {
+        slice(0).setZero();
+        slice(N3-1).setZero();
+    }
+
 private:
 
     template<typename Solver>

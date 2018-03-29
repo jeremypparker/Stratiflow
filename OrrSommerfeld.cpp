@@ -16,7 +16,7 @@ MatrixXc OrrSommerfeldLHS(stratifloat k)
     N1D Bp;
     Bp = ddz(B);
 
-    auto D2 = VerticalSecondDerivativeNodalMatrix(L3, N3);
+    auto D2 = VerticalSecondDerivativeMatrix(L3, N3);
     auto I = MatrixX::Identity(N3, N3);
 
     MatrixX Um = U.Get().matrix().asDiagonal();
@@ -55,7 +55,7 @@ MatrixXc OrrSommerfeldRHS(stratifloat k)
     N1D Bp;
     Bp = ddz(B);
 
-    auto D2 = VerticalSecondDerivativeNodalMatrix(L3, N3);
+    auto D2 = VerticalSecondDerivativeMatrix(L3, N3);
     auto I = MatrixX::Identity(N3, N3);
 
     MatrixX Um = U.Get().matrix().asDiagonal();
