@@ -22,17 +22,17 @@ int main(int argc, char *argv[])
     else
     {
         std::cout << "Setting ICs..." << std::endl;
-        NField initialU1;
-        NField initialU2;
-        NField initialU3;
-        NField initialB;
+        NeumannNodal   initialU1;
+        NeumannNodal   initialU2;
+        DirichletNodal initialU3;
+        NeumannNodal initialB;
         auto x3 = VerticalPoints(L3, N3);
 
 
-        MField initialu1;
-        MField initialu2;
-        MField initialu3;
-        MField initialb;
+        NeumannModal initialu1;
+        NeumannModal initialu2;
+        DirichletModal initialu3;
+        NeumannModal initialb;
 
         std::cout << "Calculating Eigenmode..." << std::endl;
 
@@ -93,8 +93,7 @@ int main(int argc, char *argv[])
 
     std::cout << "E0: " << solver.KE() + solver.PE() << std::endl;
 
-    MField wIntegrated;
-    stratifloat JoverKintegrated = 0;
+    DirichletModal wIntegrated;
     stratifloat w2Integrated = 0;
 
     solver.PrepareRun("images/");
@@ -120,7 +119,6 @@ int main(int argc, char *argv[])
         {
             wIntegrated += solver.deltaT * solver.u3;
             w2Integrated += solver.deltaT * InnerProd(solver.u3, solver.u3, L3);
-            JoverKintegrated += solver.deltaT * solver.JoverK();
         }
 
         int frame = static_cast<int>(totalTime / saveEvery);
@@ -135,7 +133,6 @@ int main(int argc, char *argv[])
             energyFile << totalTime
                     << " " << solver.KE()
                     << " " << solver.PE()
-                    << " " << solver.JoverK()
                     << std::endl;
         }
 
@@ -144,7 +141,6 @@ int main(int argc, char *argv[])
     }
 
     std::cout << InnerProd(wIntegrated, wIntegrated, L3)/w2Integrated/integrateTarget << std::endl;
-    std::cout << JoverKintegrated << std::endl;
 
 
     f3_cleanup_threads();

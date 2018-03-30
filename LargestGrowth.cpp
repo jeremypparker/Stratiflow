@@ -37,10 +37,10 @@ int main()
     std::cout << "Maximum growth rate " << growthmax << " at " << kmax << std::endl;
     std::cout << "Wavelength of fastest growing mode is " << 2*pi/kmax << std::endl;
 
-    MField u;
-    MField v;
-    MField w;
-    MField b;
+    NeumannModal u;
+    NeumannModal v;
+    DirichletModal w;
+    NeumannModal b;
 
     EigenModes(kmax, u, v, w, b);
 

@@ -29,10 +29,10 @@ public:
         return *this;
     }
 
-    MField u1;
-    MField u3;
-    MField b;
-    MField p;
+    NeumannModal u1;
+    DirichletModal u3;
+    NeumannModal b;
+    NeumannModal p;
 
     void FullEvolve(stratifloat T, FullState& result, bool snapshot = false) const
     {

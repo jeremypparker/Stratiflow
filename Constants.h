@@ -80,3 +80,9 @@ for (int j1 = k1; j1 < std::min(n1, k1 + LoopBlockSize); j1++)
 }}}}}
 
 using complex = std::complex<stratifloat>;
+
+enum class BoundaryCondition
+{
+    Dirichlet, // these are located on a grid of height N3-1
+    Neumann    // these are located on a grid of height N3 including boundaries
+};

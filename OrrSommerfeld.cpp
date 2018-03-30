@@ -6,14 +6,14 @@
 
 MatrixXc OrrSommerfeldLHS(stratifloat k)
 {
-    N1D U;
-    N1D B;
+    Neumann1D U;
+    Neumann1D B;
     U.SetValue(InitialU, L3);
     B.SetValue(InitialB, L3);
 
-    N1D Upp;
+    Neumann1D Upp;
     Upp = ddz(ddz(U));
-    N1D Bp;
+    Dirichlet1D Bp;
     Bp = ddz(B);
 
     auto D2 = VerticalSecondDerivativeMatrix(L3, N3);
@@ -45,14 +45,14 @@ MatrixXc OrrSommerfeldLHS(stratifloat k)
 
 MatrixXc OrrSommerfeldRHS(stratifloat k)
 {
-    N1D U;
-    N1D B;
+    Neumann1D U;
+    Neumann1D B;
     U.SetValue(InitialU, L3);
     B.SetValue(InitialB, L3);
 
-    N1D Upp;
+    Neumann1D Upp;
     Upp = ddz(ddz(U));
-    N1D Bp;
+    Dirichlet1D Bp;
     Bp = ddz(B);
 
     auto D2 = VerticalSecondDerivativeMatrix(L3, N3);
@@ -182,17 +182,17 @@ stratifloat LargestGrowth(stratifloat k,
     return largest;
 }
 
-void EigenModes(stratifloat k, MField& u1, MField& u2, MField& u3, MField& b)
+void EigenModes(stratifloat k, NeumannModal& u1, NeumannModal& u2, DirichletModal& u3, NeumannModal& b)
 {
     // find the vertical profile of eigenmodes
-    Field1D<complex, N1, N2, N3> w_hat;
-    Field1D<complex, N1, N2, N3> b_hat;
+    Field1D<complex, N1, N2, N3> w_hat(BoundaryCondition::Dirichlet);
+    Field1D<complex, N1, N2, N3> b_hat(BoundaryCondition::Dirichlet);
 
     LargestGrowth(k, &w_hat, &b_hat);
 
     // multiply out the modes
-    NField W;
-    NField B;
+    DirichletNodal W;
+    NeumannNodal B;
 
     auto x = FourierPoints(L1, N1);
 

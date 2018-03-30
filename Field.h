@@ -23,6 +23,18 @@ class StackContainer
 {
 public:
     virtual A stack(int n1, int n2) const = 0;
+    virtual BoundaryCondition BC() const = 0;
+    BoundaryCondition OtherBC() const
+    {
+        if (BC() == BoundaryCondition::Neumann)
+        {
+            return BoundaryCondition::Dirichlet;
+        }
+        else
+        {
+            return BoundaryCondition::Neumann;
+        }
+    }
 };
 
 template<typename A, typename T, int N1, int N2, int N3>
@@ -40,6 +52,11 @@ public:
     {
         return scalar*rhs->stack(n1, n2);
     }
+
+    virtual BoundaryCondition BC() const override
+    {
+        return rhs->BC();
+    }
 private:
     const StackContainer<A, T, N1, N2, N3>* rhs;
     T scalar;
@@ -52,12 +69,19 @@ public:
     ComponentwiseSum(const StackContainer<A, T, N1, N2, N3>* lhs, const StackContainer<B, T, N1, N2, N3>* rhs)
     : lhs(lhs)
     , rhs(rhs)
-    {}
+    {
+        assert(lhs->BC() == rhs->BC());
+    }
     virtual
         CwiseBinaryOp<internal::scalar_sum_op<T, T>, const A, const B>
         stack(int n1, int n2) const override
     {
         return lhs->stack(n1, n2) + rhs->stack(n1, n2);
+    }
+
+    virtual BoundaryCondition BC() const override
+    {
+        return rhs->BC();
     }
 private:
     const StackContainer<A, T, N1, N2, N3>* lhs;
@@ -71,12 +95,19 @@ public:
     ComponentwiseProduct(const StackContainer<A, T, N1, N2, N3>* lhs, const StackContainer<B, T, N1, N2, N3>* rhs)
     : lhs(lhs)
     , rhs(rhs)
-    {}
+    {
+        assert(lhs->BC() == rhs->BC());
+    }
     virtual
         CwiseBinaryOp<internal::scalar_product_op<T, T>, const A, const B>
         stack(int n1, int n2) const override
     {
         return lhs->stack(n1, n2) * rhs->stack(n1, n2);
+    }
+
+    virtual BoundaryCondition BC() const override
+    {
+        return rhs->BC();
     }
 private:
     const StackContainer<A, T, N1, N2, N3>* lhs;
@@ -98,6 +129,11 @@ public:
     {
         return matrix.diagonal()(n1)*field.stack(n1, n2);
     }
+
+    virtual BoundaryCondition BC() const override
+    {
+        return field.BC();
+    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const DiagonalMatrix<T1, -1>& matrix;
@@ -118,6 +154,11 @@ public:
     {
         return matrix.diagonal()(n2)*field.stack(n1, n2);
     }
+
+    virtual BoundaryCondition BC() const override
+    {
+        return field.BC();
+    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const DiagonalMatrix<T1, -1>& matrix;
@@ -130,6 +171,13 @@ public:
     Dim3MatMul(const Matrix<T1, -1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field)
     : matrix(matrix)
     , field(field)
+    , resultingBC(field.BC())
+    {}
+
+    Dim3MatMul(const Matrix<T1, -1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field, BoundaryCondition resultBC)
+    : matrix(matrix)
+    , field(field)
+    , resultingBC(resultBC)
     {}
 
     virtual
@@ -138,9 +186,15 @@ public:
     {
         return (matrix*field.stack(n1, n2).matrix()).array();
     }
+
+    virtual BoundaryCondition BC() const override
+    {
+        return resultingBC;
+    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const Matrix<T1, -1, -1>& matrix;
+    BoundaryCondition resultingBC;
 };
 
 template<typename A, typename T1, typename T2, int N1, int N2, int N3>
@@ -150,8 +204,14 @@ public:
     MatMul(const std::vector<Matrix<T1, -1, -1>>& matrices, const StackContainer<A, T2, N1, N2, N3>& field)
     : matrices(matrices)
     , field(field)
+    , resultingBC(field.BC())
     {}
 
+    MatMul(const std::vector<Matrix<T1, -1, -1>>& matrices, const StackContainer<A, T2, N1, N2, N3>& field, BoundaryCondition resultBC)
+    : matrices(matrices)
+    , field(field)
+    , resultingBC(resultBC)
+    {}
 
     virtual
         ArrayWrapper<const Product<Matrix<T1,-1,-1>, MatrixWrapper<A>>>
@@ -159,28 +219,38 @@ public:
     {
         return (matrices[n1*N2+n2]*field.stack(n1, n2).matrix()).array();
     }
+
+    virtual BoundaryCondition BC() const override
+    {
+        return resultingBC;
+    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const std::vector<Matrix<T1, -1, -1>>& matrices;
+    BoundaryCondition resultingBC;
 };
 
 template<typename T, int N1, int N2, int N3>
 class Field : public StackContainer<Map<const Array<T, -1, 1>, Aligned16>,T,N1,N2,N3>
 {
 public:
-    Field()
+    Field(BoundaryCondition bc)
     : _data(N1*N2*N3, 0)
+    , _bc(bc)
     {
     }
 
     Field(const Field<T, N1, N2, N3>& other)
     : _data(other._data)
     {
+        assert(other.BC() == BC());
     }
 
     template<typename A>
     const Field<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
+        assert(other.BC() == BC());
+
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) = other.stack(j1,j2);
         });
@@ -191,6 +261,8 @@ public:
     // seem to explicitly require this
     const Field<T, N1, N2, N3>& operator=(const Field<T, N1, N2, N3>& other)
     {
+        assert(other.BC() == BC());
+
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) = other.stack(j1,j2);
         });
@@ -200,6 +272,11 @@ public:
 
     bool operator==(const Field<T, N1, N2, N3>& other) const
     {
+        if (other.BC() != BC())
+        {
+            return false;
+        }
+
         // because of the way isApprox works, need to fail on both slice and stack to count
         bool failedSlice = false;
         for (int j=0; j<N3; j++)
@@ -243,6 +320,8 @@ public:
     template<typename A>
     const Field<T, N1, N2, N3>& operator+=(const StackContainer<A, T, N1, N2, N3>& other)
     {
+        assert(other.BC() == BC());
+
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) += other.stack(j1, j2);
         });
@@ -252,6 +331,8 @@ public:
     template<typename A>
     const Field<T, N1, N2, N3>& operator-=(const StackContainer<A, T, N1, N2, N3>& other)
     {
+        assert(other.BC() == BC());
+
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) -= other.stack(j1, j2);
         });
@@ -355,6 +436,11 @@ public:
         slice(N3-1).setZero();
     }
 
+    virtual BoundaryCondition BC() const override
+    {
+        return _bc;
+    }
+
 private:
 
     template<typename Solver>
@@ -375,14 +461,17 @@ private:
     // stored in column-major ordering of size (N1, N2, N3)
     std::vector<T, aligned_allocator<T>> _data;
 
+    BoundaryCondition _bc;
+
 };
 
 template<typename T, int N1, int N2, int N3>
 class Field1D : public StackContainer<Map<const Array<T, -1, 1>, Aligned16>, T, N1, N2, N3>
 {
 public:
-    Field1D()
+    Field1D(BoundaryCondition bc)
     : _data(N3)
+    , _bc(bc)
     {
         _data.setZero();
     }
@@ -395,6 +484,8 @@ public:
     template<typename A>
     const Field1D<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
+        assert(other.BC() == BC());
+
         Get() = other.stack(0, 0);
 
         return *this;
@@ -402,6 +493,10 @@ public:
 
     bool operator==(const Field1D<T, N1, N2, N3>& other) const
     {
+        if (other.BC() != BC())
+        {
+            return false;
+        }
         return Get().isApprox(other.Get(), 0.05);
     }
 
@@ -453,8 +548,14 @@ public:
         Get()(0) = 0;
         Get()(N3-1) = 0;
     }
+
+    virtual BoundaryCondition BC() const override
+    {
+        return _bc;
+    }
 private:
     Array<T, -1, 1> _data;
+    BoundaryCondition _bc;
 };
 
 template<int N1, int N2, int N3>
@@ -466,6 +567,7 @@ public:
     template<typename A>
     const Nodal1D<N1, N2, N3>& operator=(const StackContainer<A,stratifloat,N1,N2,N3>& other)
     {
+        assert(other.BC() == this->BC());
         Field1D<stratifloat, N1, N2, N3>::operator=(other);
         return *this;
     }
@@ -495,13 +597,15 @@ public:
         return *this;
     }
 
-    NodalField()
-    : Field<stratifloat, N1, N2, N3>()
+    NodalField(BoundaryCondition bc)
+    : Field<stratifloat, N1, N2, N3>(bc)
     {
     }
 
     void ToModal(ModalField<N1,N2,N3>& other, bool filter = true) const
     {
+        assert(other.BC() == this->BC());
+
         // do FFT in 1st and 2nd dimensions
 
         int dims[] = {N2, N1};
@@ -605,14 +709,16 @@ public:
         return *this;
     }
 
-    ModalField()
-    : Field<complex, N1/2+1, N2, N3>()
+    ModalField(BoundaryCondition bc)
+    : Field<complex, N1/2+1, N2, N3>(bc)
     {
     }
 
 
     void ToNodal(NodalField<N1, N2, N3>& other) const
     {
+        assert(other.BC() == this->BC());
+
         // do IFT in 1st and 2nd dimensions
 
         // make a copy of the input data as it is modified by the transform

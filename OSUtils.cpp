@@ -30,11 +30,3 @@ void MoveDirectory(const std::string& from, const std::string& to)
     ExecuteShell("rm -rf " + to);
     ExecuteShell("mv " + from + " " + to);
 }
-
-void LoadVariable(const std::string& filename, NField& into, int index)
-{
-    std::ifstream filestream(filename, std::ios::in | std::ios::binary);
-
-    filestream.seekg(N1*N2*N3*index*sizeof(stratifloat));
-    into.Load(filestream);
-}

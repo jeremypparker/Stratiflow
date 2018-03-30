@@ -38,10 +38,10 @@ public:
 
     struct State
     {
-        NField U1;
-        NField U2;
-        NField U3;
-        NField B;
+        NeumannNodal U1;
+        NeumannNodal U2;
+        DirichletNodal U3;
+        NeumannNodal B;
     };
 
 public:
@@ -49,7 +49,8 @@ public:
     : solveLaplacian(M1*N2)
     , implicitSolveVelocityNeumann{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
     , implicitSolveVelocityDirichlet{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
-    , implicitSolveBuoyancy{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
+    , implicitSolveBuoyancyNeumann{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
+    , implicitSolveBuoyancyDirichlet{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
     {
         assert(ThreeDimensional || N2 == 1);
 
@@ -413,7 +414,7 @@ public:
         }
     }
 
-    void SetInitial(NField velocity1, NField velocity2, NField velocity3, NField buoyancy)
+    void SetInitial(const NeumannNodal& velocity1, const NeumannNodal& velocity2, const DirichletNodal& velocity3, const NeumannNodal& buoyancy)
     {
         velocity1.ToModal(u1);
         velocity2.ToModal(u2);
@@ -421,7 +422,7 @@ public:
         buoyancy.ToModal(b);
     }
 
-    void SetInitial(MField velocity1, MField velocity2, MField velocity3, MField buoyancy)
+    void SetInitial(const NeumannModal& velocity1, const NeumannModal& velocity2, const DirichletModal& velocity3, const NeumannModal& buoyancy)
     {
         u1 = velocity1;
         u2 = velocity2;
@@ -429,7 +430,7 @@ public:
         b = buoyancy;
     }
 
-    void SetBackground(N1D velocity, N1D buoyancy)
+    void SetBackground(const Neumann1D& velocity, const Neumann1D& buoyancy)
     {
         U_ = velocity;
         B_ = buoyancy;
@@ -438,8 +439,8 @@ public:
     void SetBackground(std::function<stratifloat(stratifloat)> velocity,
                        std::function<stratifloat(stratifloat)> buoyancy)
     {
-        N1D Ubar;
-        N1D Bbar;
+        Neumann1D Ubar;
+        Neumann1D Bbar;
         Ubar.SetValue(velocity, L3);
         Bbar.SetValue(buoyancy, L3);
 
@@ -676,8 +677,8 @@ public:
 
     stratifloat JoverK()
     {
-        static MField u1_total;
-        static MField b_total;
+        static NeumannModal u1_total;
+        static NeumannModal b_total;
 
         nnTemp = U1 + U_;
         nnTemp.ToModal(u1_total);
@@ -690,16 +691,16 @@ public:
         return J/K;
     }
 
-    void UpdateAdjointVariables(const MField& u1_total,
-                                       const MField& u2_total,
-                                       const MField& u3_total,
-                                       const MField& b_total)
+    void UpdateAdjointVariables(const NeumannModal& u1_total,
+                                const NeumannModal& u2_total,
+                                const DirichletModal& u3_total,
+                                const NeumannModal& b_total)
     {
         // work out variation of buoyancy from average
-        static N1D bAve;
+        static Neumann1D bAve;
         HorizontalAverage(b_total, bAve);
 
-        static N1D wAve;
+        static Dirichlet1D wAve;
         HorizontalAverage(u3_total, wAve);
 
         b_total.ToNodal(B_tot);
@@ -711,7 +712,7 @@ public:
         ndTemp.ToModal(decayingTemp);
 
         // construct integrand for J
-        static N1D Jintegrand;
+        static Dirichlet1D Jintegrand;
         HorizontalAverage(decayingTemp, Jintegrand);
         J = IntegrateVertically(Jintegrand, L3);
 
@@ -788,10 +789,14 @@ public:
                     implicitSolveVelocityDirichlet[k][j1*N2+j2].compute(solve);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Pe).sparseView();
+
                     Dirichlify(solve);
                     solve.makeCompressed();
+                    implicitSolveBuoyancyDirichlet[k][j1*N2+j2].compute(solve);
 
-                    implicitSolveBuoyancy[k][j1*N2+j2].compute(solve);
+                    Neumannify(solve, L3);
+                    solve.makeCompressed();
+                    implicitSolveBuoyancyNeumann[k][j1*N2+j2].compute(solve);
                 }
 
             }
@@ -800,30 +805,30 @@ public:
 
     stratifloat Optimise(stratifloat& epsilon,
                          stratifloat E_0,
-                         MField& oldu1,
-                         MField& oldu2,
-                         MField& oldu3,
-                         MField& oldb,
-                         N1D& backgroundB,
-                         N1D& backgroundU)
+                         NeumannModal& oldu1,
+                         NeumannModal& oldu2,
+                         DirichletModal& oldu3,
+                         NeumannModal& oldb,
+                         Neumann1D& backgroundB,
+                         Neumann1D& backgroundU)
     {
         PopulateNodalVariablesAdjoint();
 
         stratifloat lambda;
 
-        static MField dLdu1;
-        static MField dLdu2;
-        static MField dLdu3;
-        static MField dLdb;
+        static NeumannModal dLdu1;
+        static NeumannModal dLdu2;
+        static DirichletModal dLdu3;
+        static DirichletModal dLdb;
 
-        static MField dEdu1;
-        static MField dEdu2;
-        static MField dEdu3;
-        static MField dEdb;
+        static NeumannModal dEdu1;
+        static NeumannModal dEdu2;
+        static DirichletModal dEdu3;
+        static DirichletModal dEdb;
 
         dB_dz = ddz(backgroundB);
 
-        static N1D Bgradientinv;
+        static Dirichlet1D Bgradientinv;
         for (int j=0; j<N3; j++)
         {
             if(dB_dz.Get()(j)>-0.00001 && dB_dz.Get()(j)<0.00001)
@@ -959,17 +964,17 @@ private:
         static stratifloat timeabove = -1;
         static stratifloat timebelow = -1;
 
-        static NField u1Above;
-        static NField u1Below;
+        static NeumannNodal u1Above;
+        static NeumannNodal u1Below;
 
-        static NField u2Above;
-        static NField u2Below;
+        static NeumannNodal u2Above;
+        static NeumannNodal u2Below;
 
-        static NField u3Above;
-        static NField u3Below;
+        static DirichletNodal u3Above;
+        static DirichletNodal u3Below;
 
-        static NField bAbove;
-        static NField bBelow;
+        static DirichletNodal bAbove;
+        static DirichletNodal bBelow;
 
         if (timeabove != fileAbove->first)
         {
@@ -1028,38 +1033,34 @@ private:
         B_tot.ToModal(b_tot);
     }
 
-    void CNSolve(MField& solve, MField& into, int k, bool dirichlet=false, bool buoyancy = false)
+    void CNSolve(NeumannModal& solve, NeumannModal& into, int k)
     {
         solve.ZeroEnds();
-
-        if (buoyancy)
-        {
-            solve.Solve(implicitSolveBuoyancy[k], into);
-        }
-        else
-        {
-            if (dirichlet)
-            {
-                solve.Solve(implicitSolveVelocityDirichlet[k], into);
-            }
-            else
-            {
-                solve.Solve(implicitSolveVelocityNeumann[k], into);
-            }
-        }
+        solve.Solve(implicitSolveVelocityNeumann[k], into);
     }
 
-    void CNSolve1D(N1D& solve, N1D& into, int k, bool buoyancy = false)
+    void CNSolve(DirichletModal& solve, DirichletModal& into, int k)
+    {
+        solve.ZeroEnds();
+        solve.Solve(implicitSolveVelocityDirichlet[k], into);
+    }
+
+    void CNSolveBuoyancy(NeumannModal& solve, NeumannModal& into, int k)
+    {
+        solve.ZeroEnds();
+        solve.Solve(implicitSolveBuoyancyDirichlet[k], into);
+    }
+
+    void CNSolve1D(Neumann1D& solve, Neumann1D& into, int k, bool buoyancy = false)
     {
         // todo: handle bcs properly
-        if (buoyancy)
-        {
-            solve.Solve(implicitSolveBuoyancy[k][0], into);
-        }
-        else
-        {
-            solve.Solve(implicitSolveVelocityNeumann[k][0], into);
-        }
+        solve.Solve(implicitSolveVelocityNeumann[k][0], into);
+    }
+
+    void CNSolveBuoyancy1D(Neumann1D& solve, Neumann1D& into, int k, bool buoyancy = false)
+    {
+        // todo: handle bcs properly
+        solve.Solve(implicitSolveBuoyancyNeumann[k][0], into);
     }
 
     void ImplicitUpdate(int k, bool evolveBackground = false)
@@ -1069,13 +1070,13 @@ private:
         {
             CNSolve(R2, u2, k);
         }
-        CNSolve(R3, u3, k, true);
-        CNSolve(RB, b, k, false, true);
+        CNSolve(R3, u3, k);
+        CNSolveBuoyancy(RB, b, k);
 
         if (EvolveBackground)
         {
             CNSolve1D(RU_, U_, k);
-            CNSolve1D(RB_, B_, k, true);
+            CNSolveBuoyancy1D(RB_, B_, k);
         }
     }
 
@@ -1123,10 +1124,7 @@ private:
     {
         // build up right hand sides for the implicit solve in R
 
-        ndTemp = Ri*B;// buoyancy force
-        ndTemp.ToModal(decayingTemp);
-        RemoveHorizontalAverage(decayingTemp); // this part is cancelled by hydrostatic pressure
-        r3 -= decayingTemp;
+        r3 -= Ri*Reinterpolate(b); // buoyancy force
 
         //////// NONLINEAR TERMS ////////
 
@@ -1135,66 +1133,54 @@ private:
         // take into account background shear for nonlinear terms
         U1_tot = U1 + U_;
 
-        nnTemp = U1_tot*U1_tot;
-        nnTemp.ToModal(boundedTemp);
+        InterpolateProduct(U1_tot, U1_tot, boundedTemp);
         r1 -= ddx(boundedTemp);
 
-        ndTemp = U1_tot*U3;
-        ndTemp.ToModal(decayingTemp);
+        InterpolateProduct(U1_tot, U3, decayingTemp);
         r3 -= ddx(decayingTemp);
         r1 -= ddz(decayingTemp);
 
-        nnTemp = U3*U3;
-        nnTemp.ToModal(boundedTemp);
+        InterpolateProduct(U3, U3, boundedTemp);
         r3 -= ddz(boundedTemp);
 
         if(ThreeDimensional)
         {
-            nnTemp = U2*U2;
-            nnTemp.ToModal(boundedTemp);
+            InterpolateProduct(U2, U2, boundedTemp);
             r2 -= ddy(boundedTemp);
 
-            ndTemp = U2*U3;
-            ndTemp.ToModal(decayingTemp);
+            InterpolateProduct(U2, U3, decayingTemp);
             r3 -= ddy(decayingTemp);
             r2 -= ddz(decayingTemp);
 
-            nnTemp = U1_tot*U2;
-            nnTemp.ToModal(boundedTemp);
+            InterpolateProduct(U1_tot, U2, boundedTemp);
             r1 -= ddy(boundedTemp);
             r2 -= ddx(boundedTemp);
         }
 
         // buoyancy nonlinear terms
-        nnTemp = U1_tot*B;
-        nnTemp.ToModal(boundedTemp);
+        InterpolateProduct(U1_tot, B, boundedTemp);
         rB -= ddx(boundedTemp);
 
         if(ThreeDimensional)
         {
-            nnTemp = U2*B;
-            nnTemp.ToModal(boundedTemp);
+            InterpolateProduct(U2, B, boundedTemp);
             rB -= ddy(boundedTemp);
         }
 
-        ndTemp = U3*B;
-        ndTemp.ToModal(decayingTemp);
+        InterpolateProduct(U3, B, decayingTemp);
         rB -= ddz(decayingTemp);
 
         // advection term from background buoyancy
-        nnTemp = U3*dB_dz;
-        nnTemp.ToModal(boundedTemp);
-        rB -= boundedTemp;
+        ndTemp = U3*dB_dz;
+        ndTemp.ToModal(decayingTemp);
+        rB -= Reinterpolate(decayingTemp);
     }
 
     void BuildRHSLinear()
     {
         // build up right hand sides for the implicit solve in R
 
-        ndTemp = Ri*B;// buoyancy force
-        ndTemp.ToModal(decayingTemp);
-        RemoveHorizontalAverage(decayingTemp); // this part is cancelled by hydrostatic pressure
-        r3 -= decayingTemp;
+        r3 -= Ri*Reinterpolate(b); // buoyancy force
 
         //////// NONLINEAR TERMS ////////
         nnTemp = 2.0*U1_tot*U1;
@@ -1377,23 +1363,27 @@ private:
 
 public:
     // these are the actual variables we care about
-    MField u1, u2, u3, b;
-    MField p;
+    NeumannModal u1, u2, b, p;
+    DirichletModal u3;
 private:
     // background flow
-    N1D U_, B_, dB_dz;
+    Neumann1D U_, B_;
+    Dirichlet1D dB_dz;
 
     // direct flow (used for adjoint evolution)
-    MField u1_tot, u2_tot, u3_tot, b_tot;
+    NeumannModal u1_tot, u2_tot, b_tot;
+    DirichletModal u3_tot;
 
     // Nodal versions of variables
-    mutable NField U1, U2, U3, B;
+    mutable NeumannNodal U1, U2, B;
+    mutable DirichletNodal U3;
+
 
     // extra variables required for adjoint forcing
     stratifloat J, K;
 
-    NField u1Forcing, u2Forcing, u3Forcing;
-    NField bForcing;
+    NeumannNodal u1Forcing, u2Forcing;
+    DirichletNodal u3Forcing, bForcing;
 
     // parameters for the scheme
     const int s = 3;
@@ -1402,16 +1392,28 @@ private:
     const stratifloat zeta[3] = {0, -17.0f/8.0f, -5.0f/4.0f};
 
     // these are intermediate variables used in the computation, preallocated for efficiency
-    MField R1, R2, R3, RB;
-    N1D RU_, RB_;
-    MField r1, r2, r3, rB;
-    mutable NField U1_tot, U2_tot, U3_tot, B_tot;
-    mutable NField ndTemp, nnTemp;
-    mutable NField ndTemp2, nnTemp2;
-    mutable MField decayingTemp, boundedTemp;
-    mutable N1D ndTemp1D, nnTemp1D;
-    MField divergence;
-    MField q;
+    NeumannModal R1, R2, RB;
+    DirichletModal R3;
+
+    Neumann1D RU_, RB_;
+
+    NeumannModal r1, r2, rB;
+    DirichletModal r3;
+
+    mutable NeumannNodal U1_tot, U2_tot, B_tot;
+    mutable DirichletNodal U3_tot;
+
+    mutable NeumannNodal nnTemp, nnTemp2;
+    mutable DirichletNodal ndTemp, ndTemp2;
+
+    mutable NeumannModal boundedTemp;
+    mutable DirichletModal decayingTemp;
+
+    mutable Dirichlet1D ndTemp1D;
+    mutable Neumann1D nnTemp1D;
+
+    NeumannModal divergence;
+    NeumannModal q;
 
     // these are precomputed matrices for performing and solving derivatives
     DiagonalMatrix<stratifloat, -1> dim1Derivative2;
@@ -1420,7 +1422,8 @@ private:
 
     std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveVelocityNeumann[3];
     std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveVelocityDirichlet[3];
-    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBuoyancy[3];
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBuoyancyNeumann[3];
+    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBuoyancyDirichlet[3];
     std::vector<SparseLU<SparseMatrix<stratifloat>>> solveLaplacian;
 
     // for flow saving/loading

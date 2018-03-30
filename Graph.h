@@ -54,7 +54,7 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
 template<int N1, int N2, int N3>
 inline void HeatPlot(const ModalField<N1, N2, N3> &u, stratifloat L1, stratifloat L3, int j2, std::string filename)
 {
-    NodalField<N1, N2, N3> U;
+    NodalField<N1, N2, N3> U(u.BC());
 
     u.ToNodal(U);
 
