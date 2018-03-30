@@ -72,20 +72,8 @@ target_link_libraries(DAL StratiLib)
 add_executable(DNS DNS.cpp)
 target_link_libraries(DNS StratiLib)
 
-add_executable(SnapshotViewer SnapshotViewer.cpp)
-target_link_libraries(SnapshotViewer StratiLib)
-
 add_executable(OrrSommerfeld LargestGrowth.cpp)
 target_link_libraries(OrrSommerfeld StratiLib)
-
-add_executable(StabBoundaries StabBoundaries.cpp)
-target_link_libraries(StabBoundaries StratiLib)
-
-add_executable(ConstrainedPoints ConstrainedPoints.cpp)
-target_link_libraries(ConstrainedPoints StratiLib)
-
-add_executable(FieldNorms FieldNorms.cpp)
-target_link_libraries(FieldNorms StratiLib)
 
 add_executable(NewtonKrylov NewtonKrylov.cpp)
 target_link_libraries(NewtonKrylov StratiLib)
