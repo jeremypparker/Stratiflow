@@ -219,6 +219,9 @@ void EigenModes(stratifloat k, MField& u1, MField& u2, MField& u3, MField& b)
         B(j1,j2,j3) = -real(b_hat_j * exp(i*k*x(j1)));
     } endfor3D
 
+    W.ZeroEnds();
+    B.ZeroEnds();
+
     W.ToModal(u3);
     B.ToModal(b);
 
