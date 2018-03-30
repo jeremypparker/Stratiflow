@@ -224,8 +224,8 @@ public:
         u3.slice(N3-1).setZero();
 
         // buoyancy bcs
-        b.slice(0) = b.slice(1);
-        b.slice(N3-1) = b.slice(N3-2);
+        b.slice(0).setZero();
+        b.slice(N3-1).setZero();
     }
 
     void PopulateNodalVariables()
@@ -788,7 +788,7 @@ public:
                     implicitSolveVelocityDirichlet[k][j1*N2+j2].compute(solve);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Pe).sparseView();
-                    Neumannify(solve, L3);
+                    Dirichlify(solve);
                     solve.makeCompressed();
 
                     implicitSolveBuoyancy[k][j1*N2+j2].compute(solve);

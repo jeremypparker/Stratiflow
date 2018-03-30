@@ -447,6 +447,12 @@ public:
     {
         return _data;
     }
+
+    void ZeroEnds()
+    {
+        Get()(0) = 0;
+        Get()(N3-1) = 0;
+    }
 private:
     Array<T, -1, 1> _data;
 };
