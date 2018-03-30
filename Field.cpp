@@ -5,7 +5,7 @@ ArrayX VerticalPoints(stratifloat L, int N)
     assert(N%4 == 0); // need for alignment
     ArrayX x =  ArrayX::LinSpaced(N, -1, 1);
 
-    return -L*tan(x*1.5)/tan(1.5);
+    return -L*tan(x*1.3)/tan(1.3);
 }
 
 ArrayX FourierPoints(stratifloat L, int N)
