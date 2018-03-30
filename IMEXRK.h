@@ -73,7 +73,7 @@ public:
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
-                Neumannify(laplacian);
+                Neumannify(laplacian, L3);
 
                 // correct for singularity
                 if (j1==0 && j2==0)
@@ -779,7 +779,7 @@ public:
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
 
-                    Neumannify(solve);
+                    Neumannify(solve, L3);
                     solve.makeCompressed();
                     implicitSolveVelocityNeumann[k][j1*N2+j2].compute(solve);
 
@@ -788,7 +788,7 @@ public:
                     implicitSolveVelocityDirichlet[k][j1*N2+j2].compute(solve);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Pe).sparseView();
-                    Neumannify(solve);
+                    Neumannify(solve, L3);
                     solve.makeCompressed();
 
                     implicitSolveBuoyancy[k][j1*N2+j2].compute(solve);
