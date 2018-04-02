@@ -8,6 +8,34 @@ ArrayX VerticalPoints(stratifloat L, int N)
     return -L*tan(x*1.3)/tan(1.3);
 }
 
+ArrayX VerticalPointsStaggered(stratifloat L, int N)
+{
+    ArrayX z = VerticalPoints(L, N);
+
+    return (z.head(N-1) + z.tail(N-1))/2;
+}
+
+ArrayX dz(stratifloat L, int N)
+{
+    ArrayX z = VerticalPoints(L, N);
+
+    return z.head(N-1) - z.tail(N-1);
+}
+
+ArrayX dzStaggered(stratifloat L, int N)
+{
+    ArrayX zStaggered = VerticalPointsStaggered(L, N);
+    ArrayX z = VerticalPoints(L, N);
+
+    ArrayX ret(N);
+
+    ret(0) = z(0) - zStaggered(0);
+    ret.segment(1, N-2) = zStaggered.head(N-2) - zStaggered.tail(N-2);
+    ret(N-1) = zStaggered(N-2) - z(N-1);
+
+    return ret;
+}
+
 ArrayX FourierPoints(stratifloat L, int N)
 {
     return ArrayX::LinSpaced(N, 0, L - L/static_cast<stratifloat>(N));

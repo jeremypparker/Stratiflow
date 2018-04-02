@@ -16,23 +16,24 @@ MatrixXc OrrSommerfeldLHS(stratifloat k)
     Dirichlet1D Bp;
     Bp = ddz(B);
 
-    auto D2 = VerticalSecondDerivativeMatrix(L3, N3);
+    auto D2w = VerticalSecondDerivativeMatrix(L3, N3, BoundaryCondition::Dirichlet);
+    auto D2b = VerticalSecondDerivativeMatrix(L3, N3, BoundaryCondition::Neumann);
     auto I = MatrixX::Identity(N3, N3);
 
     MatrixX Um = U.Get().matrix().asDiagonal();
     MatrixX Uppm = Upp.Get().matrix().asDiagonal();
     MatrixX Bpm = Bp.Get().matrix().asDiagonal();
 
-    MatrixXc A11 = i*Um*(D2-k*k*I)
+    MatrixXc A11 = i*Um*(D2w-k*k*I)
                    -i*Uppm*I
-                   -(1/Re/k)*(D2-k*k*I)*(D2-k*k*I);
+                   -(1/Re/k)*(D2w-k*k*I)*(D2w-k*k*I);
 
     MatrixXc A12 = k*Ri*I;
 
     MatrixXc A21 = (-1/k)*Bpm;
 
     MatrixXc A22 = i*Um
-                   -(1/Pe/k)*(D2-k*k*I);
+                   -(1/Pe/k)*(D2b-k*k*I);
 
     // values at boundary must be zero, so ignore those bits
     MatrixXc A(2*(N3-2), 2*(N3-2));
@@ -55,14 +56,15 @@ MatrixXc OrrSommerfeldRHS(stratifloat k)
     Dirichlet1D Bp;
     Bp = ddz(B);
 
-    auto D2 = VerticalSecondDerivativeMatrix(L3, N3);
+    auto D2w = VerticalSecondDerivativeMatrix(L3, N3, BoundaryCondition::Dirichlet);
+    auto D2b = VerticalSecondDerivativeMatrix(L3, N3, BoundaryCondition::Neumann);
     auto I = MatrixX::Identity(N3, N3);
 
     MatrixX Um = U.Get().matrix().asDiagonal();
     MatrixX Uppm = Upp.Get().matrix().asDiagonal();
     MatrixX Bpm = Bp.Get().matrix().asDiagonal();
 
-    MatrixXc C11 = -(D2-k*k*I);
+    MatrixXc C11 = -(D2w-k*k*I);
 
     MatrixXc C12 = MatrixXc::Zero(N3, N3);
 

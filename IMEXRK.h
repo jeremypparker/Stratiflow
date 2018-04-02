@@ -50,7 +50,6 @@ public:
     , implicitSolveVelocityNeumann{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
     , implicitSolveVelocityDirichlet{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
     , implicitSolveBuoyancyNeumann{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
-    , implicitSolveBuoyancyDirichlet{std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2), std::vector<SparseLU<SparseMatrix<stratifloat>>>(M1*N2)}
     {
         assert(ThreeDimensional || N2 == 1);
 
@@ -58,7 +57,8 @@ public:
 
         dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
         dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2, 2);
-        dim3Derivative2 = VerticalSecondDerivativeMatrix(L3, N3);
+        dim3Derivative2Neumann = VerticalSecondDerivativeMatrix(L3, N3, BoundaryCondition::Neumann);
+        dim3Derivative2Dirichlet = VerticalSecondDerivativeMatrix(L3, N3, BoundaryCondition::Dirichlet);
 
         MatrixX laplacian;
         SparseMatrix<stratifloat> solve;
@@ -68,13 +68,11 @@ public:
         {
             for (int j2=0; j2<N2; j2++)
             {
-                laplacian = dim3Derivative2;
+                laplacian = dim3Derivative2Neumann;
 
                 // add terms for horizontal derivatives
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
-
-                Neumannify(laplacian, L3);
 
                 // correct for singularity
                 if (j1==0 && j2==0)
@@ -774,29 +772,27 @@ public:
             {
                 for (int k=0; k<s; k++)
                 {
-                    laplacian = dim3Derivative2;
+                    laplacian = dim3Derivative2Neumann;
                     laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
                     laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
-
-                    Neumannify(solve, L3);
                     solve.makeCompressed();
                     implicitSolveVelocityNeumann[k][j1*N2+j2].compute(solve);
 
-                    Dirichlify(solve);
-                    solve.makeCompressed();
-                    implicitSolveVelocityDirichlet[k][j1*N2+j2].compute(solve);
-
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Pe).sparseView();
-
-                    Dirichlify(solve);
-                    solve.makeCompressed();
-                    implicitSolveBuoyancyDirichlet[k][j1*N2+j2].compute(solve);
-
-                    Neumannify(solve, L3);
                     solve.makeCompressed();
                     implicitSolveBuoyancyNeumann[k][j1*N2+j2].compute(solve);
+
+
+
+                    laplacian = dim3Derivative2Dirichlet;
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
+
+                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re).sparseView();
+                    solve.makeCompressed();
+                    implicitSolveVelocityDirichlet[k][j1*N2+j2].compute(solve);
                 }
 
             }
@@ -1048,7 +1044,7 @@ private:
     void CNSolveBuoyancy(NeumannModal& solve, NeumannModal& into, int k)
     {
         solve.ZeroEnds();
-        solve.Solve(implicitSolveBuoyancyDirichlet[k], into);
+        solve.Solve(implicitSolveBuoyancyNeumann[k], into);
     }
 
     void CNSolve1D(Neumann1D& solve, Neumann1D& into, int k, bool buoyancy = false)
@@ -1095,19 +1091,19 @@ private:
     void ExplicitCN(int k, bool evolveBackground = false)
     {
         //   old      last rk step         pressure         explicit CN
-        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2, u1));
+        R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1)+MatMulDim3(dim3Derivative2Neumann, u1));
         if(ThreeDimensional)
         {
-        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2, u2));
+        R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2)+MatMulDim3(dim3Derivative2Neumann, u2));
         }
-        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2, u3));
-        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2, b));
+        R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) + (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3)+MatMulDim3(dim3Derivative2Dirichlet, u3));
+        RB = b  + (h[k]*zeta[k])*rB                  + (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b)+MatMulDim3(dim3Derivative2Neumann, b));
 
         if (evolveBackground)
         {
             // for the 1D variables u_ and b_ (background flow) we only use vertical derivative matrix
-            RU_ = U_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2, U_);
-            RB_ = B_ + (0.5f*h[k]/Pe)*MatMul1D(dim3Derivative2, B_);
+            RU_ = U_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Neumann, U_);
+            RB_ = B_ + (0.5f*h[k]/Pe)*MatMul1D(dim3Derivative2Neumann, B_);
         }
 
         // now construct explicit terms
@@ -1418,12 +1414,12 @@ private:
     // these are precomputed matrices for performing and solving derivatives
     DiagonalMatrix<stratifloat, -1> dim1Derivative2;
     DiagonalMatrix<stratifloat, -1> dim2Derivative2;
-    MatrixX dim3Derivative2;
+    MatrixX dim3Derivative2Neumann;
+    MatrixX dim3Derivative2Dirichlet;
 
     std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveVelocityNeumann[3];
     std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveVelocityDirichlet[3];
     std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBuoyancyNeumann[3];
-    std::vector<SparseLU<SparseMatrix<stratifloat>>> implicitSolveBuoyancyDirichlet[3];
     std::vector<SparseLU<SparseMatrix<stratifloat>>> solveLaplacian;
 
     // for flow saving/loading

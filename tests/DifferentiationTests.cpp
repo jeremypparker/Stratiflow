@@ -28,7 +28,7 @@ TEST_CASE("Simple derivatives vertical")
 
     // convert to modal for differentiation
     NodalField<N1,N2,N3> f2(BoundaryCondition::Dirichlet);
-    f2 = Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>,stratifloat,stratifloat,N1,N2,N3>(VerticalSecondDerivativeMatrix(L, N3), f1);
+    f2 = Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>,stratifloat,stratifloat,N1,N2,N3>(VerticalSecondDerivativeMatrix(L, N3, BoundaryCondition::Dirichlet), f1);
 
     NodalField<N1,N2,N3> expected(BoundaryCondition::Dirichlet);
     expected.SetValue([](stratifloat z){return (4*(z-0.5)*(z-0.5)-2)*exp(-(z-0.5)*(z-0.5));}, L);

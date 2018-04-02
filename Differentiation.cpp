@@ -3,10 +3,18 @@
 #include "Eigen.h"
 #include "Field.h"
 
-MatrixX VerticalSecondDerivativeMatrix(stratifloat L, int N)
+MatrixX VerticalSecondDerivativeMatrix(stratifloat L, int N, BoundaryCondition originalBC)
 {
-    ArrayX x = VerticalPoints(L, N);
-    ArrayX d = x.head(N-1) - x.tail(N-1);
+    ArrayX d;
+
+    if (originalBC == BoundaryCondition::Neumann)
+    {
+        d = dz(L, N);
+    }
+    else
+    {
+        d = dzStaggered(L, N).segment(1, N-2);
+    }
 
     MatrixX D = MatrixX::Zero(N,N);
 
@@ -15,29 +23,56 @@ MatrixX VerticalSecondDerivativeMatrix(stratifloat L, int N)
         if (j==0)
         {
             // one sided (second order) derivatives at ends
-            stratifloat h1 = d(0);
-            stratifloat h2 = d(1);
 
-            stratifloat denom = (h1+h2)*h1*h2/2.0;
+            if (originalBC == BoundaryCondition::Neumann)
+            {
+                // neumann condition means we get second order from 2 points
+                stratifloat h1 = d(0);
 
-            D(0,2) = h1/denom;
-            D(0,1) = -(h1+h2)/denom;
-            D(0,0) = h2/denom;
+                stratifloat denom = h1*h1/2.0;
+
+                D(0,1) = 1/denom;
+                D(0,0) = -1/denom;
+            }
+            else
+            {
+                stratifloat h1 = d(0);
+                stratifloat h2 = d(1);
+
+                stratifloat denom = (h1+h2)*h1*h2/2.0;
+
+                D(0,2) = h1/denom;
+                D(0,1) = -(h1+h2)/denom;
+                D(0,0) = h2/denom;
+            }
         }
         else if (j==N-1)
         {
-            stratifloat h1 = d(N-2);
-            stratifloat h2 = d(N-3);
+            if (originalBC == BoundaryCondition::Neumann)
+            {
+                // neumann condition means we get second order from 2 points
+                stratifloat h1 = d(N-2);
+
+                stratifloat denom = h1*h1/2.0;
+
+                D(N-1,N-2) = 1/denom;
+                D(N-1,N-1) = -1/denom;
+            }
+        }
+        else if (j==N-2 && originalBC == BoundaryCondition::Dirichlet)
+        {
+            stratifloat h1 = d(N-3);
+            stratifloat h2 = d(N-4);
 
             stratifloat denom = (h1+h2)*h1*h2/2.0;
 
-            D(N-1,N-3) = h1/denom;
-            D(N-1,N-2) = -(h1+h2)/denom;
-            D(N-1,N-1) = h2/denom;
+            D(N-2,N-4) = h1/denom;
+            D(N-2,N-3) = -(h1+h2)/denom;
+            D(N-2,N-2) = h2/denom;
         }
         else
         {
-            // second order finite difference everywhere else
+            // second order central finite difference everywhere else
             stratifloat h1 = d(j-1);
             stratifloat h2 = d(j);
 
@@ -52,55 +87,50 @@ MatrixX VerticalSecondDerivativeMatrix(stratifloat L, int N)
     return D;
 }
 
-MatrixX VerticalDerivativeMatrix(stratifloat L, int N)
+MatrixX VerticalDerivativeMatrix(stratifloat L, int N, BoundaryCondition originalBC)
 {
-    ArrayX x = VerticalPoints(L, N);
-    ArrayX d = x.head(N-1) - x.tail(N-1);
-
     MatrixX D = MatrixX::Zero(N,N);
 
-    for (int j=0; j<N; j++)
+    if (originalBC == BoundaryCondition::Neumann)
     {
-        if (j==0)
-        {
-            // one sided (second order) derivatives at ends
-            stratifloat h1 = d(0);
-            stratifloat h2 = d(1);
+        // this is second order because of symmetry
+        ArrayX diff = dz(L, N);
+        D.diagonal().head(N-1) = 1/diff;
+        D.diagonal(1) = -1/diff;
+    }
+    else
+    {
+        // this is only first order
+        ArrayX diff = dzStaggered(L,N);
 
-            stratifloat denom = (h1+h2)*h1*h2;
-
-            D(0,2) = h1*h1/denom;
-            D(0,1) = -(h1+h2)*(h1+h2)/denom;
-            D(0,0) = -(h1*h1 - (h1+h2)*(h1+h2))/denom;
-        }
-        else if (j==N-1)
-        {
-            stratifloat h1 = d(N-2);
-            stratifloat h2 = d(N-3);
-
-            stratifloat denom = (h1+h2)*h1*h2;
-
-            D(N-1,N-3) = -h1*h1/denom;
-            D(N-1,N-2) = (h1+h2)*(h1+h2)/denom;
-            D(N-1,N-1) = (h1*h1 - (h1+h2)*(h1+h2))/denom;
-        }
-        else
-        {
-            // second order finite difference everywhere else
-            stratifloat h1 = d(j-1);
-            stratifloat h2 = d(j);
-
-            stratifloat denom = (h1+h2)*h1*h2;
-
-            D(j,j-1) = h2*h2/denom;
-            D(j,j) = (h1*h1-h2*h2)/denom;
-            D(j,j+1) = -h1*h1/denom;
-        }
+        D.diagonal(-1).head(N-2) = 1/diff.segment(1,N-2);
+        D.diagonal(0) = -1/diff;
     }
 
     return D;
 }
 
+MatrixX VerticalReinterpolationMatrix(stratifloat L, int N, BoundaryCondition originalBC)
+{
+    // first order interpolation at one set of points of other
+    MatrixX D = MatrixX::Zero(N,N);
+
+    if (originalBC == BoundaryCondition::Neumann)
+    {
+        D.diagonal(1).setConstant(0.5);
+        D.diagonal(0).head(N-1).setConstant(0.5);
+    }
+    else
+    {
+        ArrayX diff = dzStaggered(L,N);
+        ArrayX diff2 = dz(L,N);
+
+        D.diagonal(-1).head(N-2) = 0.5*diff2.tail(N-2)/diff.segment(1, N-2);
+        D.diagonal().segment(1, N-2) = 0.5*diff2.head(N-2)/diff.segment(1, N-2);
+    }
+
+    return D;
+}
 
 ArrayX k(int n)
 {

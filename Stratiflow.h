@@ -67,46 +67,31 @@ Dim2MatMul<T, complex, complex, M1, N2, N3> ddy(const StackContainer<T, complex,
 template<typename A, typename T, int K1, int K2, int K3>
 Dim3MatMul<A, stratifloat, T, K1, K2, K3> ddz(const StackContainer<A, T, K1, K2, K3>& f)
 {
-    static MatrixX dim3Derivative = VerticalDerivativeMatrix(L3, N3);
-
     if (f.BC() == BoundaryCondition::Neumann)
     {
+        static MatrixX dim3Derivative = VerticalDerivativeMatrix(L3, N3, f.BC());
         return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(dim3Derivative, f, BoundaryCondition::Dirichlet);
     }
     else
     {
+        static MatrixX dim3Derivative = VerticalDerivativeMatrix(L3, N3, f.BC());
         return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(dim3Derivative, f, BoundaryCondition::Neumann);
     }
 }
 
-template<typename A, int K1, int K2, int K3>
-ModalField<2*(K1-1),K2,K3> Reinterpolate(const StackContainer<A, complex, K1, K2, K3>& from)
+template<typename A, typename T, int K1, int K2, int K3>
+Dim3MatMul<A, stratifloat, T, K1, K2, K3> Reinterpolate(const StackContainer<A, T, K1, K2, K3>& f)
 {
-    // todo: do with matrix multiplication
-    ModalField<2*(K1-1),K2,K3> to(from.OtherBC());
-    for (int j1=0; j1<K1; j1++)
+    if (f.BC() == BoundaryCondition::Neumann)
     {
-        for (int j2=0; j2<K2; j2++)
-        {
-            to.stack(j1,j2) = from.stack(j1,j2);
-        }
+        static MatrixX reint = VerticalReinterpolationMatrix(L3, N3, f.BC());
+        return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(reint, f, BoundaryCondition::Dirichlet);
     }
-    return to;
-}
-
-template<typename A, int K1, int K2, int K3>
-NodalField<K1,K2,K3> Reinterpolate(const StackContainer<A, stratifloat, K1, K2, K3>& from)
-{
-    // todo: do with matrix multiplication
-    NodalField<K1,K2,K3> to(from.OtherBC());
-    for (int j1=0; j1<K1; j1++)
+    else
     {
-        for (int j2=0; j2<K2; j2++)
-        {
-            to.stack(j1,j2) = from.stack(j1,j2);
-        }
+        static MatrixX reint = VerticalReinterpolationMatrix(L3, N3, f.BC());
+        return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(reint, f, BoundaryCondition::Neumann);
     }
-    return to;
 }
 
 namespace
