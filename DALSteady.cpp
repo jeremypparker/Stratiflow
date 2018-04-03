@@ -79,10 +79,19 @@ private:
     StateVector finalAdjoint;
 };
 
-int main()
+int main(int argc, char *argv[])
 {
     StateVector initial;
-    initial.Randomise(0.001);
+
+    if (argc == 2)
+    {
+        initial.LoadFromFile(argv[1]);
+    }
+    else
+    {
+        // check it converges to steady state
+        initial.Randomise(0.001);
+    }
 
     DALSteady dal(initial);
 
