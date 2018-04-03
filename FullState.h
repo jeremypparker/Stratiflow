@@ -6,29 +6,6 @@
 class FullState
 {
 public:
-    FullState()
-    : solver()
-    {}
-
-    FullState(const FullState& other)
-    : u1(other.u1)
-    , u3(other.u3)
-    , b(other.b)
-    , p(other.p)
-    , solver()
-    {
-    }
-
-    const FullState& operator=(const FullState& other)
-    {
-        u1 = other.u1;
-        u3 = other.u3;
-        b = other.b;
-        p = other.p;
-
-        return *this;
-    }
-
     NeumannModal u1;
     DirichletModal u3;
     NeumannModal b;
@@ -70,6 +47,8 @@ public:
             if(step%50==0)
             {
                 stratifloat cfl = solver.CFL();
+                std::cout << step << " " << t << std::endl;
+                solver.PlotAll(std::to_string(t)+".png", true);
             }
 
             if (snapshot)
@@ -78,7 +57,6 @@ public:
             }
 
             step++;
-            std::cout << step << " " << t << std::endl;
 
             if (done)
             {
@@ -125,10 +103,61 @@ public:
             if(step%50==0)
             {
                 stratifloat cfl = solver.CFLadjoint();
+                std::cout << step << " " << t << std::endl;
+                solver.PlotAll(std::to_string(t)+".png", false);
             }
 
             step++;
-            std::cout << step << " " << t << std::endl;
+
+            if (done)
+            {
+                break;
+            }
+        }
+
+        solver.PlotAll(std::to_string(t)+".png", false);
+        CopyFromSolver(result);
+    }
+
+    void AdjointEvolve(stratifloat T, FullState& result) const
+    {
+        CopyToSolver();
+
+        solver.FilterAll();
+        solver.PopulateNodalVariablesAdjoint();
+        solver.RemoveDivergence(0.0f);
+
+        stratifloat t = T;
+
+        static int runnum = 0;
+        runnum++;
+        solver.PrepareRunAdjoint(std::string("images-adjoint-")+std::to_string(runnum)+"/");
+        solver.PlotAll(std::to_string(t)+".png", false);
+
+
+        bool done = false;
+        int step = 0;
+        while (t > 0)
+        {
+            // on last step, arrive exactly
+            if (t - solver.deltaT < 0)
+            {
+                solver.deltaT = t;
+                solver.UpdateForTimestep();
+                done = true;
+            }
+
+            solver.TimeStepAdjoint(t, true);
+            t -= solver.deltaT;
+
+            if(step%50==0)
+            {
+                stratifloat cfl = solver.CFLadjoint();
+                std::cout << step << " " << t << std::endl;
+                solver.PlotAll(std::to_string(t)+".png", false);
+            }
+
+            step++;
 
             if (done)
             {
@@ -195,9 +224,19 @@ public:
         return prod;
     }
 
+    stratifloat Norm2() const
+    {
+        return Dot(*this);
+    }
+
+    stratifloat Energy() const
+    {
+        return 0.5*Norm2();
+    }
+
     stratifloat Norm() const
     {
-        return sqrt(Dot(*this));
+        return sqrt(Norm2());
     }
 
     void Zero()
@@ -206,6 +245,38 @@ public:
         u3.Zero();
         b.Zero();
         p.Zero();
+    }
+
+    void Rescale(stratifloat energy)
+    {
+        stratifloat scale;
+
+        // energies are entirely quadratic
+        // which makes this easy
+
+        stratifloat energyBefore = Energy();
+
+        if (energyBefore!=0.0f)
+        {
+            scale = sqrt(energy/energyBefore);
+        }
+        else
+        {
+            scale = 0.0f;
+        }
+
+        u1 *= scale;
+        u3 *= scale;
+        b *= scale;
+    }
+
+    void Randomise(stratifloat energy)
+    {
+        u1.RandomizeCoefficients(0.3);
+        u3.RandomizeCoefficients(0.3);
+        b.RandomizeCoefficients(0.3);
+
+        Rescale(energy);
     }
 
     void LoadFromFile(const std::string& filename)
@@ -237,5 +308,10 @@ private:
         into.p = solver.p;
     }
 
-    mutable IMEXRK solver;
+    static IMEXRK solver;
 };
+
+FullState operator+(const FullState& lhs, const FullState& rhs);
+FullState operator-(const FullState& lhs, const FullState& rhs);
+FullState operator*(stratifloat scalar, const FullState& vector);
+FullState operator*(const FullState& vector, stratifloat scalar);

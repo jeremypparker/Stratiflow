@@ -113,13 +113,7 @@ int main(int argc, char *argv[])
     else
     {
         // check it converges to steady state
-        stationaryPoint.u1.RandomizeCoefficients(0.3);
-        stationaryPoint.u3.RandomizeCoefficients(0.3);
-        stationaryPoint.b.RandomizeCoefficients(0.3);
-
-        stationaryPoint.u1 *= 0.0001;
-        stationaryPoint.u3 *= 0.0001;
-        stationaryPoint.b *= 0.0001;
+        stationaryPoint.Randomise(0.0001);
     }
 
     solver.NewtonRaphson(stationaryPoint);

@@ -62,7 +62,8 @@ add_library(StratiLib
     OSUtils.cpp
     FFT.cpp
     OrrSommerfeld.cpp
-    Parameters.cpp)
+    Parameters.cpp
+    FullState.cpp)
 
 add_subdirectory(tests)
 
@@ -77,3 +78,6 @@ target_link_libraries(OrrSommerfeld StratiLib)
 
 add_executable(NewtonKrylov NewtonKrylov.cpp)
 target_link_libraries(NewtonKrylov StratiLib)
+
+add_executable(DALSteady DALSteady.cpp)
+target_link_libraries(DALSteady StratiLib)

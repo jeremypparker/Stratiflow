@@ -152,14 +152,22 @@ public:
         }
     }
 
-    void TimeStepAdjoint(stratifloat time)
+    void TimeStepAdjoint(stratifloat time, bool findSteady = false)
     {
         for (int k=0; k<s; k++)
         {
             auto t4 = std::chrono::high_resolution_clock::now();
 
             LoadAtTime(time);
-            UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
+
+            if (findSteady)
+            {
+                UpdateAdjointVariablesSteady();
+            }
+            else
+            {
+                UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
+            }
 
             auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -282,10 +290,6 @@ public:
         totalDivergence = 0;
         totalForcing = 0;
 
-        u1.Zero();
-        u2.Zero();
-        u3.Zero();
-        b.Zero();
         p.Zero();
 
         PopulateNodalVariablesAdjoint();
@@ -724,6 +728,14 @@ public:
 
         u1Forcing.Zero();
         u2Forcing.Zero();
+    }
+
+    void UpdateAdjointVariablesSteady()
+    {
+        u1Forcing.Zero();
+        u2Forcing.Zero();
+        u3Forcing.Zero();
+        bForcing.Zero();
     }
 
     void BuildFilenameMap(bool reverse=true)
