@@ -1,22 +1,74 @@
 #include "StateVector.h"
 
-stratifloat Residual(const StateVector& initialDirect, const StateVector& finalDirect)
+class DALSteady
 {
-    StateVector diff = finalDirect - initialDirect;
-    return diff.Energy();
-}
+public:
+    DALSteady(const StateVector& IC)
+    : epsilon(0.1)
+    , T(10)
+    , initialDirect(IC)
+    {
+    }
 
-void Optimise(stratifloat& epsilon,
-              StateVector& initialDirect,
-              const StateVector& finalDirect,
-              const StateVector& finalAdjoint)
-{
-    initialDirect += epsilon*(finalAdjoint + finalDirect - initialDirect);
-}
+    stratifloat Residual() const
+    {
+        StateVector diff = finalDirect - initialDirect;
+        return diff.Energy();
+    }
 
-int main()
-{
-    stratifloat T = 10;
+    void Optimise()
+    {
+        initialDirect += epsilon*(finalAdjoint + finalDirect - initialDirect);
+    }
+
+    void AdjointIC()
+    {
+        initialAdjoint = initialDirect - finalDirect;
+    }
+
+    void Run()
+    {
+        stratifloat bestResidual;
+        int step = 0;
+        while (true)
+        {
+            step++;
+
+            // first do forward pass
+            initialDirect.FullEvolve(T, finalDirect, true);
+
+            stratifloat newResidual = Residual();
+
+            std::cout << "Step " << step << ", residual=" << newResidual << std::endl;
+
+            if (newResidual < bestResidual || step == 1)
+            {
+                bestResidual = newResidual;
+                initialDirectPrevious = initialDirect;
+                finalDirectPrevious = finalDirect;
+
+                // now do adjoint
+                AdjointIC();
+                initialAdjoint.AdjointEvolve(T, finalAdjoint);
+            }
+            else
+            {
+                // IC not good enough, retry with smaller epsilon
+                epsilon /= 2;
+
+                std::cout << "Epsilon: " << epsilon << std::endl;
+
+                initialDirect = initialDirectPrevious;
+                finalDirect = finalDirectPrevious;
+            }
+
+            Optimise();
+        }
+    }
+
+private:
+    stratifloat T; // target time
+    stratifloat epsilon; // gradient descent step size
 
     StateVector initialDirectPrevious;
     StateVector finalDirectPrevious;
@@ -25,45 +77,14 @@ int main()
 
     StateVector initialAdjoint;
     StateVector finalAdjoint;
+};
 
-    initialDirect.Randomise(0.001);
+int main()
+{
+    StateVector initial;
+    initial.Randomise(0.001);
 
-    stratifloat epsilon = 0.01; // initial gradient descent step size
+    DALSteady dal(initial);
 
-    stratifloat bestResidual;
-    int step = 0;
-    while (true)
-    {
-        step++;
-
-        // first do forward pass
-        initialDirect.FullEvolve(T, finalDirect, true);
-
-        stratifloat newResidual = Residual(initialDirect, finalDirect);
-
-        std::cout << "Step " << step << ", residual=" << newResidual << std::endl;
-
-        if (newResidual < bestResidual || step == 1)
-        {
-            bestResidual = newResidual;
-            initialDirectPrevious = initialDirect;
-            finalDirectPrevious = finalDirect;
-
-            // now do adjoint
-            initialAdjoint = initialDirect - finalDirect;
-            initialAdjoint.AdjointEvolve(T, finalAdjoint);
-        }
-        else
-        {
-            // IC not good enough, retry with smaller epsilon
-            epsilon /= 2;
-
-            std::cout << "Epsilon: " << epsilon << std::endl;
-
-            initialDirect = initialDirectPrevious;
-            finalDirect = finalDirectPrevious;
-        }
-
-        Optimise(epsilon, initialDirect, finalDirect, finalAdjoint);
-    }
+    dal.Run();
 }
