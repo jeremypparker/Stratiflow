@@ -23,7 +23,8 @@
 #define PyString_FromString PyUnicode_FromString
 #endif
 
-
+namespace
+{
 namespace matplotlibcpp {
 
 	namespace detail {
@@ -989,4 +990,5 @@ namespace matplotlibcpp {
 
 #endif
 
+}
 }
