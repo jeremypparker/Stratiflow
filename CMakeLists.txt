@@ -63,7 +63,7 @@ add_library(StratiLib
     FFT.cpp
     OrrSommerfeld.cpp
     Parameters.cpp
-    FullState.cpp)
+    StateVector.cpp)
 
 add_subdirectory(tests)
 

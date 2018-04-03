@@ -1,17 +1,17 @@
-#include "FullState.h"
+#include "StateVector.h"
 
 class NewtonKrylov
 {
 public:
     // using the GMRES routine, perform Newton-Raphson iteration
     // x : an initial guess, also the result when finished
-    void NewtonRaphson(FullState& x)
+    void NewtonRaphson(StateVector& x)
     {
-        FullState dx; // update, solve into here to save reallocating memory
+        StateVector dx; // update, solve into here to save reallocating memory
         for (int n=0; n<N; n++)
         {
             // first nonlinearly evolve current state
-            FullState rhs; // = G-x
+            StateVector rhs; // = G-x
             x.FullEvolve(T, rhs, true);
             rhs -= x;
 
@@ -31,11 +31,11 @@ private:
     // solves A x = G-x0 for x
     // where A = I-G_x
     // GMRES is a Krylov-subspace method, hence Newton-Krylov
-    void GMRES(const FullState& rhs, FullState& x, stratifloat epsilon) const
+    void GMRES(const StateVector& rhs, StateVector& x, stratifloat epsilon) const
     {
         int K = 128; // max iterations
 
-        std::vector<FullState> q(K);
+        std::vector<StateVector> q(K);
 
         MatrixX H(K, K-1); // upper Hessenberg matrix representing A
         H.setZero();
@@ -55,7 +55,7 @@ private:
             // from x, A x, A^2 x, ...
 
             // q_k = A q_k-1
-            FullState Gq;
+            StateVector Gq;
             q[k-1].LinearEvolve(T, Gq);
             q[k] = q[k-1];
             q[k] -= Gq;
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 {
     NewtonKrylov solver;
 
-    FullState stationaryPoint;
+    StateVector stationaryPoint;
 
     if (argc == 2)
     {

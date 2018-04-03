@@ -1,15 +1,15 @@
-#include "FullState.h"
+#include "StateVector.h"
 
-stratifloat Residual(const FullState& initialDirect, const FullState& finalDirect)
+stratifloat Residual(const StateVector& initialDirect, const StateVector& finalDirect)
 {
-    FullState diff = finalDirect - initialDirect;
+    StateVector diff = finalDirect - initialDirect;
     return diff.Energy();
 }
 
 void Optimise(stratifloat& epsilon,
-              FullState& initialDirect,
-              const FullState& finalDirect,
-              const FullState& finalAdjoint)
+              StateVector& initialDirect,
+              const StateVector& finalDirect,
+              const StateVector& finalAdjoint)
 {
     initialDirect += epsilon*(finalAdjoint + finalDirect - initialDirect);
 }
@@ -18,13 +18,13 @@ int main()
 {
     stratifloat T = 10;
 
-    FullState initialDirectPrevious;
-    FullState finalDirectPrevious;
-    FullState initialDirect;
-    FullState finalDirect;
+    StateVector initialDirectPrevious;
+    StateVector finalDirectPrevious;
+    StateVector initialDirect;
+    StateVector finalDirect;
 
-    FullState initialAdjoint;
-    FullState finalAdjoint;
+    StateVector initialAdjoint;
+    StateVector finalAdjoint;
 
     initialDirect.Randomise(0.001);
 
