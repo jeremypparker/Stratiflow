@@ -249,6 +249,12 @@ public:
         assert(other.BC() == BC());
     }
 
+    void Reset(BoundaryCondition bc)
+    {
+        Zero();
+        _bc = bc;
+    }
+
     template<typename A>
     const Field<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
@@ -477,6 +483,12 @@ public:
     , _bc(bc)
     {
         _data.setZero();
+    }
+
+    void Reset(BoundaryCondition bc)
+    {
+        Zero();
+        _bc = bc;
     }
 
     void Zero()

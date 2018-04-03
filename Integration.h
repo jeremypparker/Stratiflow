@@ -2,8 +2,6 @@
 
 #include "Field.h"
 
-// MAJOR TODO: DON'T USE TEMPORARY LOCALS
-
 template<int N1, int N2, int N3>
 stratifloat IntegrateVertically(const Nodal1D<N1,N2,N3>& U, stratifloat L3)
 {
@@ -29,9 +27,11 @@ void HorizontalAverage(const ModalField<N1,N2,N3>& integrand, Nodal1D<N1,N2,N3>&
 template<int N1, int N2, int N3>
 stratifloat IntegrateAllSpace(const NodalField<N1,N2,N3>& U, stratifloat L1, stratifloat L2, stratifloat L3)
 {
-    ModalField<N1,N2,N3> u(U.BC());
+    static ModalField<N1,N2,N3> u(U.BC());
+    u.Reset(U.BC());
     U.ToModal(u);
-    Nodal1D<N1,N2,N3> horzAve(U.BC());
+    static Nodal1D<N1,N2,N3> horzAve(U.BC());
+    horzAve.Reset(U.BC());
     HorizontalAverage(u,horzAve);
     return IntegrateVertically(horzAve,L3)*L1*L2;
 }
@@ -41,7 +41,8 @@ template<typename C, typename T, int N1, int N2, int N3>
 stratifloat InnerProd(const NodalField<N1,N2,N3>& A, const NodalField<N1,N2,N3>& B, stratifloat L3, const StackContainer<C,T,N1,N2,N3>& weight)
 {
     assert(A.BC() == B.BC());
-    NodalField<N1,N2,N3> U(A.BC());
+    static NodalField<N1,N2,N3> U(A.BC());
+    U.Reset(A.BC());
 
     U = A*B*weight;
 
@@ -51,8 +52,12 @@ stratifloat InnerProd(const NodalField<N1,N2,N3>& A, const NodalField<N1,N2,N3>&
 template<typename C, typename T, int N1, int N2, int N3>
 stratifloat InnerProd(const ModalField<N1,N2,N3>& a, const ModalField<N1,N2,N3>& b, stratifloat L3, const StackContainer<C,T,N1,N2,N3>& weight)
 {
-    NodalField<N1,N2,N3> A(a.BC());
-    NodalField<N1,N2,N3> B(b.BC());
+    static NodalField<N1,N2,N3> A(a.BC());
+    static NodalField<N1,N2,N3> B(b.BC());
+
+    A.Reset(a.BC());
+    B.Reset(b.BC());
+
 
     a.ToNodal(A);
     b.ToNodal(B);
@@ -64,7 +69,8 @@ template<int N1, int N2, int N3>
 stratifloat InnerProd(const NodalField<N1,N2,N3>& A, const NodalField<N1,N2,N3>& B, stratifloat L3)
 {
     assert(A.BC() == B.BC());
-    NodalField<N1,N2,N3> U(A.BC());
+    static NodalField<N1,N2,N3> U(A.BC());
+    U.Reset(A.BC());
 
     U = A*B;
 
@@ -74,8 +80,11 @@ stratifloat InnerProd(const NodalField<N1,N2,N3>& A, const NodalField<N1,N2,N3>&
 template<int N1, int N2, int N3>
 stratifloat InnerProd(const ModalField<N1,N2,N3>& a, const ModalField<N1,N2,N3>& b, stratifloat L3)
 {
-    NodalField<N1,N2,N3> A(a.BC());
-    NodalField<N1,N2,N3> B(b.BC());
+    static NodalField<N1,N2,N3> A(a.BC());
+    static NodalField<N1,N2,N3> B(b.BC());
+
+    A.Reset(a.BC());
+    B.Reset(b.BC());
 
     a.ToNodal(A);
     b.ToNodal(B);
