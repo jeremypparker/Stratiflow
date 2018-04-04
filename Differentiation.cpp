@@ -24,39 +24,27 @@ MatrixX VerticalSecondDerivativeMatrix(stratifloat L, int N, BoundaryCondition o
         {
             // one sided (second order) derivatives at ends
 
-            if (originalBC == BoundaryCondition::Neumann)
-            {
-                // neumann condition means we get second order from 2 points
-                stratifloat h1 = d(0);
+            stratifloat h1 = d(0);
+            stratifloat h2 = d(1);
 
-                stratifloat denom = h1*h1/2.0;
+            stratifloat denom = (h1+h2)*h1*h2/2.0;
 
-                D(0,1) = 1/denom;
-                D(0,0) = -1/denom;
-            }
-            else
-            {
-                stratifloat h1 = d(0);
-                stratifloat h2 = d(1);
-
-                stratifloat denom = (h1+h2)*h1*h2/2.0;
-
-                D(0,2) = h1/denom;
-                D(0,1) = -(h1+h2)/denom;
-                D(0,0) = h2/denom;
-            }
+            D(0,2) = h1/denom;
+            D(0,1) = -(h1+h2)/denom;
+            D(0,0) = h2/denom;
         }
         else if (j==N-1)
         {
             if (originalBC == BoundaryCondition::Neumann)
             {
-                // neumann condition means we get second order from 2 points
                 stratifloat h1 = d(N-2);
+                stratifloat h2 = d(N-3);
 
-                stratifloat denom = h1*h1/2.0;
+                stratifloat denom = (h1+h2)*h1*h2/2.0;
 
-                D(N-1,N-2) = 1/denom;
-                D(N-1,N-1) = -1/denom;
+                D(N-1,N-3) = h1/denom;
+                D(N-1,N-2) = -(h1+h2)/denom;
+                D(N-1,N-1) = h2/denom;
             }
         }
         else if (j==N-2 && originalBC == BoundaryCondition::Dirichlet)

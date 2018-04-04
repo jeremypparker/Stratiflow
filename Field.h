@@ -454,6 +454,21 @@ public:
         }
     }
 
+    void NeumannEnds()
+    {
+        slice(0) = slice(1);
+
+        if (BC() == BoundaryCondition::Neumann)
+        {
+            slice(N3-1) = slice(N3-2);
+        }
+        else
+        {
+            slice(N3-1).setZero(); // should be true anyway
+            slice(N3-2) = slice(N3-3);
+        }
+    }
+
     virtual BoundaryCondition BC() const override
     {
         return _bc;

@@ -118,6 +118,13 @@ public:
         solver.SaveFlow(filename);
     }
 
+    void EnforceBCs()
+    {
+        u3.ZeroEnds();
+        u1.NeumannEnds();
+        b.NeumannEnds();
+    }
+
 private:
     void CopyToSolver() const
     {

@@ -50,11 +50,12 @@ private:
 
         VectorX y; // result in new basis
 
-        stratifloat beta = rhs.Norm();
-
-        std::cout << beta << std::endl;
 
         q[0] = rhs;
+        q[0].EnforceBCs();
+
+        stratifloat beta = q[0].Norm();
+        std::cout << beta << std::endl;
         q[0] *= 1/beta;
         for (int k=1; k<K; k++)
         {
@@ -78,6 +79,9 @@ private:
             // normalise
             H(k,k-1) = q[k].Norm();
             q[k] *= 1/H(k,k-1);
+
+            // enforce BCs
+            q[k].EnforceBCs();
 
             VectorX Beta(k+1);
             Beta.setZero();
