@@ -144,4 +144,20 @@ void InterpolateProduct(const DirichletNodal& A, const DirichletNodal& B, Dirich
     prod = A*B;
     prod.ToModal(to);
 }
+void InterpolateProduct(const NeumannNodal& A1, const NeumannNodal& A2,
+                        const NeumannNodal& B1, const NeumannNodal& B2,
+                        NeumannModal& to)
+{
+    static NeumannNodal prod;
+    prod = A1*B1 + A2*B2;
+    prod.ToModal(to);
+}
+void InterpolateProduct(const NeumannNodal& A1, const NeumannNodal& A2,
+                        const DirichletNodal& B1, const DirichletNodal& B2,
+                        DirichletModal& to)
+{
+    static DirichletNodal prod;
+    prod = Reinterpolate(A1)*B1 + Reinterpolate(A2)*B2;
+    prod.ToModal(to);
+}
 }

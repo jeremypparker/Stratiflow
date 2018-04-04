@@ -1173,50 +1173,41 @@ private:
         r3 -= Ri*Reinterpolate(b); // buoyancy force
 
         //////// NONLINEAR TERMS ////////
-        nnTemp = 2.0*U1_tot*U1;
-        nnTemp.ToModal(boundedTemp);
-        r1 -= ddx(boundedTemp);
+        InterpolateProduct(U1, U1_tot, boundedTemp);
+        r1 -= 2.0*ddx(boundedTemp);
 
-        ndTemp = U1_tot*U3 + U3_tot*U1;
-        ndTemp.ToModal(decayingTemp);
+        InterpolateProduct(U1_tot, U1, U3, U3_tot, decayingTemp);
         r3 -= ddx(decayingTemp);
         r1 -= ddz(decayingTemp);
 
-        nnTemp = 2.0*U3_tot*U3;
-        nnTemp.ToModal(boundedTemp);
-        r3 -= ddz(boundedTemp);
+        InterpolateProduct(U3, U3_tot, boundedTemp);
+        r3 -= 2.0*ddz(boundedTemp);
 
         if(ThreeDimensional)
         {
-            nnTemp = 2.0*U2_tot*U2;
-            nnTemp.ToModal(boundedTemp);
-            r2 -= ddy(boundedTemp);
+            InterpolateProduct(U2, U2_tot, boundedTemp);
+            r2 -= 2.0*ddy(boundedTemp);
 
-            ndTemp = U2*U3_tot + U3*U2_tot;
-            ndTemp.ToModal(decayingTemp);
+            InterpolateProduct(U2_tot, U2, U3, U3_tot, decayingTemp);
             r3 -= ddy(decayingTemp);
             r2 -= ddz(decayingTemp);
 
-            nnTemp = U1_tot*U2 + U2_tot*U1;
-            nnTemp.ToModal(boundedTemp);
+            InterpolateProduct(U2_tot, U2, U1, U1_tot, boundedTemp);
             r1 -= ddy(boundedTemp);
             r2 -= ddx(boundedTemp);
         }
 
         // buoyancy nonlinear terms
-        nnTemp = U1_tot*B + B_tot*U1;
-        nnTemp.ToModal(boundedTemp);
+        InterpolateProduct(U1_tot, U1, B, B_tot, boundedTemp);
         rB -= ddx(boundedTemp);
 
         if(ThreeDimensional)
         {
-            nnTemp = U2_tot*B + U2*B_tot;
-            nnTemp.ToModal(boundedTemp);
+            InterpolateProduct(U2_tot, U2, B, B_tot, boundedTemp);
             rB -= ddy(boundedTemp);
         }
 
-        ndTemp = U3*B_tot + U3_tot*B;
-        ndTemp.ToModal(decayingTemp);
+        InterpolateProduct(B, B_tot, U3_tot, U3, decayingTemp);
         rB -= ddz(decayingTemp);
     }
 
