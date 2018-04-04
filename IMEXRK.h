@@ -1216,60 +1216,48 @@ private:
         // build up right hand sides for the implicit solve in R
 
         // adjoint buoyancy
-        bForcing -= Ri*U3;
+        bForcing -= Ri*Reinterpolate(U3);
 
         //////// NONLINEAR TERMS ////////
         // advection of adjoint quantities by the direct flow
-        nnTemp = U1*U1_tot;
-        nnTemp.ToModal(boundedTemp);
+        InterpolateProduct(U1, U1_tot, boundedTemp);
         r1 += ddx(boundedTemp);
         if(ThreeDimensional)
         {
-            nnTemp = U1*U2_tot;
-            nnTemp.ToModal(boundedTemp);
+            InterpolateProduct(U1, U2_tot, boundedTemp);
             r1 += ddy(boundedTemp);
         }
-        ndTemp = U1*U3_tot;
-        ndTemp.ToModal(decayingTemp);
+        InterpolateProduct(U1, U3_tot, decayingTemp);
         r1 += ddz(decayingTemp);
 
         if(ThreeDimensional)
         {
-            nnTemp = U2*U1_tot;
-            nnTemp.ToModal(boundedTemp);
+            InterpolateProduct(U2, U1_tot, boundedTemp);
             r2 += ddx(boundedTemp);
-            nnTemp = U2*U2_tot;
-            nnTemp.ToModal(boundedTemp);
+            InterpolateProduct(U2, U2_tot, boundedTemp);
             r2 += ddy(boundedTemp);
-            ndTemp = U2*U3_tot;
-            ndTemp.ToModal(decayingTemp);
+            InterpolateProduct(U2, U3_tot, decayingTemp);
             r2 += ddz(decayingTemp);
         }
 
-        ndTemp = U3*U1_tot;
-        ndTemp.ToModal(decayingTemp);
+        InterpolateProduct(U3, U1_tot, decayingTemp);
         r3 += ddx(decayingTemp);
         if(ThreeDimensional)
         {
-            ndTemp = U3*U2_tot;
-            ndTemp.ToModal(decayingTemp);
+            InterpolateProduct(U3, U2_tot, decayingTemp);
             r3 += ddy(decayingTemp);
         }
-        nnTemp = U3*U3_tot;
-        nnTemp.ToModal(boundedTemp);
+        InterpolateProduct(U3, U3_tot, boundedTemp);
         r3 += ddz(boundedTemp);
 
-        nnTemp = B*U1_tot;
-        nnTemp.ToModal(boundedTemp);
+        InterpolateProduct(B, U1_tot, boundedTemp);
         rB += ddx(boundedTemp);
         if(ThreeDimensional)
         {
-            nnTemp = B*U2_tot;
-            nnTemp.ToModal(boundedTemp);
+            InterpolateProduct(B, U2_tot, boundedTemp);
             rB += ddy(boundedTemp);
         }
-        ndTemp = B*U3_tot;
-        ndTemp.ToModal(decayingTemp);
+        InterpolateProduct(B, U3_tot, decayingTemp);
         rB += ddz(decayingTemp);
 
         // extra adjoint nonlinear terms
@@ -1284,7 +1272,7 @@ private:
         }
         decayingTemp = ddx(u3_tot);
         decayingTemp.ToNodal(ndTemp);
-        u1Forcing -= nnTemp2 + ndTemp*U3;
+        u1Forcing -= nnTemp2 + Reinterpolate(ndTemp*U3);
 
         if(ThreeDimensional)
         {
@@ -1296,21 +1284,21 @@ private:
             nnTemp2 += nnTemp*U2;
             decayingTemp = ddy(u3_tot);
             decayingTemp.ToNodal(ndTemp);
-            u2Forcing -= nnTemp2 + ndTemp*U3;
+            u2Forcing -= nnTemp2 + Reinterpolate(ndTemp*U3);
         }
 
         decayingTemp = ddz(u1_tot);
         decayingTemp.ToNodal(ndTemp);
-        ndTemp2 = ndTemp*U1;
+        ndTemp2 = ndTemp*Reinterpolate(U1);
         if(ThreeDimensional)
         {
             decayingTemp = ddz(u2_tot);
             decayingTemp.ToNodal(ndTemp);
-            ndTemp2 += ndTemp*U2;
+            ndTemp2 += ndTemp*Reinterpolate(U2);
         }
         boundedTemp = ddz(u3_tot);
         boundedTemp.ToNodal(nnTemp);
-        u3Forcing -= ndTemp2 + nnTemp*U3;
+        u3Forcing -= ndTemp2 + Reinterpolate(nnTemp)*U3;
 
 
         boundedTemp = ddx(b_tot);
@@ -1326,7 +1314,7 @@ private:
 
         decayingTemp = ddz(b_tot);
         decayingTemp.ToNodal(ndTemp);
-        u3Forcing -= ndTemp*B;
+        u3Forcing -= ndTemp*Reinterpolate(B);
 
         // Now include all the forcing terms
         u1Forcing.ToModal(boundedTemp);
