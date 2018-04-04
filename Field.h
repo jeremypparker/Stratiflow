@@ -442,7 +442,16 @@ public:
     void ZeroEnds()
     {
         slice(0).setZero();
-        slice(N3-1).setZero();
+
+        if (BC() == BoundaryCondition::Neumann)
+        {
+            slice(N3-1).setZero();
+        }
+        else
+        {
+            slice(N3-1).setZero(); // should be true anyway
+            slice(N3-2).setZero();
+        }
     }
 
     virtual BoundaryCondition BC() const override

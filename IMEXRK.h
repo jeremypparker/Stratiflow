@@ -74,13 +74,16 @@ public:
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
+                laplacian.row(0).setZero();
+                laplacian(0,0) = 1; laplacian(0,1) = -1;
+                laplacian.row(N3-1).setZero();
+                laplacian(N3-1,N3-1) = 1; laplacian(N3-1,N3-2) = -1;
+
                 // correct for singularity
                 if (j1==0 && j2==0)
                 {
                     laplacian.row(0).setZero();
                     laplacian(0,0) = 1;
-                    laplacian.row(N3-1).setZero();
-                    laplacian(N3-1,N3-1) = 1;
                 }
 
                 solve = laplacian.sparseView();
@@ -212,27 +215,6 @@ public:
         u3.Filter();
         b.Filter();
         p.Filter();
-
-        // BCs
-
-        // possibly not necessary, but to correct after pressure remove
-
-        // free slip
-        u1.slice(0) = u1.slice(1);
-        u1.slice(N3-1) = u1.slice(N3-2);
-        if (ThreeDimensional)
-        {
-            u2.slice(0) = u2.slice(1);
-            u2.slice(N3-1) = u2.slice(N3-2);
-        }
-
-        // no penetration
-        u3.slice(0).setZero();
-        u3.slice(N3-1).setZero();
-
-        // buoyancy bcs
-        b.slice(0).setZero();
-        b.slice(N3-1).setZero();
     }
 
     void PopulateNodalVariables()
