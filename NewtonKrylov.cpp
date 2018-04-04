@@ -5,11 +5,19 @@ class NewtonKrylov
 public:
     // using the GMRES routine, perform Newton-Raphson iteration
     // x : an initial guess, also the result when finished
-    void NewtonRaphson(StateVector& x)
+    void Run(StateVector& x)
     {
+        MakeCleanDir("ICs");
+
         StateVector dx; // update, solve into here to save reallocating memory
-        for (int n=0; n<N; n++)
+
+        int step = 0;
+        while(true)
         {
+            step++;
+
+            x.SaveToFile("ICs/"+std::to_string(step)+".fields");
+
             // first nonlinearly evolve current state
             StateVector rhs; // = G-x
             x.FullEvolve(T, rhs, true);
@@ -17,7 +25,7 @@ public:
 
             stratifloat residual = rhs.Norm();
 
-            std::cout << "NEWTON STEP " << n << ", RESIDUAL: " << residual << std::endl;
+            std::cout << "NEWTON STEP " << step << ", RESIDUAL: " << residual << std::endl;
 
             // solve matrix system
             GMRES(rhs, dx, 0.01);
@@ -96,7 +104,6 @@ private:
         }
     }
 
-    int N = 10; // max iterations
     stratifloat T = 5; // time interval for integration
 };
 
@@ -116,5 +123,5 @@ int main(int argc, char *argv[])
         stationaryPoint.Randomise(0.0001);
     }
 
-    solver.NewtonRaphson(stationaryPoint);
+    solver.Run(stationaryPoint);
 }

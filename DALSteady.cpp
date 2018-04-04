@@ -4,35 +4,24 @@ class DALSteady
 {
 public:
     DALSteady(const StateVector& IC)
-    : epsilon(0.1)
+    : epsilon(1)
     , T(10)
     , initialDirect(IC)
     {
     }
 
-    stratifloat Residual() const
-    {
-        StateVector diff = finalDirect - initialDirect;
-        return diff.Energy();
-    }
-
-    void Optimise()
-    {
-        initialDirect += epsilon*(finalAdjoint + finalDirect - initialDirect);
-    }
-
-    void AdjointIC()
-    {
-        initialAdjoint = initialDirect - finalDirect;
-    }
-
     void Run()
     {
+        MakeCleanDir("ICs");
+
         stratifloat bestResidual;
         int step = 0;
         while (true)
         {
             step++;
+
+            // store the state
+            initialDirect.SaveToFile("ICs/"+std::to_string(step)+".fields");
 
             // first do forward pass
             initialDirect.FullEvolve(T, finalDirect, true);
@@ -67,6 +56,23 @@ public:
     }
 
 private:
+    stratifloat Residual() const
+    {
+        StateVector diff = finalDirect - initialDirect;
+        return diff.Energy();
+    }
+
+    void Optimise()
+    {
+        initialDirect += epsilon*(finalAdjoint + finalDirect - initialDirect);
+    }
+
+    void AdjointIC()
+    {
+        initialAdjoint = initialDirect - finalDirect;
+    }
+
+
     stratifloat T; // target time
     stratifloat epsilon; // gradient descent step size
 

@@ -112,6 +112,12 @@ public:
         CopyFromSolver();
     }
 
+    void SaveToFile(const std::string& filename) const
+    {
+        CopyToSolver();
+        solver.SaveFlow(filename);
+    }
+
 private:
     void CopyToSolver() const
     {
