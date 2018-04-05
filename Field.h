@@ -664,11 +664,17 @@ public:
         f3_execute(plan);
         f3_destroy_plan(plan);
 
-        other *= 1/static_cast<stratifloat>(N1*N2);
-
         if (filter)
         {
+            other *= 1/static_cast<stratifloat>(N1*N2);
             other.Filter();
+        }
+        else
+        {
+            for (int j=0; j<N3*N2*(N1/2+1); j++)
+            {
+                other.Raw()[j] *= 1/static_cast<stratifloat>(N1*N2);
+            }
         }
     }
 

@@ -104,12 +104,6 @@ TEST_CASE("Modal/Nodal")
     NodalField<4, 8, 4> f3(BoundaryCondition::Dirichlet);
     f2.ToNodal(f3);
 
-    std::cout << f1.slice(0) << std::endl << std::endl;
-    std::cout << f3.slice(0) << std::endl << std::endl << std::endl;
-
-    std::cout << f1.slice(2) << std::endl << std::endl;
-    std::cout << f3.slice(2) << std::endl << std::endl << std::endl;
-
     REQUIRE(f1 == f3);
 }
 
