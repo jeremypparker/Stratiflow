@@ -4,6 +4,8 @@
 
 int main(int argc, char *argv[])
 {
+    DumpParameters();
+
     stratifloat targetTime = 50000.0;
     stratifloat integrateTarget = 47.0;
     stratifloat energy = 0.001;
