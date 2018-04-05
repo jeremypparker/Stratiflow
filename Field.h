@@ -822,9 +822,22 @@ public:
         std::mt19937 generator(rd());
         std::uniform_real_distribution<stratifloat> rng(-1.0,1.0);
 
+        int j3min = 0;
+        int j3max = N3;
+
+        if (this->BC() == BoundaryCondition::Dirichlet)
+        {
+            j3min = 1;
+            j3max = N3-2;
+
+            this->slice(0).setZero();
+            this->slice(N3-1).setZero();
+            this->slice(N3-2).setZero();
+        }
+
         for (int j1=0; j1<0.5*cutoff*N1; j1++)
         {
-            for (int j3=0; j3<N3; j3++)
+            for (int j3=j3min; j3<j3max; j3++)
             {
                 for (int j2=0; j2<0.5*cutoff*N2; j2++)
                 {
