@@ -62,3 +62,5 @@ inline stratifloat zFilter(stratifloat z)
         return 1;
     }
 }
+
+void DumpParameters();

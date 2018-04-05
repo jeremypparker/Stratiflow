@@ -87,6 +87,8 @@ private:
 
 int main(int argc, char *argv[])
 {
+    DumpParameters();
+
     StateVector initial;
 
     if (argc == 2)

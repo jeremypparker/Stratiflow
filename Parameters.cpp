@@ -1,4 +1,5 @@
 #include "Parameters.h"
+#include <fstream>
 
 // These are runtime parameters - could load from a file in future
 
@@ -11,3 +12,24 @@ stratifloat R = 1;
 stratifloat Pr = R*R;
 stratifloat Pe = Re*Pr;
 bool EnforceSymmetry = false;
+
+#define PrintParam(parameter) paramFile << #parameter << " " << parameter << std::endl
+
+void DumpParameters()
+{
+    std::ofstream paramFile;
+    paramFile.open("params.dat", std::fstream::out);
+
+    PrintParam(N1);
+    PrintParam(N2);
+    PrintParam(N3);
+    PrintParam(ThreeDimensional);
+    PrintParam(EvolveBackground);
+
+    PrintParam(L1);
+    PrintParam(L2);
+    PrintParam(L3);
+    PrintParam(Re);
+    PrintParam(Ri);
+    PrintParam(R);
+}
