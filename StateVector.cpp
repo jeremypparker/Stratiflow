@@ -177,6 +177,10 @@ void StateVector::Rescale(stratifloat energy)
     }
 
     u1 *= scale;
+    if (ThreeDimensional)
+    {
+        u2 *= scale;
+    }
     u3 *= scale;
     b *= scale;
 }

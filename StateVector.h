@@ -7,6 +7,7 @@ class StateVector
 {
 public:
     NeumannModal u1;
+    NeumannModal u2;
     DirichletModal u3;
     NeumannModal b;
     NeumannModal p;
@@ -27,6 +28,10 @@ public:
     const StateVector& operator+=(const StateVector& other)
     {
         u1 += other.u1;
+        if (ThreeDimensional)
+        {
+            u2 += other.u2;
+        }
         u3 += other.u3;
         b += other.b;
         CalcPressure();
@@ -37,6 +42,10 @@ public:
     const StateVector& operator-=(const StateVector& other)
     {
         u1 -= other.u1;
+        if (ThreeDimensional)
+        {
+            u2 -= other.u2;
+        }
         u3 -= other.u3;
         b  -= other.b;
         CalcPressure();
@@ -47,6 +56,10 @@ public:
     const StateVector& MulAdd(stratifloat a, const StateVector& B)
     {
         u1 += a*B.u1;
+        if (ThreeDimensional)
+        {
+            u2 += a*B.u2;
+        }
         u3 += a*B.u3;
         b  += a*B.b;
         CalcPressure();
@@ -57,6 +70,10 @@ public:
     const StateVector& operator*=(stratifloat other)
     {
         u1 *= other;
+        if (ThreeDimensional)
+        {
+            u2 *= other;
+        }
         u3 *= other;
         b  *= other;
         CalcPressure();
@@ -69,6 +86,12 @@ public:
         stratifloat prod = 0.5f*(InnerProd(u1, other.u1, L3)
                                + InnerProd(u3, other.u3, L3)
                                + Ri*InnerProd(b, other.b, L3)); // TODO: is this correct PE?
+
+        if (ThreeDimensional)
+        {
+            prod += 0.5f*InnerProd(u2, other.u2, L3);
+        }
+
         return prod;
     }
 
@@ -90,6 +113,10 @@ public:
     void Zero()
     {
         u1.Zero();
+        if (ThreeDimensional)
+        {
+            u2.Zero();
+        }
         u3.Zero();
         b.Zero();
         p.Zero();
@@ -100,6 +127,10 @@ public:
     void Randomise(stratifloat energy)
     {
         u1.RandomizeCoefficients(0.3);
+        if (ThreeDimensional)
+        {
+            u2.RandomizeCoefficients(0.3);
+        }
         u3.RandomizeCoefficients(0.3);
         b.RandomizeCoefficients(0.3);
 
@@ -122,6 +153,7 @@ public:
     {
         u3.ZeroEnds();
         u1.NeumannEnds();
+        u2.NeumannEnds();
         b.NeumannEnds();
     }
 
@@ -129,6 +161,10 @@ private:
     void CopyToSolver() const
     {
         solver.u1 = u1;
+        if (ThreeDimensional)
+        {
+            solver.u2 = u2;
+        }
         solver.u3 = u3;
         solver.b = b;
         solver.u2.Zero();
@@ -143,6 +179,10 @@ private:
     void CopyFromSolver(StateVector& into) const
     {
         into.u1 = solver.u1;
+        if (ThreeDimensional)
+        {
+            into.u2 = solver.u2;
+        }
         into.u3 = solver.u3;
         into.b = solver.b;
         into.p = solver.p;
