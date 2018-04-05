@@ -639,6 +639,25 @@ public:
     NodalField(BoundaryCondition bc)
     : Field<stratifloat, N1, N2, N3>(bc)
     {
+        int dims[] = {N2, N1};
+        int odims[] = {N2, N1/2+1};
+
+        std::vector<stratifloat, aligned_allocator<stratifloat>> inputData(N1*N2*N3);
+        std::vector<complex, aligned_allocator<complex>> outputData((N1/2+1)*N2*N3);
+
+        auto plan = f3_plan_many_dft_r2c(2,
+                                        dims,
+                                        N3,
+                                        inputData.data(),
+                                        dims,
+                                        N3,
+                                        1,
+                                        reinterpret_cast<f3_complex*>(outputData.data()),
+                                        odims,
+                                        N3,
+                                        1,
+                                        FFTW_PATIENT);
+
     }
 
     void ToModal(ModalField<N1,N2,N3>& other, bool filter = true) const
@@ -660,7 +679,7 @@ public:
                                         odims,
                                         N3,
                                         1,
-                                        FFTW_ESTIMATE);
+                                        FFTW_PATIENT);
         f3_execute(plan);
         f3_destroy_plan(plan);
 
@@ -731,16 +750,7 @@ public:
     }
 
     using Field<stratifloat, N1, N2, N3>::operator-=;
-
-private:
-    static std::vector<stratifloat, aligned_allocator<stratifloat>> intermediateData;
-    static f3_plan plan;
 };
-
-template<int N1, int N2, int N3>
-std::vector<stratifloat, aligned_allocator<stratifloat>> NodalField<N1,N2,N3>::intermediateData(2*(N1/2+1)*N2*2*(N3-1), 0);
-template<int N1, int N2, int N3>
-f3_plan NodalField<N1,N2,N3>::plan(0);
 
 template<int N1, int N2, int N3>
 class ModalField : public Field<complex, N1/2+1, N2, N3>
@@ -757,6 +767,26 @@ public:
     ModalField(BoundaryCondition bc)
     : Field<complex, N1/2+1, N2, N3>(bc)
     {
+        inputData.resize(actualN1*N2*N3);
+
+        std::vector<stratifloat, aligned_allocator<stratifloat>> outputData(N1*N2*N3);
+
+        int dims[] = {N2, N1};
+        int idims[] = {N2, actualN1};
+
+        auto plan = f3_plan_many_dft_c2r(2,
+                                dims,
+                                N3,
+                                reinterpret_cast<f3_complex*>(inputData.data()),
+                                idims,
+                                N3,
+                                1,
+                                outputData.data(),
+                                dims,
+                                N3,
+                                1,
+                                FFTW_PATIENT);
+
     }
 
 
@@ -767,7 +797,6 @@ public:
         // do IFT in 1st and 2nd dimensions
 
         // make a copy of the input data as it is modified by the transform
-        std::vector<complex, aligned_allocator<complex>> inputData(actualN1*N2*N3);
         for (unsigned int j=0; j<actualN1*N2*N3; j++)
         {
             inputData[j] = this->Raw()[j];
@@ -786,7 +815,7 @@ public:
                                         dims,
                                         N3,
                                         1,
-                                        FFTW_ESTIMATE);
+                                        FFTW_PATIENT);
         f3_execute(plan);
         f3_destroy_plan(plan);
     }
@@ -919,10 +948,14 @@ public:
     }
 
 private:
+    static std::vector<complex, aligned_allocator<complex>> inputData;
 };
 
 template<int N1, int N2, int N3>
 constexpr int ModalField<N1,N2,N3>::actualN1;
+
+template<int N1, int N2, int N3>
+std::vector<complex, aligned_allocator<complex>> ModalField<N1,N2,N3>::inputData;
 
 template<typename A, typename T, int N1, int N2, int N3>
 ScalarProduct<A, T, N1, N2, N3> operator*(T scalar,
