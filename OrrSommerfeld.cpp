@@ -36,10 +36,10 @@ MatrixXc OrrSommerfeldLHS(stratifloat k)
                    -(1/Pe/k)*(D2b-k*k*I);
 
     // values at boundary must be zero, so ignore those bits
-    MatrixXc A(2*(N3-2), 2*(N3-2));
+    MatrixXc A(2*(N3-2)-1, 2*(N3-2)-1);
 
-    A << A11.block(1, 1, N3-2, N3-2), A12.block(1, 1, N3-2, N3-2),
-         A21.block(1, 1, N3-2, N3-2), A22.block(1, 1, N3-2, N3-2);
+    A << A11.block(1, 1, N3-3, N3-3), A12.block(1, 1, N3-3, N3-2),
+         A21.block(1, 1, N3-2, N3-3), A22.block(1, 1, N3-2, N3-2);
 
     return A;
 }
@@ -73,10 +73,10 @@ MatrixXc OrrSommerfeldRHS(stratifloat k)
     MatrixXc C22 = -I;
 
     // values at boundary must be zero, so ignore those bits
-    MatrixXc C(2*(N3-2), 2*(N3-2));
+    MatrixXc C(2*(N3-2)-1, 2*(N3-2)-1);
 
-    C << C11.block(1, 1, N3-2, N3-2), C12.block(1, 1, N3-2, N3-2),
-         C21.block(1, 1, N3-2, N3-2), C22.block(1, 1, N3-2, N3-2);
+    C << C11.block(1, 1, N3-3, N3-3), C12.block(1, 1, N3-3, N3-2),
+         C21.block(1, 1, N3-2, N3-3), C22.block(1, 1, N3-2, N3-2);
 
     return C;
 }
@@ -102,12 +102,21 @@ ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen
 
     if (w_eigen!=nullptr)
     {
-        w_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().block(0,0,N3-2,N3-2);
+        w_eigen->block(1,0,N3-3,N3-3) = solver.eigenvectors().block(0,0,N3-3,N3-3);
+
+        // dirichlet BC
+        w_eigen->row(0).setZero();
+        w_eigen->row(N3-2).setZero();
+        w_eigen->row(N3-1).setZero();
     }
 
     if (b_eigen!=nullptr)
     {
-        b_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().block(N3-2,0,N3-2,N3-2);
+        b_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().block(N3-3,0,N3-2,N3-2);
+
+        // Neumann BC
+        b_eigen->row(0) = b_eigen->row(1);
+        b_eigen->row(N3-1) = b_eigen->row(N3-2);
     }
 
     return solver.eigenvalues();
@@ -188,7 +197,7 @@ void EigenModes(stratifloat k, NeumannModal& u1, NeumannModal& u2, DirichletModa
 {
     // find the vertical profile of eigenmodes
     Field1D<complex, N1, N2, N3> w_hat(BoundaryCondition::Dirichlet);
-    Field1D<complex, N1, N2, N3> b_hat(BoundaryCondition::Dirichlet);
+    Field1D<complex, N1, N2, N3> b_hat(BoundaryCondition::Neumann);
 
     LargestGrowth(k, &w_hat, &b_hat);
 
@@ -220,9 +229,6 @@ void EigenModes(stratifloat k, NeumannModal& u1, NeumannModal& u2, DirichletModa
         // todo: make consistent the definition of b
         B(j1,j2,j3) = -real(b_hat_j * exp(i*k*x(j1)));
     } endfor3D
-
-    W.ZeroEnds();
-    B.ZeroEnds();
 
     W.ToModal(u3);
     B.ToModal(b);
