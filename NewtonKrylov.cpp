@@ -102,6 +102,7 @@ private:
         }
 
         // Now compute the solution using the basis vectors
+        x.Zero();
         for (int k=0; k<K; k++)
         {
             x.MulAdd(y[k], q[k]);
