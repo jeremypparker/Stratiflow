@@ -81,11 +81,14 @@ int main(int argc, char *argv[])
     std::cout << "Setting background..." << std::endl;
     solver.SetBackground(InitialU, InitialB);
 
-    solver.FilterAll();
-    solver.PopulateNodalVariables();
-    solver.RemoveDivergence(0.0f);
-    solver.RescaleForEnergy(energy);
-    solver.SolveForPressure();
+    if (argc == 1)
+    {
+        solver.FilterAll();
+        solver.PopulateNodalVariables();
+        solver.RemoveDivergence(0.0f);
+        solver.RescaleForEnergy(energy);
+        solver.SolveForPressure();
+    }
 
     stratifloat totalTime = 0.0f;
 
