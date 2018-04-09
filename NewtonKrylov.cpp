@@ -11,6 +11,12 @@ public:
 
         StateVector dx; // update, solve into here to save reallocating memory
 
+        stratifloat bestResidual;
+
+        StateVector xPrevious;
+
+        stratifloat Delta = 1;
+
         int step = 0;
         while(true)
         {
@@ -27,8 +33,25 @@ public:
 
             std::cout << "NEWTON STEP " << step << ", RESIDUAL: " << residual << std::endl;
 
+            if (residual < bestResidual || step == 1)
+            {
+                bestResidual = residual;
+                xPrevious = x;
+            }
+            else
+            {
+                // not good enough, reduce trust region size and retry
+                Delta /= 2;
+                std::cout << "Delta: " << Delta << std::endl;
+
+                // reset snapshots to previous
+                // the time spent on this is small compared to GMRES time
+                x = xPrevious;
+                x.FullEvolve(T, rhs, true);
+            }
+
             // solve matrix system
-            GMRES(rhs, dx, 0.01);
+            GMRES(rhs, dx, 0.01, Delta);
 
             // update
             x += dx;
@@ -39,7 +62,8 @@ private:
     // solves A x = G-x0 for x
     // where A = I-G_x
     // GMRES is a Krylov-subspace method, hence Newton-Krylov
-    void GMRES(const StateVector& rhs, StateVector& x, stratifloat epsilon) const
+    // Delta is a maximum size for x in the least squares solution
+    void GMRES(const StateVector& rhs, StateVector& x, stratifloat epsilon, stratifloat Delta=0) const
     {
         int K = 128; // max iterations
 
@@ -88,7 +112,38 @@ private:
             Beta[0] = beta;
 
             MatrixX subH = H.block(0,0,k+1,k);
-            y = subH.colPivHouseholderQr().solve(Beta);
+
+            // Now we solve Hy = Beta
+
+            // follows notation of Chandler & Kerswell 2013
+
+            // first H = UDV*
+            JacobiSVD<MatrixX> svd(subH, ComputeFullU | ComputeFullV);
+            MatrixX U = svd.matrixU();
+            MatrixX V = svd.matrixV();
+            ArrayX d = svd.singularValues();
+
+            // solve problem in space of singular vectors
+            VectorX p = U.transpose() * Beta;
+            VectorX z = p.array()/d; // solve Dz = p
+
+            // enforce trust region
+            stratifloat mu = 0;
+            while (z.norm() > Delta)
+            {
+                mu += 0.1;
+
+                for (int j=0; j<z.size(); j++)
+                {
+                    z(j) = p(j)*d(j)/(d(j)*d(j)+mu);
+                }
+            }
+
+            std::cout << "For |z|<Delta, mu=" << mu << std::endl;
+
+            // transform back
+            y = V*z;
+
 
             stratifloat residual = (subH*y - Beta).norm()/beta;
 
