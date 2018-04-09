@@ -1,4 +1,5 @@
 #include "StateVector.h"
+#include "OrrSommerfeld.h"
 
 class DALSteady
 {
@@ -97,8 +98,9 @@ int main(int argc, char *argv[])
     }
     else
     {
-        // check it converges to steady state
-        initial.Randomise(0.001);
+        EigenModes(2*pi/L1, initial.u1, initial.u2, initial.u3, initial.b);
+
+        initial.Rescale(0.0001);
     }
 
     DALSteady dal(initial);
