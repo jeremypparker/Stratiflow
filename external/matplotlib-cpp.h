@@ -28,7 +28,7 @@ namespace
 namespace matplotlibcpp {
 
 	namespace detail {
-		static std::string s_backend;
+		static std::string s_backend = "Agg";
 
 		struct _interpreter {
 			PyObject *s_python_function_show;
@@ -200,12 +200,6 @@ namespace matplotlibcpp {
 				Py_Finalize();
 			}
 		};
-	}
-
-	// must be called before the first regular call to matplotlib to have any effect
-	void backend(const std::string& name)
-	{
-		detail::s_backend = name;
 	}
 
 	bool annotate(std::string annotation, double x, double y)

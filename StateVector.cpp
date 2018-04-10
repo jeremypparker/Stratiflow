@@ -9,7 +9,7 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot) 
     solver.FilterAll();
     solver.PopulateNodalVariables();
     solver.RemoveDivergence(0.0f);
-
+    
     stratifloat t = 0.0f;
 
     int step = 0;
@@ -20,6 +20,10 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot) 
     runnum++;
     solver.PrepareRun(std::string("images-")+std::to_string(runnum)+"/");
     solver.PlotAll(std::to_string(t)+".png", true);
+    
+    solver.deltaT = 0.01;
+    solver.UpdateForTimestep();
+
     while (t < T)
     {
         // on last step, arrive exactly
@@ -76,6 +80,10 @@ void StateVector::LinearEvolve(stratifloat T, StateVector& result) const
     runnum++;
     solver.PrepareRunLinear(std::string("images-linear-")+std::to_string(runnum)+"/");
     solver.PlotAll(std::to_string(t)+".png", false);
+ 
+    solver.deltaT = 0.01;
+    solver.UpdateForTimestep();
+    
     while (t < T)
     {
         // on last step, arrive exactly
