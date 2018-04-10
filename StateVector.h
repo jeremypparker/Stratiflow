@@ -146,6 +146,7 @@ public:
     void SaveToFile(const std::string& filename) const
     {
         CopyToSolver();
+        solver.PopulateNodalVariables();
         solver.SaveFlow(filename);
     }
 

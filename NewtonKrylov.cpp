@@ -1,4 +1,5 @@
 #include "StateVector.h"
+#include "OrrSommerfeld.h"
 
 class NewtonKrylov
 {
@@ -48,6 +49,7 @@ public:
                 // the time spent on this is small compared to GMRES time
                 x = xPrevious;
                 x.FullEvolve(T, rhs, true);
+                rhs -= x;
             }
 
             // solve matrix system
@@ -124,8 +126,8 @@ private:
             ArrayX d = svd.singularValues();
 
             // solve problem in space of singular vectors
-            VectorX p = U.transpose() * Beta;
-            VectorX z = p.array()/d; // solve Dz = p
+            VectorX p = U.transpose() * Beta; // p = U* Beta
+            VectorX z = p.array()/d; // D z = p
 
             // enforce trust region
             stratifloat mu = 0;
@@ -141,7 +143,7 @@ private:
 
             std::cout << "For |z|<Delta, mu=" << mu << std::endl;
 
-            // transform back
+            // z = V* y
             y = V*z;
 
 
@@ -158,7 +160,7 @@ private:
 
         // Now compute the solution using the basis vectors
         x.Zero();
-        for (int k=0; k<K; k++)
+        for (int k=0; k<K-1; k++)
         {
             x.MulAdd(y[k], q[k]);
         }
@@ -169,6 +171,8 @@ private:
 
 int main(int argc, char *argv[])
 {
+    DumpParameters();
+
     NewtonKrylov solver;
 
     StateVector stationaryPoint;
@@ -179,8 +183,9 @@ int main(int argc, char *argv[])
     }
     else
     {
-        // check it converges to steady state
-        stationaryPoint.Randomise(0.0001);
+        EigenModes(2*pi/L1, stationaryPoint.u1, stationaryPoint.u2, stationaryPoint.u3, stationaryPoint.b);
+
+        stationaryPoint.Rescale(0.0001);
     }
 
     solver.Run(stationaryPoint);
