@@ -129,12 +129,15 @@ public:
         }
     }
 
-    void TimeStepLinear(stratifloat time)
+    void TimeStepLinear(stratifloat time, bool evolving = true)
     {
         // see Numerical Renaissance
         for (int k=0; k<s; k++)
         {
-            LoadAtTime(time, false);
+            if (evolving)
+            {
+                LoadAtTime(time, false);
+            }
 
             ExplicitCN(k);
             BuildRHSLinear();
@@ -285,7 +288,7 @@ public:
         MakeCleanDir(imageDirectory+"/buoyancyBG");
     }
 
-    void PrepareRunLinear(std::string imageDir)
+    void PrepareRunLinear(std::string imageDir, bool evolving=true)
     {
         imageDirectory = imageDir;
 
@@ -296,7 +299,10 @@ public:
 
         PopulateNodalVariables();
 
-        BuildFilenameMap(false);
+        if (evolving)
+        {
+            BuildFilenameMap(false);
+        }
 
         MakeCleanDir(imageDirectory+"/u1");
         MakeCleanDir(imageDirectory+"/u2");
@@ -426,6 +432,26 @@ public:
         Bbar.SetValue(buoyancy, L3);
 
         SetBackground(Ubar, Bbar);
+    }
+
+    void SetBackground(const NeumannModal& velocity1, const NeumannModal& velocity2, const DirichletModal& velocity3, const NeumannModal& buoyancy)
+    {
+        u1_tot = velocity1;
+        if (ThreeDimensional)
+        {
+            u2_tot = velocity2;
+        }
+        u3_tot = velocity3;
+        b_tot = buoyancy;
+
+        u1_tot.ToNodal(U1_tot);
+
+        if (ThreeDimensional)
+        {
+            u2_tot.ToNodal(U2_tot);
+        }
+        u3_tot.ToNodal(U3_tot);
+        b_tot.ToNodal(B_tot);
     }
 
     // gives an upper bound on cfl number - also updates timestep

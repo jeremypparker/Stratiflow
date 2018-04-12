@@ -81,3 +81,9 @@ target_link_libraries(NewtonKrylov StratiLib)
 
 add_executable(DALSteady DALSteady.cpp)
 target_link_libraries(DALSteady StratiLib)
+
+add_executable(FieldNorm FieldNorm.cpp)
+target_link_libraries(FieldNorm StratiLib)
+
+add_executable(PowerIterate PowerIterate.cpp)
+target_link_libraries(PowerIterate StratiLib)

@@ -16,6 +16,8 @@ public:
 
     void LinearEvolve(stratifloat T, StateVector& result) const;
 
+    void LinearEvolveFixed(stratifloat T, const StateVector& about, StateVector& result) const;
+
     void AdjointEvolve(stratifloat T, StateVector& result) const;
 
     void CalcPressure()
@@ -124,7 +126,7 @@ public:
 
     void Rescale(stratifloat energy);
 
-    void Randomise(stratifloat energy)
+    void Randomise(stratifloat energy, bool restrictToMiddle = false)
     {
         u1.RandomizeCoefficients(0.3);
         if (ThreeDimensional)
@@ -133,6 +135,24 @@ public:
         }
         u3.RandomizeCoefficients(0.3);
         b.RandomizeCoefficients(0.3);
+
+        if (restrictToMiddle)
+        {
+            for (int j=0; j<N3/4; j++)
+            {
+                u1.slice(j).setZero();
+                u1.slice(N3-j-1).setZero();
+
+                u2.slice(j).setZero();
+                u2.slice(N3-j-1).setZero();
+
+                u3.slice(j).setZero();
+                u3.slice(N3-j-1).setZero();
+
+                b.slice(j).setZero();
+                b.slice(N3-j-1).setZero();
+            }
+        }
 
         Rescale(energy);
     }
@@ -156,6 +176,29 @@ public:
         u1.NeumannEnds();
         u2.NeumannEnds();
         b.NeumannEnds();
+    }
+
+    void AddBackground()
+    {
+        NeumannNodal U1;
+        NeumannNodal B;
+
+        Neumann1D U_;
+        Neumann1D B_;
+
+        U_.SetValue(InitialU, L3);
+        B_.SetValue(InitialB, L3);
+
+
+
+        u1.ToNodal(U1);
+        b.ToNodal(B);
+
+        U1 += U_;
+        B += B_;
+
+        U1.ToModal(u1);
+        B.ToModal(b);
     }
 
 private:
