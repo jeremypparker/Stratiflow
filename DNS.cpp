@@ -31,47 +31,47 @@ int main(int argc, char *argv[])
         auto x3 = VerticalPoints(L3, N3);
 
 
-        NeumannModal initialu1;
-        NeumannModal initialu2;
-        DirichletModal initialu3;
-        NeumannModal initialb;
+        // NeumannModal initialu1;
+        // NeumannModal initialu2;
+        // DirichletModal initialu3;
+        // NeumannModal initialb;
 
-        std::cout << "Calculating Eigenmode..." << std::endl;
+        // std::cout << "Calculating Eigenmode..." << std::endl;
 
-        // find which mode to use
-        int mode = 0;
-        stratifloat growth = -1000;
-        for (int m=1; m<5; m++)
-        {
-            stratifloat sigma = LargestGrowth(2*pi*m/L1);
-            if (sigma > growth)
-            {
-                growth = sigma;
-                mode = m;
-            }
-        }
-
-        // add the eigenmode
-        EigenModes(2*pi*mode/L1, initialu1, initialu2, initialu3, initialb);
-        initialu1.ToNodal(initialU1);
-        initialu2.ToNodal(initialU2);
-        initialu3.ToNodal(initialU3);
-        initialb.ToNodal(initialB);
-
-        // // add a perturbation to allow instabilities to develop
-        // stratifloat bandmax = 4;
-        // for (int j=0; j<N3; j++)
+        // // find which mode to use
+        // int mode = 0;
+        // stratifloat growth = -1000;
+        // for (int m=1; m<5; m++)
         // {
-        //     if (x3(j) > -bandmax && x3(j) < bandmax)
+        //     stratifloat sigma = LargestGrowth(2*pi*m/L1);
+        //     if (sigma > growth)
         //     {
-        //         initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-        //             * Array<stratifloat, N1, N2>::Random(N1, N2);
-        //         initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-        //             * Array<stratifloat, N1, N2>::Random(N1, N2);
-        //         initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
-        //             * Array<stratifloat, N1, N2>::Random(N1, N2);
+        //         growth = sigma;
+        //         mode = m;
         //     }
         // }
+
+        // // add the eigenmode
+        // EigenModes(2*pi*mode/L1, initialu1, initialu2, initialu3, initialb);
+        // initialu1.ToNodal(initialU1);
+        // initialu2.ToNodal(initialU2);
+        // initialu3.ToNodal(initialU3);
+        // initialb.ToNodal(initialB);
+
+        // add a perturbation to allow instabilities to develop
+        stratifloat bandmax = 4;
+        for (int j=0; j<N3; j++)
+        {
+            if (x3(j) > -bandmax && x3(j) < bandmax)
+            {
+                initialU1.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                    * Array<stratifloat, N1, N2>::Random(N1, N2);
+                initialU2.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                    * Array<stratifloat, N1, N2>::Random(N1, N2);
+                initialU3.slice(j) += 0.01*(bandmax*bandmax-x3(j)*x3(j))
+                    * Array<stratifloat, N1, N2>::Random(N1, N2);
+            }
+        }
         solver.SetInitial(initialU1, initialU2, initialU3, initialB);
     }
 
