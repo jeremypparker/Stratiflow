@@ -107,6 +107,11 @@ MatrixX VerticalReinterpolationMatrix(stratifloat L, int N, BoundaryCondition or
     {
         D.diagonal(1).setConstant(0.5);
         D.diagonal(0).head(N-1).setConstant(0.5);
+
+        // zero at ends
+        D.row(0).setZero();
+        D.row(N-1).setZero();
+        D.row(N-2).setZero();
     }
     else
     {
@@ -115,6 +120,10 @@ MatrixX VerticalReinterpolationMatrix(stratifloat L, int N, BoundaryCondition or
 
         D.diagonal(-1).head(N-2) = 0.5*diff2.tail(N-2)/diff.segment(1, N-2);
         D.diagonal().segment(1, N-2) = 0.5*diff2.head(N-2)/diff.segment(1, N-2);
+
+        // no derivative at ends
+        D.row(0) = D.row(1);
+        D.row(N-1) = D.row(N-2);
     }
 
     return D;

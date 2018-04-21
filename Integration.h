@@ -25,6 +25,12 @@ void HorizontalAverage(const ModalField<N1,N2,N3>& integrand, Nodal1D<N1,N2,N3>&
 }
 
 template<int N1, int N2, int N3>
+void RemoveHorizontalAverage(ModalField<N1,N2,N3>& field)
+{
+    field.stack(0,0).setZero();
+}
+
+template<int N1, int N2, int N3>
 stratifloat IntegrateAllSpace(const NodalField<N1,N2,N3>& U, stratifloat L1, stratifloat L2, stratifloat L3)
 {
     static ModalField<N1,N2,N3> u(U.BC());
