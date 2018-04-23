@@ -157,7 +157,6 @@ void StateVector::LinearEvolve(stratifloat T, StateVector& result) const
         {
             stratifloat cfl = solver.CFLadjoint();
             std::cout << step << " " << t << std::endl;
-            solver.PlotAll(std::to_string(t)+".png", false);
         }
 
         step++;

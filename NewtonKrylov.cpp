@@ -16,7 +16,7 @@ public:
 
         StateVector xPrevious;
 
-        stratifloat Delta = 1;
+        stratifloat Delta = 0.01;
 
         int step = 0;
         while(true)
@@ -67,7 +67,7 @@ private:
     // Delta is a maximum size for x in the least squares solution
     void GMRES(const StateVector& rhs, StateVector& x, stratifloat epsilon, stratifloat Delta=0) const
     {
-        int K = 128; // max iterations
+        int K = 512; // max iterations
 
         std::vector<StateVector> q(K);
 
@@ -133,7 +133,7 @@ private:
             stratifloat mu = 0;
             while (z.norm() > Delta)
             {
-                mu += 0.1;
+                mu += 0.00001;
 
                 for (int j=0; j<z.size(); j++)
                 {
@@ -171,22 +171,15 @@ private:
 
 int main(int argc, char *argv[])
 {
+    Ri = std::stof(argv[2]);
+
     DumpParameters();
 
     NewtonKrylov solver;
 
     StateVector stationaryPoint;
 
-    if (argc == 2)
-    {
-        stationaryPoint.LoadFromFile(argv[1]);
-    }
-    else
-    {
-        EigenModes(2*pi/L1, stationaryPoint.u1, stationaryPoint.u2, stationaryPoint.u3, stationaryPoint.b);
-
-        stationaryPoint.Rescale(0.0001);
-    }
+    stationaryPoint.LoadFromFile(argv[1]);
 
     solver.Run(stationaryPoint);
 }
