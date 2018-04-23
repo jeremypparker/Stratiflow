@@ -1,6 +1,6 @@
 #include "StateVector.h"
 
-void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot) const
+void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, bool screenshot) const
 {
     CopyToSolver();
 
@@ -18,8 +18,12 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot) 
 
     static int runnum = 0;
     runnum++;
-    solver.PrepareRun(std::string("images-")+std::to_string(runnum)+"/");
-    solver.PlotAll(std::to_string(t)+".png", true);
+    solver.PrepareRun(std::string("images-")+std::to_string(runnum)+"/", screenshot);
+
+    if (screenshot)
+    {
+        solver.PlotAll(std::to_string(t)+".png", true);
+    }
 
     solver.deltaT = 0.01;
     solver.UpdateForTimestep();
@@ -41,7 +45,11 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot) 
         {
             stratifloat cfl = solver.CFL();
             std::cout << step << " " << t << std::endl;
-            solver.PlotAll(std::to_string(t)+".png", true);
+
+            if (screenshot)
+            {
+                solver.PlotAll(std::to_string(t)+".png", true);
+            }
         }
 
         if (snapshot)
@@ -56,66 +64,24 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot) 
             break;
         }
     }
-
-    solver.PlotAll(std::to_string(t)+".png", true);
-
+    if (screenshot)
+    {
+        solver.PlotAll(std::to_string(t)+".png", true);
+    }
     CopyFromSolver(result);
 }
 
-void StateVector::LinearEvolveFixed(stratifloat T, const StateVector& about, StateVector& result) const
+void StateVector::LinearEvolve(stratifloat T, const StateVector& about, const StateVector& aboutResult, StateVector& result) const
 {
-    CopyToSolver();
+    stratifloat eps = 0.0000001;
 
-    solver.FilterAll();
-    solver.PopulateNodalVariables();
-    solver.RemoveDivergence(0.0f);
+    result = about;
+    result.MulAdd(eps, *this);
 
-    stratifloat t = 0.0f;
+    result.FullEvolve(T, result, false, false);
 
-    int step = 0;
-
-    bool done = false;
-
-    static int runnum = 0;
-    runnum++;
-    solver.PrepareRunLinear(std::string("images-linear-")+std::to_string(runnum)+"/", false);
-    solver.PlotAll(std::to_string(t)+".png", false);
-
-    solver.SetBackground(about.u1, about.u2, about.u3, about.b);
-
-    solver.deltaT = 0.01;
-    solver.UpdateForTimestep();
-
-    while (t < T)
-    {
-        // on last step, arrive exactly
-        if (t + solver.deltaT > T)
-        {
-            solver.deltaT = T - t;
-            solver.UpdateForTimestep();
-            done = true;
-        }
-
-        solver.TimeStepLinear(t, false);
-        t += solver.deltaT;
-
-        if(step%50==0)
-        {
-            stratifloat cfl = solver.CFLadjoint();
-            std::cout << step << " " << t << std::endl;
-            solver.PlotAll(std::to_string(t)+".png", false);
-        }
-
-        step++;
-
-        if (done)
-        {
-            break;
-        }
-    }
-
-    solver.PlotAll(std::to_string(t)+".png", false);
-    CopyFromSolver(result);
+    result -= aboutResult;
+    result *= 1/eps;
 }
 
 void StateVector::LinearEvolve(stratifloat T, StateVector& result) const

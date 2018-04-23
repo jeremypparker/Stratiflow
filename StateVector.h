@@ -12,11 +12,11 @@ public:
     NeumannModal b;
     NeumannModal p;
 
-    void FullEvolve(stratifloat T, StateVector& result, bool snapshot = false) const;
+    void FullEvolve(stratifloat T, StateVector& result, bool snapshot = false, bool screenshot = true) const;
 
     void LinearEvolve(stratifloat T, StateVector& result) const;
 
-    void LinearEvolveFixed(stratifloat T, const StateVector& about, StateVector& result) const;
+    void LinearEvolve(stratifloat T, const StateVector& about, const StateVector& aboutResult, StateVector& result) const;
 
     void AdjointEvolve(stratifloat T, StateVector& result) const;
 
@@ -199,6 +199,19 @@ public:
 
         U1.ToModal(u1);
         B.ToModal(b);
+    }
+
+    void PlotAll(std::string directory) const
+    {
+        MakeCleanDir(directory);
+
+        HeatPlot(u1, L1, L3, 0, directory+"/u1.png");
+        if (ThreeDimensional)
+        {
+            HeatPlot(u2, L1, L3, 0, directory+"/u2.png");
+        }
+        HeatPlot(u3, L1, L3, 0, directory+"/u3.png");
+        HeatPlot(b, L1, L3, 0, directory+"/b.png");
     }
 
 private:

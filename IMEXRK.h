@@ -230,7 +230,7 @@ public:
         b.ToNodal(B);
     }
 
-    void PrepareRun(std::string imageDir)
+    void PrepareRun(std::string imageDir, bool makeDirs = true)
     {
         imageDirectory = imageDir;
 
@@ -241,15 +241,18 @@ public:
 
         PopulateNodalVariables();
 
-        MakeCleanDir(imageDirectory+"/u1");
-        MakeCleanDir(imageDirectory+"/u2");
-        MakeCleanDir(imageDirectory+"/u3");
-        MakeCleanDir(imageDirectory+"/buoyancy");
-        MakeCleanDir(imageDirectory+"/buoyancyBG");
-        MakeCleanDir(imageDirectory+"/pressure");
-        MakeCleanDir(imageDirectory+"/vorticity");
-        MakeCleanDir(imageDirectory+"/perturbvorticity");
-        MakeCleanDir(snapshotdir);
+        if (makeDirs)
+        {
+            MakeCleanDir(imageDirectory+"/u1");
+            MakeCleanDir(imageDirectory+"/u2");
+            MakeCleanDir(imageDirectory+"/u3");
+            MakeCleanDir(imageDirectory+"/buoyancy");
+            MakeCleanDir(imageDirectory+"/buoyancyBG");
+            MakeCleanDir(imageDirectory+"/pressure");
+            MakeCleanDir(imageDirectory+"/vorticity");
+            MakeCleanDir(imageDirectory+"/perturbvorticity");
+            MakeCleanDir(snapshotdir);
+        }
     }
 
     void PrepareRunAdjoint(std::string imageDir)
