@@ -458,7 +458,7 @@ public:
         cfl *= deltaT;
 
         // update timestep for target cfl
-        constexpr stratifloat targetCFL = 0.4;
+        constexpr stratifloat targetCFL = 0.6;
         deltaT *= targetCFL / cfl;
         UpdateForTimestep();
 
