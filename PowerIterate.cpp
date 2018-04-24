@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
         b_ki.PlotAll("imag"+std::to_string(iterations));
 
         // normalise
-        stratifloat norm = b_kr.Norm() + b_ki.Norm();
+        stratifloat norm = sqrt(b_kr.Norm2() + b_ki.Norm2());
         b_kr *= 1/norm;
         b_ki *= 1/norm;
 
@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
 
         // largest eigenvalue (in magnitude) of exponential matrix
         complex mu = (b_kr.Dot(b_kr1) + b_ki.Dot(b_ki1));
-                   + i*(b_kr.Dot(b_ki1) - b_ki.Dot(b_kr1));
+                     + i*(b_kr.Dot(b_ki1) - b_ki.Dot(b_kr1));
 
         // abs and arg of exp(A) eigenvalue give real/imag of eigenvalue of A
         stratifloat growthGuess = log(abs(mu))/T;
