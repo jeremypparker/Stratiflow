@@ -35,7 +35,15 @@ MatrixXc OrrSommerfeldLHS(stratifloat k)
     MatrixXc A22 = i*Um
                    -(1/Pe/k)*(D2b-k*k*I);
 
-    // values at boundary must be zero, so ignore those bits
+    // w = w' = 0 at boundaries, so take w0 = 0, w-1 = w1 etc
+    // (works itself out)
+
+    // b = 0 at boundaries, so take b0 = -b1
+    A12.col(1) -= A12.col(0);
+    A12.col(N3-2) -= A12.col(N3-1);
+    A22.col(1) -= A22.col(0);
+    A22.col(N3-2) -= A22.col(N3-1);
+
     MatrixXc A(2*(N3-2)-1, 2*(N3-2)-1);
 
     A << A11.block(1, 1, N3-3, N3-3), A12.block(1, 1, N3-3, N3-2),
@@ -72,7 +80,15 @@ MatrixXc OrrSommerfeldRHS(stratifloat k)
 
     MatrixXc C22 = -I;
 
-    // values at boundary must be zero, so ignore those bits
+    // w = w' = 0 at boundaries, so take w0 = 0, w-1 = w1 etc
+    // (works itself out)
+
+    // b = 0 at boundaries, so take b0 = -b1
+    C12.col(1) -= C12.col(0);
+    C12.col(N3-2) -= C12.col(N3-1);
+    C22.col(1) -= C22.col(0);
+    C22.col(N3-2) -= C22.col(N3-1);
+
     MatrixXc C(2*(N3-2)-1, 2*(N3-2)-1);
 
     C << C11.block(1, 1, N3-3, N3-3), C12.block(1, 1, N3-3, N3-2),
@@ -102,7 +118,7 @@ ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen
 
     if (w_eigen!=nullptr)
     {
-        w_eigen->block(1,0,N3-3,N3-3) = solver.eigenvectors().block(0,0,N3-3,N3-3);
+        w_eigen->block(1,0,N3-3,2*(N3-2)-1) = solver.eigenvectors().block(0,0,N3-3,2*(N3-2)-1);
 
         // dirichlet BC
         w_eigen->row(0).setZero();
@@ -112,7 +128,7 @@ ArrayXc CalculateEigenvalues(stratifloat k, MatrixXc *w_eigen, MatrixXc *b_eigen
 
     if (b_eigen!=nullptr)
     {
-        b_eigen->block(1,0,N3-2,N3-2) = solver.eigenvectors().block(N3-3,0,N3-2,N3-2);
+        b_eigen->block(1,0,N3-2,2*(N3-2)-1) = solver.eigenvectors().block(N3-3,0,N3-2,2*(N3-2)-1);
 
         // Neumann BC
         b_eigen->row(0) = b_eigen->row(1);
@@ -157,8 +173,8 @@ stratifloat LargestGrowth(stratifloat k,
 
         return std::log(lambda)/T;
     }
-    MatrixXc w_eigen(N3,2*(N3-2));
-    MatrixXc b_eigen(N3,2*(N3-2));
+    MatrixXc w_eigen(N3,2*(N3-2)-1);
+    MatrixXc b_eigen(N3,2*(N3-2)-1);
 
     ArrayXc eigenvalues;
     if (w!=nullptr|| b!=nullptr)
@@ -171,9 +187,22 @@ stratifloat LargestGrowth(stratifloat k,
     }
 
     // find maximum growth
-    int jmax;
-    stratifloat largest = eigenvalues.real().maxCoeff(&jmax);
+    stratifloat imagcutoff = 0.01;
 
+    stratifloat jmax = -1;
+    stratifloat largest;
+
+    for (int j=0; j<eigenvalues.size(); j++)
+    {
+        if (eigenvalues(j).imag() < imagcutoff && eigenvalues(j).imag() > -imagcutoff)
+        {
+            if (jmax==-1  || eigenvalues(j).real() > largest)
+            {
+                jmax = j;
+                largest = eigenvalues(j).real();
+            }
+        }
+    }
     //std::cout << k << " : " << largest << std::endl;
 
     if (w!=nullptr)

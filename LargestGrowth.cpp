@@ -2,26 +2,30 @@
 #include "Graph.h"
 #include "Differentiation.h"
 
-int main()
+int main(int argc, char *argv[])
 {
+    Ri = std::stof(argv[1]);
 
     stratifloat kmax;
     stratifloat growthmax = -10000;
 
     // the largest wavelength we want to consider
-    stratifloat lambdamax = 50.0;
+    stratifloat lambdamax = 14.0;
+    stratifloat lambdamin = 10.0f;
     stratifloat kmin = 2*pi/lambdamax;
 
     stratifloat k_lower = kmin;
-    stratifloat k_upper = 2.0;
+    stratifloat k_upper = 2*pi/lambdamin;
 
-    for (int n=0; n<5; n++)
+    for (int n=0; n<6; n++)
     {
         stratifloat deltak = (k_upper-k_lower)/10;
 
         for (stratifloat k=k_lower; k<=k_upper; k+=deltak)
         {
             auto largest = LargestGrowth(k);
+
+            std::cout << k << " : " << largest << std::endl;
 
             if (largest>growthmax)
             {
