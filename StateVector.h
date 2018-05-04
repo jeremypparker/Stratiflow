@@ -1,4 +1,5 @@
 #include "IMEXRK.h"
+#include "OrrSommerfeld.h"
 
 // This class contains a full state's information
 // its operations are not particularly efficient
@@ -212,6 +213,13 @@ public:
         }
         HeatPlot(u3, L1, L3, 0, directory+"/u3.png");
         HeatPlot(b, L1, L3, 0, directory+"/b.png");
+    }
+
+    void ToEigenMode(stratifloat energy, int mode=1)
+    {
+        EigenModes(2*pi*mode/L1, u1, u2, u3, b);
+        p.Zero();
+        Rescale(energy);
     }
 
 private:
