@@ -160,7 +160,14 @@ public:
 
     void LoadFromFile(const std::string& filename)
     {
-        solver.LoadFlow(filename);
+        if (EndsWith(filename, ".fields"))
+        {
+            solver.LoadFlow(filename);
+        }
+        else
+        {
+            solver.LoadFlow(filename+".fields");
+        }
         CopyFromSolver();
     }
 
@@ -168,7 +175,15 @@ public:
     {
         CopyToSolver();
         solver.PopulateNodalVariables();
-        solver.SaveFlow(filename);
+
+        if (EndsWith(filename, ".fields"))
+        {
+            solver.SaveFlow(filename);
+        }
+        else
+        {
+            solver.SaveFlow(filename+".fields");
+        }
     }
 
     void EnforceBCs()

@@ -18,3 +18,9 @@ void LoadVariable(const std::string& filename, T& into, int index)
 }
 
 bool FileExists(const std::string& filename);
+
+inline bool EndsWith(const std::string& value, const std::string& ending)
+{
+    if (ending.size() > value.size()) return false;
+    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}

@@ -30,7 +30,7 @@ public:
         {
             step++;
 
-            x.SaveToFile("ICs/"+std::to_string(step)+".fields");
+            x.SaveToFile("ICs/"+std::to_string(step));
 
             // first nonlinearly evolve current state
             VectorType rhs = EvalFunction(x);

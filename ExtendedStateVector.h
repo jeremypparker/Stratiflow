@@ -100,4 +100,9 @@ public:
         std::ifstream paramFile(filename+".params");
         paramFile >> p;
     }
+
+    void EnforceBCs()
+    {
+        x.EnforceBCs();
+    }
 };

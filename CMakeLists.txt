@@ -92,3 +92,6 @@ target_link_libraries(FieldNorm StratiLib)
 
 add_executable(PowerIterate PowerIterate.cpp)
 target_link_libraries(PowerIterate StratiLib)
+
+add_executable(PseudoArclength PseudoArclength.cpp)
+target_link_libraries(PseudoArclength StratiLib)
