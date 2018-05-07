@@ -215,11 +215,13 @@ public:
         HeatPlot(b, L1, L3, 0, directory+"/b.png");
     }
 
-    void ToEigenMode(stratifloat energy, int mode=1)
+    stratifloat ToEigenMode(stratifloat energy, int mode=1)
     {
-        EigenModes(2*pi*mode/L1, u1, u2, u3, b);
+        stratifloat growth = EigenModes(2*pi*mode/L1, u1, u2, u3, b);
         p.Zero();
         Rescale(energy);
+
+        return growth;
     }
 
 private:

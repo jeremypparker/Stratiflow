@@ -222,13 +222,13 @@ stratifloat LargestGrowth(stratifloat k,
     return largest;
 }
 
-void EigenModes(stratifloat k, NeumannModal& u1, NeumannModal& u2, DirichletModal& u3, NeumannModal& b)
+stratifloat EigenModes(stratifloat k, NeumannModal& u1, NeumannModal& u2, DirichletModal& u3, NeumannModal& b)
 {
     // find the vertical profile of eigenmodes
     Field1D<complex, N1, N2, N3> w_hat(BoundaryCondition::Dirichlet);
     Field1D<complex, N1, N2, N3> b_hat(BoundaryCondition::Neumann);
 
-    LargestGrowth(k, &w_hat, &b_hat);
+    stratifloat growth = LargestGrowth(k, &w_hat, &b_hat);
 
     // multiply out the modes
     DirichletNodal W;
@@ -268,4 +268,5 @@ void EigenModes(stratifloat k, NeumannModal& u1, NeumannModal& u2, DirichletModa
     // squire's theorem tells us spanwise velocity is zero
     u2.Zero();
 
+    return growth;
 }
