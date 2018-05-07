@@ -16,3 +16,5 @@ void LoadVariable(const std::string& filename, T& into, int index)
     filestream.seekg(N1*N2*N3*index*sizeof(stratifloat));
     into.Load(filestream);
 }
+
+bool FileExists(const std::string& filename);
