@@ -26,6 +26,7 @@ public:
 
         stratifloat Delta = 0.1;
         int step = 0;
+        stratifloat targetResidual = 1e-10;
         while(true)
         {
             step++;
@@ -40,6 +41,11 @@ public:
 
             if (residual < bestResidual || step == 1)
             {
+                if (residual < targetResidual)
+                {
+                    return;
+                }
+
                 bestResidual = residual;
 
                 xPrevious = x;

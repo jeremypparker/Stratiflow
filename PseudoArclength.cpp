@@ -80,4 +80,6 @@ int main(int argc, char *argv[])
 
     PseudoArclengthContinuation solver(x2, v, delta);
     solver.Run(guess);
+
+    guess.SaveToFile("final");
 }
