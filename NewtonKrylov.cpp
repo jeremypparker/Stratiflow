@@ -26,7 +26,7 @@ public:
         StateVector linEndPrevious;
         StateVector rhsPrevious;
 
-        stratifloat Delta = 0.001;
+        stratifloat Delta = 0.1;
         int step = 0;
         while(true)
         {
@@ -201,13 +201,28 @@ private:
 
 int main(int argc, char *argv[])
 {
-    Ri = std::stof(argv[2]);
+    std::cout << "STRATIFLOW Newton-GMRES" << std::endl;
+    std::cout << argv[1] << " " << argv[2] << std::endl;
+
+    Ri = std::stof(argv[1]);
     DumpParameters();
 
     StateVector guess;
-    guess.LoadFromFile(argv[1]);
 
-    guess.Rescale(std::stof(argv[3]));
+    if (FileExists(argv[2]))
+    {
+        std::cout << "Interpretting " << argv[2] << " as path to guess" << std::endl;
+        guess.LoadFromFile(argv[2]);
+    }
+    else
+    {
+        std::cout << "Interpretting " << argv[2] << " as norm for eigenfunction" << std::endl;
+
+        stratifloat norm = std::stof(argv[2]);
+        stratifloat growth = guess.ToEigenMode(0.5*norm*norm);
+
+        std::cout << "Growth rate: " << growth << std::endl;
+    }
 
     NewtonKrylov solver;
 
