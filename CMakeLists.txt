@@ -9,7 +9,7 @@ option(DEBUGPLOT "Plot full range of graphs")
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 
 find_package(OpenMP)
@@ -18,13 +18,17 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-include_directories(SYSTEM /home/jpp39/installs/include/eigen3/)
-include_directories(SYSTEM /usr/include/eigen3/)
-include_directories(SYSTEM /home/jpp39/installs/include)
-include_directories(SYSTEM /usr/include/python2.7)
+find_package(PythonLibs REQUIRED)
+include_directories("${PYTHON_INCLUDE_DIRS}")
+link_libraries("${PYTHON_LIBRARIES}")
+
+find_path(NUMPY_PATH numpy/arrayobject.h
+          HINTS "${PYTHON_INCLUDE_DIRS}")
+include_directories("${NUMPY_PATH}")
+
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
 include_directories(SYSTEM external)
-link_directories(/home/jpp39/installs/lib)
-link_libraries(python2.7)
 link_libraries(m)
 
 if(DEBUGPLOT)
@@ -64,6 +68,7 @@ add_library(StratiLib
     OrrSommerfeld.cpp
     Parameters.cpp
     StateVector.cpp)
+target_link_libraries(StratiLib Eigen3::Eigen)
 
 add_subdirectory(tests)
 
