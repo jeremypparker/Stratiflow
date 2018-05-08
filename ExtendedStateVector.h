@@ -1,3 +1,5 @@
+#pragma once
+
 #include "StateVector.h"
 
 // A vector in the extended state space including one real parameter (Ri)

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "IMEXRK.h"
 #include "OrrSommerfeld.h"
 

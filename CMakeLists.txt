@@ -95,3 +95,9 @@ target_link_libraries(PowerIterate StratiLib)
 
 add_executable(PseudoArclength PseudoArclength.cpp)
 target_link_libraries(PseudoArclength StratiLib)
+
+add_executable(FindFold FindFold.cpp)
+target_link_libraries(FindFold StratiLib)
+
+add_executable(FindPitchfork FindPitchfork.cpp)
+target_link_libraries(FindPitchfork StratiLib)
