@@ -18,6 +18,8 @@ int main(int argc, char* argv[])
 
     endfield -= field;
 
-    std::cout << field.x.Norm() << std::endl;
-    std::cout << endfield.x.Norm() << std::endl;
+    std::cout << "STATIONARY POINT "
+              << field.p << " "
+              << field.x.Norm() << " "
+              << endfield.x.Norm() << std::endl;
 }
