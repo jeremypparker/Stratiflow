@@ -241,6 +241,11 @@ public:
         return growth;
     }
 
+    static void ResetForParams()
+    {
+        solver = IMEXRK();
+    }
+
 private:
     void CopyToSolver() const
     {

@@ -1368,10 +1368,10 @@ private:
     DirichletNodal u3Forcing, bForcing;
 
     // parameters for the scheme
-    const int s = 3;
+    static constexpr int s = 3;
     stratifloat h[3];
-    const stratifloat beta[3] = {1.0f, 25.0f/8.0f, 9.0f/4.0f};
-    const stratifloat zeta[3] = {0, -17.0f/8.0f, -5.0f/4.0f};
+    static constexpr stratifloat beta[3] = {1.0f, 25.0f/8.0f, 9.0f/4.0f};
+    static constexpr stratifloat zeta[3] = {0, -17.0f/8.0f, -5.0f/4.0f};
 
     // these are intermediate variables used in the computation, preallocated for efficiency
     NeumannModal R1, R2, RB;
@@ -1412,6 +1412,6 @@ private:
     std::map<stratifloat, std::string> filenames;
     std::map<stratifloat, std::string>::iterator fileAbove;
 
-    const std::string snapshotdir = "snapshots/";
+    std::string snapshotdir = "snapshots/";
     std::string imageDirectory;
 };

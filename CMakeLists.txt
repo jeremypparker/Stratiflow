@@ -67,7 +67,8 @@ add_library(StratiLib
     FFT.cpp
     OrrSommerfeld.cpp
     Parameters.cpp
-    StateVector.cpp)
+    StateVector.cpp
+    IMEXRK.cpp)
 target_link_libraries(StratiLib Eigen3::Eigen)
 
 add_subdirectory(tests)
@@ -101,3 +102,7 @@ target_link_libraries(FindFold StratiLib)
 
 add_executable(FindPitchfork FindPitchfork.cpp)
 target_link_libraries(FindPitchfork StratiLib)
+
+add_executable(TrackBifurcation TrackBifurcation.cpp)
+target_link_libraries(TrackBifurcation StratiLib)
+
