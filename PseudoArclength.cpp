@@ -62,17 +62,30 @@ int main(int argc, char *argv[])
 
     // see stationarystates.pdf
     ExtendedStateVector v;
-    v.x = x2.x;
-    v.x -= x1.x;
-    v.x *= 1/(x2.p - x1.p);
 
-    v.p = 1/sqrt(1 + v.x.Norm2());
-    v.x *= v.p;
-
-    // take into account choice of sign of sqrt
-    if (x2.p < x1.p)
+    if (x2.p == x1.p) // special case - vertical gradient
     {
-        v *= -1.0;
+        v.x = x2.x;
+        v.x -= x1.x;
+
+        v.x *= 1/v.x.Norm();
+
+        v.p = 0;
+    }
+    else
+    {
+        v.x = x2.x;
+        v.x -= x1.x;
+        v.x *= 1/(x2.p - x1.p);
+
+        v.p = 1/sqrt(1 + v.x.Norm2());
+        v.x *= v.p;
+
+        // take into account choice of sign of sqrt
+        if (x2.p < x1.p)
+        {
+            v *= -1.0;
+        }
     }
 
     ExtendedStateVector guess = x2;
