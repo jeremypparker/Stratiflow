@@ -7,20 +7,16 @@ int main(int argc, char *argv[])
 
     DumpParameters();
 
-    ExtendedStateVector initial;
-    initial.LoadFromFile(argv[1]);
+    ExtendedStateVector x1, x2;
+    x1.LoadFromFile(argv[1]);
+    x2.LoadFromFile(argv[2]);
 
     Bifurcation guess;
-    guess.x1 = initial.x;
-    guess.x2 = initial.x;
-    guess.p = initial.p;
+    guess.x1 = x1.x;
+    guess.x2 = x2.x;
+    guess.p = x1.p;
 
-    StateVector noise;
-    noise.Randomise(0.000001);
-    guess.x1 += noise;
-    guess.x2 -= noise;
-
-    stratifloat delta = (guess.x2 - guess.x1).Energy();
+    stratifloat delta = 1e-5;
 
     TrackBifurcation solver(delta);
     solver.Run(guess);
