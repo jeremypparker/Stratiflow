@@ -51,7 +51,14 @@ int main(int argc, char *argv[])
 {
     std::cout << "STRATIFLOW Newton-GMRES Pseudo-Arclength continuation" << std::endl;
 
+    if (argc==5)
+    {
+        L3 = std::stof(argv[4]);
+    }
+
     DumpParameters();
+    StateVector::ResetForParams();
+
 
     stratifloat delta = std::stof(argv[3]);
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "Constants.h"
+#include <string>
 
 // These are the used-modifiable parameters for Stratiflow
 
@@ -64,3 +65,4 @@ inline stratifloat zFilter(stratifloat z)
 
 void DumpParameters();
 void PrintParameters();
+void LoadParameters(const std::string& file);
