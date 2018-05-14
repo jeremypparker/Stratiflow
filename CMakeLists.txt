@@ -106,3 +106,5 @@ target_link_libraries(FindPitchfork StratiLib)
 add_executable(TrackBifurcation TrackBifurcation.cpp)
 target_link_libraries(TrackBifurcation StratiLib)
 
+add_executable(Stability3D Stability3D.cpp)
+target_link_libraries(Stability3D StratiLib)
