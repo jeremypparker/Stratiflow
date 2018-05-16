@@ -18,7 +18,7 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-find_package(PythonLibs REQUIRED)
+find_package(PythonLibs 2.7 REQUIRED)
 include_directories("${PYTHON_INCLUDE_DIRS}")
 link_libraries("${PYTHON_LIBRARIES}")
 
@@ -27,6 +27,7 @@ find_path(NUMPY_PATH numpy/arrayobject.h
 include_directories("${NUMPY_PATH}")
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+include( ${EIGEN3_USE_FILE} )
 
 include_directories(SYSTEM external)
 link_libraries(m)
@@ -69,7 +70,9 @@ add_library(StratiLib
     Parameters.cpp
     StateVector.cpp
     IMEXRK.cpp)
-target_link_libraries(StratiLib Eigen3::Eigen)
+if(TARGET Eigen3::Eigen)
+    target_link_libraries(StratiLib Eigen3::Eigen)
+endif()
 
 add_subdirectory(tests)
 
