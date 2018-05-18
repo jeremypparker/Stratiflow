@@ -111,3 +111,6 @@ target_link_libraries(TrackBifurcation StratiLib)
 
 add_executable(Stability3D Stability3D.cpp)
 target_link_libraries(Stability3D StratiLib)
+
+add_executable(FindCriticalPoint FindCriticalPoint.cpp)
+target_link_libraries(FindCriticalPoint StratiLib)

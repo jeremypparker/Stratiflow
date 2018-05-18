@@ -2,6 +2,8 @@
 
 #include "StateVector.h"
 
+#include <iomanip>
+
 // A vector in the extended state space including one real parameter (Ri)
 class ExtendedStateVector
 {
@@ -93,6 +95,7 @@ public:
     {
         x.SaveToFile(filename+".fields");
         std::ofstream paramFile(filename+".params");
+        paramFile << std::setprecision(30);
         paramFile << p;
     }
 
@@ -106,5 +109,10 @@ public:
     void EnforceBCs()
     {
         x.EnforceBCs();
+    }
+
+    void PlotAll(std::string directory) const
+    {
+        x.PlotAll(directory);
     }
 };

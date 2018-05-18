@@ -116,6 +116,13 @@ public:
         x1.EnforceBCs();
         x2.EnforceBCs();
     }
+
+    void PlotAll(std::string directory) const
+    {
+        MakeCleanDir(directory);
+        x1.PlotAll(directory+"/x1");
+        x2.PlotAll(directory+"/x2");
+    }
 };
 
 

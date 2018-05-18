@@ -26,7 +26,7 @@ public:
         VectorType linEndPrevious;
         VectorType rhsPrevious;
 
-        stratifloat Delta = 0.1;
+        stratifloat Delta = 1;
         int step = 0;
         stratifloat targetResidual = 1e-10;
         while(true)
@@ -34,6 +34,7 @@ public:
             step++;
 
             x.SaveToFile("ICs/"+std::to_string(step));
+            x.PlotAll("ICs/"+std::to_string(step));
 
             // first nonlinearly evolve current state
             VectorType rhs = EvalFunction(x);
@@ -85,7 +86,7 @@ protected:
     virtual VectorType EvalFunction(const VectorType& at) = 0;
     virtual VectorType EvalLinearised(const VectorType& at) = 0;
 
-    stratifloat T = 5; // time interval for integration
+    stratifloat T = 10; // time interval for integration
 
     VectorType linearAboutStart;
     VectorType linearAboutEnd;
