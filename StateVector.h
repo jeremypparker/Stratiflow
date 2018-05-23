@@ -88,9 +88,9 @@ public:
 
     stratifloat Dot(const StateVector& other) const
     {
-        stratifloat prod = (InnerProd(u1, other.u1, L3)
-                               + InnerProd(u3, other.u3, L3)
-                               + Ri*InnerProd(b, other.b, L3)); // TODO: is this correct PE?
+        stratifloat prod = InnerProd(u1, other.u1, L3)
+                         + InnerProd(u3, other.u3, L3)
+                         + Ri*InnerProd(b, other.b, L3); // TODO: is this correct PE?
 
         if (ThreeDimensional)
         {
@@ -217,6 +217,30 @@ public:
 
         U1.ToModal(u1);
         B.ToModal(b);
+    }
+
+    void RemoveBackground()
+    {
+        NormalNodal U1;
+        NormalNodal B;
+
+        Normal1D U_;
+        Normal1D B_;
+
+        U_.SetValue(InitialU, L3);
+        B_.SetValue(InitialB, L3);
+
+
+
+        u1.ToNodal(U1);
+        b.ToNodal(B);
+
+        U1 -= U_;
+        B -= B_;
+
+        U1.ToModal(u1);
+        B.ToModal(b);
+
     }
 
     void PlotAll(std::string directory) const

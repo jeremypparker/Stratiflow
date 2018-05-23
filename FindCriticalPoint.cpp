@@ -95,6 +95,15 @@ public:
 
 class FindCriticalPoint : public NewtonKrylov<CriticalPoint>
 {
+public:
+    FindCriticalPoint()
+    {
+        phi.Randomise(0.000001, true);
+    }
+
+    StateVector phi;
+
+private:
     virtual CriticalPoint EvalFunction(const CriticalPoint& at) override
     {
         CriticalPoint result;
@@ -111,7 +120,7 @@ class FindCriticalPoint : public NewtonKrylov<CriticalPoint>
         temp.FullEvolve(T, linearAboutEnd.v, false, false);
 
         result -= at;
-        result.p = at.v.Energy() - 1;
+        result.p = at.v.Dot(phi) - 1;
 
         std:: cout << result.x.Norm2() << " " << result.v.Norm2() << " " << result.p*result.p << std::endl;
 
@@ -157,7 +166,9 @@ class FindCriticalPoint : public NewtonKrylov<CriticalPoint>
         result.x = dx - (1/eps)*(fdx-f);
         //         I.dv  -     J.dv                  - dx.H.v
         result.v = dv - (1/eps)*(fdv-f) - (1/eps/eps)*(fvdx - fdx - fv + f);
-        result.p = -dv.Dot(v);
+
+        Ri = linearAboutStart.p;
+        result.p = -phi.Dot(dv);
 
         return result;
     }
@@ -177,6 +188,7 @@ int main(int argc, char *argv[])
     if (argc==2)
     {
         guess.LoadFromFile(argv[1]);
+        Ri = guess.p;
     }
     else
     {
@@ -194,10 +206,20 @@ int main(int argc, char *argv[])
             Ri = loadedGuess.p;
         }
         eigenSolver.Run(guess.x, guess.v, true);
-        guess.v.Rescale(1);
         guess.p = Ri;
     }
 
     FindCriticalPoint solver;
+    solver.phi = guess.v;
+    solver.phi.Rescale(1/(2*guess.x.Norm2()));
+
+    // scale v
+    stratifloat proj = guess.v.Dot(solver.phi);
+    guess.v *= 1/proj;
+
+    std::cout << "Lengths for debugging: " << solver.phi.Energy() << " " << guess.v.Energy() << " " << guess.x.Energy() << std::endl;
+
+    std::cout << guess.v.Dot(solver.phi) << std::endl;
+
     solver.Run(guess);
 }
