@@ -79,14 +79,17 @@ public:
 
             // update
             x += dx;
+
+            EnforceConstraints(x);
         }
     }
 
 protected:
     virtual VectorType EvalFunction(const VectorType& at) = 0;
     virtual VectorType EvalLinearised(const VectorType& at) = 0;
+    virtual void EnforceConstraints(VectorType& at) {}
 
-    stratifloat T = 10; // time interval for integration
+    stratifloat T = 5; // time interval for integration
 
     VectorType linearAboutStart;
     VectorType linearAboutEnd;

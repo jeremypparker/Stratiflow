@@ -41,20 +41,20 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, 
         solver.TimeStep();
         t += solver.deltaT;
 
-        if(step%50==0)
+        if(step%100==0)
         {
             stratifloat cfl = solver.CFL();
-            std::cout << step << " " << t << std::endl;
+            std::cout << step << " " << t << " " << sqrt(2*(solver.KE() + solver.PE())) << std::endl;
 
             if (screenshot)
             {
                 solver.PlotAll(std::to_string(t)+".png", true);
             }
-        }
 
-        if (snapshot)
-        {
-            solver.StoreSnapshot(t);
+            if (snapshot)
+            {
+                solver.StoreSnapshot(t);
+            }
         }
 
         step++;
