@@ -13,7 +13,6 @@ public:
 
     stratifloat Dot(const ExtendedStateVector& other) const
     {
-        Ri = p;
         return x.Dot(other.x) + p*other.p;
     }
 

@@ -25,6 +25,8 @@ protected:
 
         ExtendedStateVector displacement  = at;
         displacement -= x0;
+
+        Ri = linearAboutStart.p;
         result.p = deltaS - v.Dot(displacement);
 
         return result;
@@ -38,6 +40,7 @@ protected:
         result = at;
         result -= Gq;
 
+        Ri = linearAboutStart.p;
         result.p = v.Dot(at);
 
         return result;
