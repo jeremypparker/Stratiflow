@@ -254,6 +254,10 @@ public:
         }
         HeatPlot(u3, L1, L3, 0, directory+"/u3.png");
         HeatPlot(b, L1, L3, 0, directory+"/b.png");
+
+        StaggeredModal StaggeredTemp;
+        StaggeredTemp = ddz(u1)+-1.0*ddx(u3);
+        HeatPlot(StaggeredTemp, L1, L3, 0, directory+"/vorticity.png");
     }
 
     stratifloat ToEigenMode(stratifloat energy, int mode=1)
