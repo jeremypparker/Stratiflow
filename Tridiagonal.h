@@ -52,6 +52,11 @@ public:
         return x;
     }
 
+    int rows()
+    {
+        return N;
+    }
+
 private:
     // as per wikipedia
     Matrix<T, N, 1> a; // lower

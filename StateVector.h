@@ -88,13 +88,13 @@ public:
 
     stratifloat Dot(const StateVector& other) const
     {
-        stratifloat prod = 0.5f*(InnerProd(u1, other.u1, L3)
+        stratifloat prod = (InnerProd(u1, other.u1, L3)
                                + InnerProd(u3, other.u3, L3)
                                + Ri*InnerProd(b, other.b, L3)); // TODO: is this correct PE?
 
         if (ThreeDimensional)
         {
-            prod += 0.5f*InnerProd(u2, other.u2, L3);
+            prod += InnerProd(u2, other.u2, L3);
         }
 
         return prod;
