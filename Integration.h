@@ -5,16 +5,36 @@
 template<int N1, int N2, int N3>
 stratifloat IntegrateVertically(const Nodal1D<N1,N2,N3>& U, stratifloat L3)
 {
-    static ArrayX z = VerticalPoints(L3,N3);
-
-    stratifloat result = 0;
-
-    for (int k=1; k<N3-2; k++) // ignore endpoints, should be zero
+    if (U.BC() == BoundaryCondition::Neumann)
     {
-        result += (z(k)-z(k+1))*(U.Get()(k+1)+U.Get()(k))*0.5;
-    }
+        static ArrayX z = VerticalPoints(L3,N3);
 
-    return result;
+        stratifloat result = 0;
+
+        result += (z(0)-z(1))*(3*U.Get()(1)+U.Get()(0))*0.125;
+
+        for (int k=1; k<N3-2; k++)
+        {
+            result += (z(k)-z(k+1))*(U.Get()(k+1)+U.Get()(k))*0.5;
+        }
+
+        result += (z(N3-2)-z(N3-1))*(3*U.Get()(N3-1)+U.Get()(N3-2))*0.125;
+
+        return result;
+    }
+    else
+    {
+        static ArrayX z = VerticalPointsStaggered(L3,N3);
+
+        stratifloat result = 0;
+
+        for (int k=0; k<N3-2; k++)
+        {
+            result += (z(k)-z(k+1))*(U.Get()(k+1)+U.Get()(k))*0.5;
+        }
+
+        return result;
+    }
 }
 
 template<int N1, int N2, int N3>
