@@ -84,6 +84,61 @@ void StateVector::LinearEvolve(stratifloat T, const StateVector& about, const St
     result *= 1/eps;
 }
 
+void StateVector::LinearEvolve(stratifloat T, const StateVector& about, StateVector& result) const
+{
+    CopyToSolver();
+
+    StateVector fullBG = about;
+    fullBG.AddBackground();
+
+    solver.SetBackground(fullBG.u1, fullBG.u2, fullBG.u3, fullBG.b);
+    solver.FilterAll();
+    solver.PopulateNodalVariables();
+    solver.RemoveDivergence(0.0f);
+
+    stratifloat t = 0.0f;
+
+    int step = 0;
+
+    bool done = false;
+
+    static int runnum = 0;
+    runnum++;
+    solver.PrepareRunLinear(std::string("images-linear-")+std::to_string(runnum)+"/", false, false);
+
+    solver.deltaT = 0.01;
+    solver.UpdateForTimestep();
+
+    while (t < T)
+    {
+        // on last step, arrive exactly
+        if (t + solver.deltaT > T)
+        {
+            solver.deltaT = T - t;
+            solver.UpdateForTimestep();
+            done = true;
+        }
+
+        solver.TimeStepLinear(t, false);
+        t += solver.deltaT;
+
+        if(step%50==0)
+        {
+            stratifloat cfl = solver.CFLadjoint();
+            std::cout << step << " " << t << std::endl;
+        }
+
+        step++;
+
+        if (done)
+        {
+            break;
+        }
+    }
+
+    CopyFromSolver(result);
+}
+
 void StateVector::LinearEvolve(stratifloat T, StateVector& result) const
 {
     CopyToSolver();

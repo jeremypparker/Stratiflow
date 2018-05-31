@@ -137,7 +137,7 @@ class BasicArnoldi : public Arnoldi<StateVector>
     virtual StateVector EvalLinearised(const StateVector& at) override
     {
         StateVector result;
-        at.LinearEvolve(T, linearAboutStart, linearAboutEnd, result);
+        at.LinearEvolve(T, linearAboutStart, result);
         return result;
     }
 };
