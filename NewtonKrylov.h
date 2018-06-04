@@ -38,6 +38,8 @@ public:
 
             // first nonlinearly evolve current state
             VectorType rhs = EvalFunction(x);
+            linearAboutStart = x;
+            linearAboutEnd = rhs;
             stratifloat residual = rhs.Norm();
 
             std::cout << "NEWTON STEP " << step << ", RESIDUAL: " << residual << std::endl;
@@ -86,15 +88,29 @@ public:
 
 protected:
     virtual VectorType EvalFunction(const VectorType& at) = 0;
-    virtual VectorType EvalLinearised(const VectorType& at) = 0;
     virtual void EnforceConstraints(VectorType& at) {}
 
     stratifloat T = 5; // time interval for integration
 
+private:
     VectorType linearAboutStart;
     VectorType linearAboutEnd;
 
-private:
+    VectorType EvalDerivative(const VectorType& at)
+    {
+        const stratifloat eps = 0.000001;
+        VectorType temp = linearAboutStart;
+
+        temp.MulAdd(eps, at);
+        temp = EvalFunction(temp);
+
+        temp -= linearAboutEnd;
+
+        temp *= 1/eps;
+
+        return temp;
+    }
+
     // solves A x = G-x0 for x
     // where A = I-G_x
     // GMRES is a Krylov-subspace method, hence Newton-Krylov
@@ -122,7 +138,8 @@ private:
                 // from x, A x, A^2 x, ...
 
                 // q_k = A q_k-1
-                q[k] = EvalLinearised(q[k-1]);
+                q[k] = EvalDerivative(q[k-1]);
+                q[k] *= -1.0; // factor of -1 for Newton iteration
 
                 // remove component in direction of preceding vectors
                 for (int j=0; j<k; j++)

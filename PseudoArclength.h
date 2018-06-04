@@ -18,30 +18,13 @@ protected:
         ExtendedStateVector result;
         at.FullEvolve(T, result, false);
 
-        linearAboutStart = at;
-        linearAboutEnd = result;
-
         result -= at;
 
         ExtendedStateVector displacement  = at;
         displacement -= x0;
 
-        Ri = linearAboutStart.p;
+        Ri = at.p;
         result.p = deltaS - v.Dot(displacement);
-
-        return result;
-    }
-
-    virtual ExtendedStateVector EvalLinearised(const ExtendedStateVector& at) override
-    {
-        ExtendedStateVector result;
-        ExtendedStateVector Gq;
-        at.LinearEvolve(T, linearAboutStart, linearAboutEnd, Gq);
-        result = at;
-        result -= Gq;
-
-        Ri = linearAboutStart.p;
-        result.p = v.Dot(at);
 
         return result;
     }
