@@ -51,10 +51,11 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, 
                 solver.PlotAll(std::to_string(t)+".png", true);
             }
 
-            if (snapshot)
-            {
-                solver.StoreSnapshot(t);
-            }
+        }
+
+        if (snapshot)
+        {
+            solver.StoreSnapshot(t);
         }
 
         step++;
@@ -88,10 +89,8 @@ void StateVector::LinearEvolve(stratifloat T, const StateVector& about, StateVec
 {
     CopyToSolver();
 
-    StateVector fullBG = about;
-    fullBG.AddBackground();
-
-    solver.SetBackground(fullBG.u1, fullBG.u2, fullBG.u3, fullBG.b);
+    solver.SetBackground(InitialU, InitialB);
+    solver.SetBackground(about.u1, about.u2, about.u3, about.b);
     solver.FilterAll();
     solver.PopulateNodalVariables();
     solver.RemoveDivergence(0.0f);

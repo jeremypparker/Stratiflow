@@ -445,11 +445,11 @@ public:
         stratifloat delta2 = L2/N2;
         stratifloat delta3 = z(N3/2) - z(N3/2+1); // smallest gap in middle
 
-        stratifloat cfl = U1_tot.Max()/delta1 + U2_tot.Max()/delta2 + U3_tot.Max()/delta3;
+        stratifloat cfl = (1+U1_tot.Max())/delta1 + U2_tot.Max()/delta2 + U3_tot.Max()/delta3;
         cfl *= deltaT;
 
         // update timestep for target cfl
-        constexpr stratifloat targetCFL = 0.4;
+        constexpr stratifloat targetCFL = 0.6;
         deltaT *= targetCFL / cfl;
         UpdateForTimestep();
 
@@ -1014,11 +1014,13 @@ private:
         RemoveHorizontalAverage(neumannTemp);
         r3 -= Ri*Reinterpolate(neumannTemp); // buoyancy force
 
+        nnTemp = U1_tot + U_;
+
         //////// NONLINEAR TERMS ////////
-        InterpolateProduct(U1, U1_tot, neumannTemp);
+        InterpolateProduct(U1, nnTemp, neumannTemp);
         r1 -= 2.0*ddx(neumannTemp);
 
-        InterpolateProduct(U1_tot, U1, U3, U3_tot, dirichletTemp);
+        InterpolateProduct(nnTemp, U1, U3, U3_tot, dirichletTemp);
         r3 -= ddx(dirichletTemp);
         r1 -= ddz(dirichletTemp);
 
@@ -1034,13 +1036,13 @@ private:
             r3 -= ddy(dirichletTemp);
             r2 -= ddz(dirichletTemp);
 
-            InterpolateProduct(U2_tot, U2, U1, U1_tot, neumannTemp);
+            InterpolateProduct(U2_tot, U2, U1, nnTemp, neumannTemp);
             r1 -= ddy(neumannTemp);
             r2 -= ddx(neumannTemp);
         }
 
         // buoyancy nonlinear terms
-        InterpolateProduct(U1_tot, U1, B, B_tot, neumannTemp);
+        InterpolateProduct(nnTemp, U1, B, B_tot, neumannTemp);
         rB -= ddx(neumannTemp);
 
         if(ThreeDimensional)
@@ -1051,6 +1053,11 @@ private:
 
         InterpolateProduct(B, B_tot, U3_tot, U3, dirichletTemp);
         rB -= ddz(dirichletTemp);
+
+        // advection term from background buoyancy
+        ndTemp = U3*dB_dz;
+        ndTemp.ToModal(dirichletTemp);
+        rB -= Reinterpolate(dirichletTemp);
     }
 
     void BuildRHSAdjoint()
