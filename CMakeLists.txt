@@ -108,3 +108,6 @@ target_link_libraries(FindCriticalPoint StratiLib)
 
 add_executable(TrackSolution TrackSolution.cpp)
 target_link_libraries(TrackSolution StratiLib)
+
+add_executable(InverseIteration InverseIteration.cpp)
+target_link_libraries(InverseIteration StratiLib)
