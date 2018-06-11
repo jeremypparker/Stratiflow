@@ -132,47 +132,53 @@ private:
 
 int main(int argc, char *argv[])
 {
-    // L3 = std::stof(argv[2]);
-    // DumpParameters();
-    // StateVector::ResetForParams();
+    Re = std::stof(argv[1]);
+    Pe = Re*Pr;
+    DumpParameters();
+    StateVector::ResetForParams();
 
     BasicArnoldi eigenSolver;
 
     CriticalPoint guess;
 
-    // if (argc==2)
-    // {
 
-    //    guess.LoadFromFile(argv[1]);
-    //    Ri = guess.p;
-    // }
-    // else
-    // {
-    //     if (argc==1)
-    //     {
-    //         Ri = 0.245525;
-    //         guess.x.Zero();
-    //     }
-    //     else
-    //     {
-    //         ExtendedStateVector loadedGuess;
-    //         loadedGuess.LoadFromFile(argv[1]);
+    if (argc == 6)
+    {
+        CriticalPoint x1;
+        CriticalPoint x2;
+        x1.LoadFromFile(argv[2]);
+        x2.LoadFromFile(argv[3]);
 
-    //         guess.x = loadedGuess.x;
-    //         Ri = loadedGuess.p;
-    //     }
-    //     eigenSolver.Run(guess.x, guess.v, false);
-    //     guess.p = Ri;
-    // }
+        stratifloat Re1 = std::stof(argv[4]);
+        stratifloat Re2 = std::stof(argv[5]);
 
-    ExtendedStateVector loadedGuess;
-    loadedGuess.LoadFromFile(argv[1]);
+        CriticalPoint gradient = x2;
+        gradient -= x1;
+        gradient *= 1/(Re2-Re1);
 
-    guess.x = loadedGuess.x;
-    Ri = loadedGuess.p;
+        guess = x2;
+        guess.MulAdd(Re-Re2, gradient);
+    }
+    else
+    {
+        guess.LoadFromFile(argv[2]);
+    }
 
-    guess.p = Ri;
-    guess.v = guess.x;
+
+    Ri = guess.p;
+
+    // make the guessed eigenvectors orthogonal to the symmetry
+    StateVector phaseShift;
+    phaseShift.u1 = ddx(guess.x.u1);
+    phaseShift.u2 = ddx(guess.x.u2);
+    phaseShift.u3 = ddx(guess.x.u3);
+    phaseShift.b = ddx(guess.x.b);
+
+    if (phaseShift.Norm2()!=0)
+    {
+        stratifloat proj = guess.v.Dot(phaseShift)/phaseShift.Norm2();
+        guess.v.MulAdd(-proj, phaseShift);
+    }
 
     FindCriticalPoint solver;
 
@@ -185,4 +191,6 @@ int main(int argc, char *argv[])
     std::cout << guess.v.Dot(solver.phi) << std::endl;
 
     solver.Run(guess);
+
+    guess.SaveToFile("final");
 }
