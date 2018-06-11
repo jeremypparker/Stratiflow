@@ -86,3 +86,9 @@ enum class BoundaryCondition
     Dirichlet, // these are located on a grid of height N3-1 including boundaries
     Neumann    // these are located on a grid of height N3 past boundaries
 };
+
+template <typename T>
+int sgn(T val)
+{
+    return (T(0) < val) - (val < T(0));
+}
