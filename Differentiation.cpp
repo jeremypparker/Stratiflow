@@ -81,14 +81,32 @@ MatrixX VerticalDerivativeMatrix(stratifloat L, int N, BoundaryCondition origina
 
     if (originalBC == BoundaryCondition::Neumann)
     {
-        // this is second order because of symmetry
+        // this is only first order
         ArrayX diff = dz(L, N);
         D.diagonal().head(N-1) = 1/diff;
         D.diagonal(1) = -1/diff;
+
+        ArrayX diff2 = dzStaggered(L, N);
+
+        // do third order inside domain
+        // (second order would be asymmetric)
+        for (int j=1; j<N-2; j++)
+        {
+            // 4x4 system inverted with mathematica
+            stratifloat a = diff2(j)/2+diff(j-1);
+            stratifloat b = diff2(j)/2;
+            stratifloat c = -diff2(j+1)/2;
+            stratifloat d = -diff2(j+1)/2-diff(j+1);
+
+            D(j, j-1) = (b*c+c*d+d*b)/(a-b)/(a-c)/(a-d);
+            D(j, j)   = (c*d+d*a+a*c)/(b-c)/(b-d)/(b-a);
+            D(j, j+1) = (d*a+a*b+b*d)/(c-d)/(c-a)/(c-b);
+            D(j, j+2) = (a*b+b*c+c*a)/(d-a)/(d-b)/(d-c);
+        }
     }
     else
     {
-        // this is only first order
+        // this is second order because of symmetry
         ArrayX diff = dzStaggered(L,N);
 
         D.diagonal(-1).head(N-2) = 1/diff.segment(1,N-2);
