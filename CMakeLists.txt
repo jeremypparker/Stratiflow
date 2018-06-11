@@ -106,6 +106,9 @@ target_link_libraries(Stability3D StratiLib)
 add_executable(FindCriticalPoint FindCriticalPoint.cpp)
 target_link_libraries(FindCriticalPoint StratiLib)
 
+add_executable(FindHopf FindHopf.cpp)
+target_link_libraries(FindHopf StratiLib)
+
 add_executable(TrackSolution TrackSolution.cpp)
 target_link_libraries(TrackSolution StratiLib)
 
