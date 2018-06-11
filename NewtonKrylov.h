@@ -86,9 +86,10 @@ public:
         }
     }
 
+    virtual void EnforceConstraints(VectorType& at) {}
+
 protected:
     virtual VectorType EvalFunction(const VectorType& at) = 0;
-    virtual void EnforceConstraints(VectorType& at) {}
 
     stratifloat T = 5; // time interval for integration
 

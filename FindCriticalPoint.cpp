@@ -96,6 +96,7 @@ public:
 class FindCriticalPoint : public NewtonKrylov<CriticalPoint>
 {
 public:
+<<<<<<< HEAD
     FindCriticalPoint()
     {
         phi.Randomise(0.000001, true);
@@ -103,6 +104,29 @@ public:
 
     StateVector phi;
 
+=======
+    stratifloat weight = 1;
+
+    virtual void EnforceConstraints(CriticalPoint& at)
+    {
+        Ri = at.p;
+
+        // make the eigenvectors orthogonal to the symmetry
+        StateVector phaseShift;
+        phaseShift.u1 = ddx(at.x.u1);
+        phaseShift.u2 = ddx(at.x.u2);
+        phaseShift.u3 = ddx(at.x.u3);
+        phaseShift.b = ddx(at.x.b);
+
+        if (phaseShift.Norm2()!=0)
+        {
+            stratifloat proj = at.v.Dot(phaseShift)/phaseShift.Norm2();
+            at.v.MulAdd(-proj, phaseShift);
+        }
+
+        at.v.Rescale(weight);
+    }
+>>>>>>> 49d78c8... Enforce constraints before
 private:
     virtual CriticalPoint EvalFunction(const CriticalPoint& at) override
     {
@@ -118,12 +142,6 @@ private:
         std:: cout << result.x.Norm2() << " " << result.v.Norm2() << " " << result.p*result.p << std::endl;
 
         return result;
-    }
-
-    virtual void EnforceConstraints(CriticalPoint& at)
-    {
-        Ri = at.p;
-        at.v.Rescale(weight);
     }
 };
 
@@ -167,28 +185,10 @@ int main(int argc, char *argv[])
 
     Ri = guess.p;
 
-    // make the guessed eigenvectors orthogonal to the symmetry
-    StateVector phaseShift;
-    phaseShift.u1 = ddx(guess.x.u1);
-    phaseShift.u2 = ddx(guess.x.u2);
-    phaseShift.u3 = ddx(guess.x.u3);
-    phaseShift.b = ddx(guess.x.b);
-
-    if (phaseShift.Norm2()!=0)
-    {
-        stratifloat proj = guess.v.Dot(phaseShift)/phaseShift.Norm2();
-        guess.v.MulAdd(-proj, phaseShift);
-    }
-
     FindCriticalPoint solver;
 
     // scale v
-    stratifloat proj = guess.v.Dot(solver.phi);
-    guess.v *= 1/proj;
-
-    std::cout << "Lengths for debugging: " << solver.phi.Energy() << " " << guess.v.Energy() << " " << guess.x.Energy() << std::endl;
-
-    std::cout << guess.v.Dot(solver.phi) << std::endl;
+    solver.EnforceConstraints(guess);
 
     solver.Run(guess);
 
