@@ -16,6 +16,12 @@ public:
     {
         EvalFunction(at);
 
+        VectorType phaseShift;
+        phaseShift.u1 = ddx(at.u1);
+        phaseShift.u2 = ddx(at.u2);
+        phaseShift.u3 = ddx(at.u3);
+        phaseShift.b = ddx(at.b);
+
         q[0].Randomise(0.1, true);
 
         q[0].EnforceBCs();
@@ -52,6 +58,26 @@ public:
             ArrayXc complexEigenvalues = ces.eigenvalues();
             ArrayX eigenvalues = sqrt(complexEigenvalues.real()*complexEigenvalues.real()
                                     + complexEigenvalues.imag()*complexEigenvalues.imag());
+
+
+            // transform phase shift into arnoldi space
+            VectorX phaseShiftTransformed = VectorX::Zero(k);
+            for (int j=0; j<k; j++)
+            {
+                phaseShiftTransformed[j] = phaseShift.Dot(q[j]);
+            }
+
+            // exclude things that look like a phase shift
+            for (int j=0; j<k; j++)
+            {
+                complex proj = ces.eigenvectors().col(j).dot(phaseShiftTransformed);
+                stratifloat prod = phaseShiftTransformed.norm()*ces.eigenvectors().col(j).norm();
+                if (proj.real() > 0.7*prod || proj.real() < -0.7*prod)
+                {
+                    eigenvalues(j) = 0;
+                }
+            }
+
             int maxIndex;
             stratifloat maxCoeff = eigenvalues.maxCoeff(&maxIndex);
             eigenvalues(maxIndex) = 0;
@@ -67,6 +93,28 @@ public:
         ArrayXc complexEigenvalues = ces.eigenvalues();
         ArrayX eigenvalues = sqrt(complexEigenvalues.real()*complexEigenvalues.real()
                                 + complexEigenvalues.imag()*complexEigenvalues.imag());
+
+
+        // transform phase shift into arnoldi space
+        VectorX phaseShiftTransformed = VectorX::Zero(K-1);
+        for (int j=0; j<K-1; j++)
+        {
+            phaseShiftTransformed[j] = phaseShift.Dot(q[j]);
+        }
+
+        // exclude things that look like a phase shift
+        for (int j=0; j<K-1; j++)
+        {
+                complex proj = ces.eigenvectors().col(j).dot(phaseShiftTransformed);
+                stratifloat prod = phaseShiftTransformed.norm()*ces.eigenvectors().col(j).norm();
+                if (proj.real() > 0.7*prod || proj.real() < -0.7*prod)
+                {
+                    eigenvalues(j) = 0;
+                }
+        }
+
+
+
         int maxIndex;
         stratifloat maxCoeff = eigenvalues.maxCoeff(&maxIndex);
         eigenvalues(maxIndex) = 0;
@@ -84,6 +132,10 @@ public:
 
         result.PlotAll("eigReal");
         result2.PlotAll("eig2Real");
+
+        result.SaveToFile("eigReal");
+        result2.SaveToFile("eig2Real");
+        result3.SaveToFile("eig3Real");
 
         std::cout << "Final eigenvalue: " << complexEigenvalues(maxIndex) << std::endl;
         std::cout << "Final eigenvector: " << std::endl << eigenvector << std::endl;
@@ -113,7 +165,6 @@ protected:
     stratifloat T = 11; // time interval for integration
 
     VectorType linearAboutStart;
-    VectorType linearAboutEnd;
 
 public:
     int K = 256; // max iterations
@@ -129,7 +180,6 @@ class BasicArnoldi : public Arnoldi<StateVector>
         at.FullEvolve(T, result, false);
 
         linearAboutStart = at;
-        linearAboutEnd = result;
 
         return result;
     }
