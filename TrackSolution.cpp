@@ -10,28 +10,18 @@ int main(int argc, char* argv[])
     state.LoadFromFile(argv[1]);
     Ri = state.p;
 
-    // find eigenmode
-    BasicArnoldi eigenValueSolver;
+    // load eigenmode
     StateVector eigenMode;
-    stratifloat growth = eigenValueSolver.Run(state.x, eigenMode, false);
-    std::cout << "Eigenmode growth rate: " << growth << std::endl;
+    eigenMode.LoadFromFile(argv[2]);
 
-    stratifloat delta = 0.001;
+    stratifloat delta = 0.0001;
 
     // add the eigenmode
     state.x.MulAdd(delta, eigenMode);
 
     // follow the trajectory
     ExtendedStateVector result;
-    state.FullEvolve(4000, result, true, true);
+    state.FullEvolve(10000, result, true, true);
 
-    result.SaveToFile("result+");
-
-    // subtract the eigenmode
-    state.x.MulAdd(-2*delta, eigenMode);
-
-    // follow the trajectory
-    state.FullEvolve(4000, result, true, true);
-
-    result.SaveToFile("result-");
+    result.SaveToFile("result");
 }
