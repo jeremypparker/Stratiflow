@@ -124,18 +124,30 @@ public:
         VectorXc eigenvector2 = ces.eigenvectors().col(maxIndex2);
 
         VectorType result2;
+        VectorType result3;
+
+        VectorType imag1;
+        VectorType imag2;
+        VectorType imag3;
         for (int k=0; k<K-1; k++)
         {
             result += eigenvector(k).real() * q[k];
+            imag1 += eigenvector(k).imag() * q[k];
             result2 += eigenvector2(k).real() * q[k];
+            imag2 += eigenvector2(k).imag() * q[k];
+            result3 += eigenvector3(k).real() * q[k];
+            imag3 += eigenvector3(k).imag() * q[k];
         }
 
         result.PlotAll("eigReal");
         result2.PlotAll("eig2Real");
 
         result.SaveToFile("eigReal");
+        imag1.SaveToFile("eigImag");
         result2.SaveToFile("eig2Real");
+        imag2.SaveToFile("eig2Imag");
         result3.SaveToFile("eig3Real");
+        imag3.SaveToFile("eig3Imag");
 
         std::cout << "Final eigenvalue: " << complexEigenvalues(maxIndex) << std::endl;
         std::cout << "Final eigenvector: " << std::endl << eigenvector << std::endl;
