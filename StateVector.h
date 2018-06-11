@@ -223,11 +223,11 @@ public:
 
     void RemoveBackground()
     {
-        NormalNodal U1;
-        NormalNodal B;
+        NeumannNodal U1;
+        NeumannNodal B;
 
-        Normal1D U_;
-        Normal1D B_;
+        Neumann1D U_;
+        Neumann1D B_;
 
         U_.SetValue(InitialU, L3);
         B_.SetValue(InitialB, L3);
@@ -257,7 +257,7 @@ public:
         HeatPlot(u3, L1, L3, 0, directory+"/u3.png");
         HeatPlot(b, L1, L3, 0, directory+"/b.png");
 
-        StaggeredModal StaggeredTemp;
+        DirichletModal StaggeredTemp;
         StaggeredTemp = ddz(u1)+-1.0*ddx(u3);
         HeatPlot(StaggeredTemp, L1, L3, 0, directory+"/vorticity.png");
     }

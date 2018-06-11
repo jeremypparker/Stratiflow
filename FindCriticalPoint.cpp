@@ -96,15 +96,6 @@ public:
 class FindCriticalPoint : public NewtonKrylov<CriticalPoint>
 {
 public:
-<<<<<<< HEAD
-    FindCriticalPoint()
-    {
-        phi.Randomise(0.000001, true);
-    }
-
-    StateVector phi;
-
-=======
     stratifloat weight = 1;
 
     virtual void EnforceConstraints(CriticalPoint& at)
@@ -126,7 +117,6 @@ public:
 
         at.v.Rescale(weight);
     }
->>>>>>> 49d78c8... Enforce constraints before
 private:
     virtual CriticalPoint EvalFunction(const CriticalPoint& at) override
     {
@@ -137,7 +127,7 @@ private:
         at.v.LinearEvolve(T, at.x, result.v);
 
         result -= at;
-        result.p = at.v.Dot(phi) - 1;
+        result.p = at.v.Energy() - weight;
 
         std:: cout << result.x.Norm2() << " " << result.v.Norm2() << " " << result.p*result.p << std::endl;
 
