@@ -51,11 +51,11 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, 
                 solver.PlotAll(std::to_string(t)+".png", true);
             }
 
-        }
+            if (snapshot)
+            {
+                solver.StoreSnapshot(t);
+            }
 
-        if (snapshot)
-        {
-            solver.StoreSnapshot(t);
         }
 
         step++;

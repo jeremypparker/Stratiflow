@@ -137,12 +137,17 @@ public:
     {
         Ri = at.p;
 
-        // ensure unit eigenvalue
-        at.lambda1 = fixedLambda1;
-        at.lambda2 = sgn(at.lambda2)*sqrt(1-at.lambda1*at.lambda1);
-
         // ensure unit eigenvector
-        at.v2.Rescale(weight-at.v1.Energy());
+        stratifloat totalEnergy = at.v1.Energy() + at.v2.Energy();
+
+        StateVector a = sqrt(weight/totalEnergy)*at.v1;
+        StateVector b = sqrt(weight/totalEnergy)*at.v2;
+
+        // now rotate so that ||v1|| = ||v2||
+        stratifloat theta = 0.5*atan((a.Energy()-b.Energy())/a.Dot(b));
+
+        at.v1 = cos(theta)*a - sin(theta)*b;
+        at.v2 = sin(theta)*a + cos(theta)*b;
     }
 private:
     virtual HopfBifurcation EvalFunction(const HopfBifurcation& at) override
@@ -160,12 +165,14 @@ private:
         result.v2.MulAdd(-at.lambda2, at.v1);
         result.v2.MulAdd(-at.lambda1, at.v2);
 
-        result.lambda1 = at.lambda1 - fixedLambda1;
+        result.lambda1 = at.v1.Energy() - at.v2.Energy();
         result.lambda2 = at.lambda1*at.lambda1 + at.lambda2*at.lambda2 - 1;
 
-        result.p = at.v1.Energy() - at.v2.Energy() - weight;
+        result.p = at.v1.Energy() + at.v2.Energy() - weight;
 
-        std:: cout << result.x.Norm2() << " "
+        std::cout << at.v1.Norm() << " " << at.v2.Norm() << std::endl;
+
+        std::cout << result.x.Norm2() << " "
                    << result.v1.Norm2() << " "
                    << result.v2.Norm2() << " "
                    << result.lambda1*result.lambda1 << " "
