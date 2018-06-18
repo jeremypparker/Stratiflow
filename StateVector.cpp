@@ -41,7 +41,7 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, 
         solver.TimeStep();
         t += solver.deltaT;
 
-        if(step%100==0)
+        if(step%500==0)
         {
             stratifloat cfl = solver.CFL();
             std::cout << step << " " << t << " " << sqrt(2*(solver.KE() + solver.PE())) << std::endl;

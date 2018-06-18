@@ -7,8 +7,17 @@ int main(int argc, char* argv[])
 
     // load a state
     ExtendedStateVector state;
-    state.LoadFromFile(argv[1]);
-    Ri = state.p;
+
+    if (argc > 1)
+    {
+        state.LoadFromFile(argv[1]);
+        Ri = state.p;
+    }
+    else
+    {
+        state.p = Ri;
+        state.x.Randomise(0.001);
+    }
 
     if (argc == 3)
     {
