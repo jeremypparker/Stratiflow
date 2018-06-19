@@ -40,7 +40,7 @@ public:
             VectorType rhs = EvalFunction(x);
             linearAboutStart = x;
             linearAboutEnd = rhs;
-            stratifloat residual = rhs.Norm();
+            stratifloat residual = rhs.Norm()/x.Norm();
 
             std::cout << "NEWTON STEP " << step << ", RESIDUAL: " << residual << std::endl;
 
