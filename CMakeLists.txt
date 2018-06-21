@@ -114,3 +114,6 @@ target_link_libraries(TrackSolution StratiLib)
 
 add_executable(InverseIteration InverseIteration.cpp)
 target_link_libraries(InverseIteration StratiLib)
+
+add_executable(Benchmark Benchmark.cpp)
+target_link_libraries(Benchmark StratiLib)
