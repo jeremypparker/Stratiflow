@@ -18,7 +18,7 @@ stratifloat IntegrateVertically(const Nodal1D<N1,N2,N3>& U, stratifloat L3)
             result += (z(k)-z(k+1))*(U.Get()(k+1)+U.Get()(k))*0.5;
         }
 
-        result += (z(N3-2)-z(N3-1))*(3*U.Get()(N3-1)+U.Get()(N3-2))*0.125;
+        result += (z(N3-2)-z(N3-1))*(3*U.Get()(N3-2)+U.Get()(N3-1))*0.125;
 
         return result;
     }

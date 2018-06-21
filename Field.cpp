@@ -30,15 +30,8 @@ ArrayX dz(stratifloat L, int N)
 ArrayX dzStaggered(stratifloat L, int N)
 {
     ArrayX zStaggered = VerticalPointsStaggered(L, N);
-    ArrayX z = VerticalPoints(L, N);
 
-    ArrayX ret(N);
-
-    ret(0) = z(0) - zStaggered(0);
-    ret.segment(1, N-2) = zStaggered.head(N-2) - zStaggered.tail(N-2);
-    ret(N-1) = zStaggered(N-2) - z(N-1);
-
-    return ret;
+    return zStaggered.head(N-2) - zStaggered.tail(N-2);
 }
 
 ArrayX FourierPoints(stratifloat L, int N)

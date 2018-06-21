@@ -13,7 +13,7 @@ MatrixX VerticalSecondDerivativeMatrix(stratifloat L, int N, BoundaryCondition o
     }
     else
     {
-        d = dzStaggered(L, N).segment(1, N-2);
+        d = dzStaggered(L, N);
     }
 
     MatrixX D = MatrixX::Zero(N,N);
@@ -93,10 +93,10 @@ MatrixX VerticalDerivativeMatrix(stratifloat L, int N, BoundaryCondition origina
         for (int j=1; j<N-2; j++)
         {
             // 4x4 system inverted with mathematica
-            stratifloat a = diff2(j)/2+diff(j-1);
-            stratifloat b = diff2(j)/2;
-            stratifloat c = -diff2(j+1)/2;
-            stratifloat d = -diff2(j+1)/2-diff(j+1);
+            stratifloat a = diff2(j-1)/2+diff(j-1);
+            stratifloat b = diff2(j-1)/2;
+            stratifloat c = -diff2(j)/2;
+            stratifloat d = -diff2(j)/2-diff(j+1);
 
             D(j, j-1) = (b*c+c*d+d*b)/(a-b)/(a-c)/(a-d);
             D(j, j)   = (c*d+d*a+a*c)/(b-c)/(b-d)/(b-a);
@@ -109,8 +109,8 @@ MatrixX VerticalDerivativeMatrix(stratifloat L, int N, BoundaryCondition origina
         // this is second order because of symmetry
         ArrayX diff = dzStaggered(L,N);
 
-        D.diagonal(-1).head(N-2) = 1/diff.segment(1,N-2);
-        D.diagonal(0) = -1/diff;
+        D.diagonal(-1).head(N-2) = 1/diff;
+        D.diagonal(0).segment(1,N-2) = -1/diff;
     }
 
     return D;
@@ -123,11 +123,11 @@ MatrixX VerticalReinterpolationMatrix(stratifloat L, int N, BoundaryCondition or
     if (originalBC == BoundaryCondition::Neumann)
     {
         // 2nd order interpolation (Note - causes some bits not to be conserving)
-        ArrayX diff = dzStaggered(L,N); // N of these
+        ArrayX diff = dzStaggered(L,N); // N-2 of these
         ArrayX diff2 = dz(L,N);         // N-1 of these
 
-        D.diagonal(1) = 0.5*diff.head(N-2)/diff2;
-        D.diagonal().head(N-1) = 0.5*diff.tail(N-2)/diff2;
+        D.diagonal(1).segment(1,N-3) = 0.5*diff.head(N-3)/diff2.segment(1,N-3);
+        D.diagonal(0).segment(1,N-3) = 0.5*diff.tail(N-3)/diff2.segment(1,N-3);
 
         // values at ends interpolate exactly
         D(0,0) = 0.5;
