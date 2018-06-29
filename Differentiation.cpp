@@ -141,7 +141,7 @@ MatrixX VerticalReinterpolationMatrix(stratifloat L, int N, BoundaryCondition or
     else
     {
         // 2nd order interpolation
-        D.diagonal(1).setConstant(0.5);
+        D.diagonal(0).setConstant(0.5);
         D.diagonal(-1).setConstant(0.5);
 
         // values at ends interpolate to give correct answer
@@ -149,7 +149,7 @@ MatrixX VerticalReinterpolationMatrix(stratifloat L, int N, BoundaryCondition or
         D(0,0) += 2;
 
         D.row(N-1) = -D.row(N-2);
-        D(N-1,N-2) = 2;
+        D(N-1,N-2) += 2;
     }
 
     return D;
