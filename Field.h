@@ -419,10 +419,10 @@ public:
 
     virtual void ParallelPerStack(std::function<void(int j1, int j2)> f) const
     {
-        #pragma omp parallel for
-        for (int j1=0; j1<N1; j1++)
+        #pragma omp parallel for collapse(2)
+        for (int j2=0; j2<N2; j2++)
         {
-            for (int j2=0; j2<N2; j2++)
+            for (int j1=0; j1<N1; j1++)
             {
                 f(j1, j2);
             }
@@ -797,6 +797,7 @@ public:
         // do IFT in 1st and 2nd dimensions
 
         // make a copy of the input data as it is modified by the transform
+        #pragma omp parallel for
         for (unsigned int j=0; j<actualN1*N2*N3; j++)
         {
             inputData[j] = this->Raw()[j];
@@ -825,9 +826,9 @@ public:
         if (N1>2)
         {
             #pragma omp parallel for collapse(2)
-            for (int j1=N1/3; j1<actualN1; j1++)
+            for (int j2=0; j2<N2; j2++)
             {
-                for (int j2=0; j2<N2; j2++)
+                for (int j1=N1/3; j1<actualN1; j1++)
                 {
                     this->stack(j1, j2).setZero();
                 }
@@ -894,12 +895,20 @@ public:
         if(N2>1)
         {
             #pragma omp parallel for collapse(2)
-            for (int j1=0; j1<maxN1; j1++)
+            for (int j2=0; j2<halfMaxN2; j2++)
             {
-                for (int j2=0; j2<halfMaxN2; j2++)
+                for (int j1=0; j1<maxN1; j1++)
                 {
                     f(j1, j2);
-                    f(j1, N2-1-j2);
+                }
+            }
+
+            #pragma omp parallel for collapse(2)
+            for (int j2=N2-halfMaxN2; j2<N2; j2++)
+            {
+                for (int j1=0; j1<maxN1; j1++)
+                {
+                    f(j1, j2);
                 }
             }
         }
