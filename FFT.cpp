@@ -2,15 +2,17 @@
 
 #include <cassert>
 #include <vector>
+#include <iostream>
+#include <omp.h>
 
 #ifdef USE_CUDA
 
-int fftw_init_threads() 
-{ 
-    return 0; 
+int fftw_init_threads()
+{
+    return 0;
 }
 
-void fftw_plan_with_nthreads(int nthreads) 
+void fftw_plan_with_nthreads(int nthreads)
 {
 }
 
@@ -76,10 +78,10 @@ void Perform1DR2R(int size, const stratifloat* in, stratifloat* out, f3_r2r_kind
         }
     }
 
-    auto plan = f3_plan_dft_1d(fftSize, 
-                               reinterpret_cast<f3_complex*>(fftData.data()), 
-                               reinterpret_cast<f3_complex*>(fftData.data()), 
-                               FFTW_FORWARD, 
+    auto plan = f3_plan_dft_1d(fftSize,
+                               reinterpret_cast<f3_complex*>(fftData.data()),
+                               reinterpret_cast<f3_complex*>(fftData.data()),
+                               FFTW_FORWARD,
                                FFTW_ESTIMATE);
     assert(plan);
     f3_execute(plan);
@@ -113,3 +115,17 @@ void Perform1DR2R(int size, const stratifloat* in, stratifloat* out, f3_r2r_kind
 }
 
 #endif
+
+void Setup()
+{
+    printf("Setting up Stratiflow\n");
+    f3_init_threads();
+    f3_plan_with_nthreads(omp_get_max_threads());
+}
+
+void Cleanup()
+{
+    f3_cleanup_threads();
+}
+
+int InitialiserClass::counter;

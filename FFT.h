@@ -28,3 +28,22 @@ FFTW_REDFT00
 
 // this should not be a bottleneck, so we do it in a fairly inefficient way
 void Perform1DR2R(int size, const stratifloat* in, stratifloat* out, f3_r2r_kind kind);
+
+void Setup();
+void Cleanup();
+
+// hackish solution to ensure mpi is initialised when we need it
+class InitialiserClass
+{
+public:
+    InitialiserClass()
+    {
+        if (counter++ == 0)
+        {
+            Setup();
+        }
+    }
+private:
+    static int counter;
+};
+static InitialiserClass initialiser;
