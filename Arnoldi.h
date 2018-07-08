@@ -83,8 +83,14 @@ public:
             eigenvalues(maxIndex) = 0;
 
             stratifloat maxCoeff2 = eigenvalues.maxCoeff(&maxIndex);
+            eigenvalues(maxIndex) = 0;
 
-            std::cout << "At step " << k << ", maximum growth rates: " << maxCoeff << " & " << maxCoeff2 << std::endl;
+            stratifloat maxCoeff3 = eigenvalues.maxCoeff(&maxIndex);
+
+            std::cout << "At step " << k << ", maximum growth rates: "
+                      << maxCoeff << " & "
+                      << maxCoeff2 << " & "
+                      << maxCoeff3 << std::endl;
         }
 
         MatrixX subH = H.block(0,0,K-1,K-1);
@@ -117,13 +123,21 @@ public:
 
         int maxIndex;
         stratifloat maxCoeff = eigenvalues.maxCoeff(&maxIndex);
+
         eigenvalues(maxIndex) = 0;
         int maxIndex2;
         stratifloat maxCoeff2 = eigenvalues.maxCoeff(&maxIndex2);
+
+        eigenvalues(maxIndex2) = 0;
+        int maxIndex3;
+        stratifloat maxCoeff3 = eigenvalues.maxCoeff(&maxIndex3);
+
         VectorXc eigenvector = ces.eigenvectors().col(maxIndex);
         VectorXc eigenvector2 = ces.eigenvectors().col(maxIndex2);
+        VectorXc eigenvector3 = ces.eigenvectors().col(maxIndex3);
 
         VectorType result2;
+        VectorType result3;
 
         VectorType imag1;
         VectorType imag2;
@@ -134,15 +148,20 @@ public:
             imag1 += eigenvector(k).imag() * q[k];
             result2 += eigenvector2(k).real() * q[k];
             imag2 += eigenvector2(k).imag() * q[k];
+            result3 += eigenvector3(k).real() * q[k];
+            imag3 += eigenvector3(k).imag() * q[k];
         }
 
         result.PlotAll("eigReal");
         result2.PlotAll("eig2Real");
+        result3.PlotAll("eig3Real");
 
         result.SaveToFile("eigReal");
         imag1.SaveToFile("eigImag");
         result2.SaveToFile("eig2Real");
         imag2.SaveToFile("eig2Imag");
+        result3.SaveToFile("eig3Real");
+        imag3.SaveToFile("eig3Imag");
 
         std::cout << "Final eigenvalue: " << complexEigenvalues(maxIndex) << std::endl;
         std::cout << "Final eigenvector: " << std::endl << eigenvector << std::endl;
@@ -150,7 +169,10 @@ public:
         std::cout << "Final eigenvalue: " << complexEigenvalues(maxIndex2) << std::endl;
         std::cout << "Final eigenvector: " << std::endl << eigenvector2 << std::endl;
 
-        std::cout << "Full matrix: " << std::endl << subH << std::endl;
+        std::cout << "Final eigenvalue: " << complexEigenvalues(maxIndex3) << std::endl;
+        std::cout << "Final eigenvector: " << std::endl << eigenvector3 << std::endl;
+
+        //std::cout << "Full matrix: " << std::endl << subH << std::endl;
 
         std::cout << "Full eigenvalues: " << std::endl << complexEigenvalues << std::endl;
 
@@ -174,7 +196,7 @@ protected:
     VectorType linearAboutStart;
 
 public:
-    int K = 256; // max iterations
+    int K = 512; // max iterations
     std::vector<VectorType> q;
     MatrixX H; // upper Hessenberg matrix
 };
