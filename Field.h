@@ -41,6 +41,29 @@ public:
 };
 
 template<typename A, typename T, int N1, int N2, int N3>
+class Negate : public StackContainer<CwiseUnaryOp<internal::scalar_opposite_op<T>, const A>, T, N1, N2, N3>
+{
+public:
+    Negate(const StackContainer<A, T, N1, N2, N3>* field)
+    : field(field)
+    {}
+
+    virtual
+        CwiseUnaryOp<internal::scalar_opposite_op<T>, const A>
+        stack(int n1, int n2) const override
+    {
+        return -field->stack(n1, n2);
+    }
+
+    virtual BoundaryCondition BC() const override
+    {
+        return field->BC();
+    }
+private:
+    const StackContainer<A, T, N1, N2, N3>* field;
+};
+
+template<typename A, typename T, int N1, int N2, int N3>
 class ScalarProduct : public StackContainer<CwiseBinaryOp<internal::scalar_product_op<T, T>, const CwiseNullaryOp<internal::scalar_constant_op<T>,const Array<T, -1, 1>>, const A>, T, N1, N2, N3>
 {
 public:
@@ -998,4 +1021,10 @@ template<typename A, typename B, typename T, int N1, int N2, int N3>
 ComponentwiseProduct<A, B, T, N1, N2, N3> operator*(const StackContainer<A, T, N1, N2, N3>& lhs, const StackContainer<B, T, N1, N2, N3>& rhs)
 {
     return ComponentwiseProduct<A, B, T, N1, N2, N3>(&lhs, &rhs);
+}
+
+template<typename A, typename T, int N1, int N2, int N3>
+Negate<A, T, N1, N2, N3> operator-(const StackContainer<A, T, N1, N2, N3>& field)
+{
+    return Negate<A, T, N1, N2, N3>(&field);
 }
