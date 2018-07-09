@@ -104,15 +104,6 @@ void IMEXRK::ExplicitCN(int k, bool evolveBackground)
         RU_ = U_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Neumann, U_);
         RB_ = B_ + (0.5f*h[k]/Pe)*MatMul1D(dim3Derivative2Neumann, B_);
     }
-
-    // now construct explicit terms
-    r1.Zero();
-    if(ThreeDimensional)
-    {
-        r2.Zero();
-    }
-    r3.Zero();
-    rB.Zero();
 }
 
 void IMEXRK::BuildRHS()
@@ -122,7 +113,7 @@ void IMEXRK::BuildRHS()
     // buoyancy force without hydrostatic part
     neumannTemp = b;
     RemoveHorizontalAverage(neumannTemp);
-    r3 -= Ri*Reinterpolate(neumannTemp); // buoyancy force
+    r3 = -Ri*Reinterpolate(neumannTemp); // buoyancy force
 
     //////// NONLINEAR TERMS ////////
 
@@ -132,23 +123,18 @@ void IMEXRK::BuildRHS()
     U1_tot = U1 + U_;
 
     InterpolateProduct(U1_tot, U1_tot, neumannTemp);
-    r1 -= ddx(neumannTemp);
-
     InterpolateProduct(U1_tot, U3, dirichletTemp);
-    r3 -= ddx(dirichletTemp);
-    r1 -= ddz(dirichletTemp);
+    r1 = -(ddx(neumannTemp)+ddz(dirichletTemp));
 
     InterpolateProduct(U3, U3, neumannTemp);
-    r3 -= ddz(neumannTemp);
+    r3 -= ddx(dirichletTemp)+ddz(neumannTemp);
 
     if(ThreeDimensional)
     {
         InterpolateProduct(U2, U2, neumannTemp);
-        r2 -= ddy(neumannTemp);
-
         InterpolateProduct(U2, U3, dirichletTemp);
+        r2 = -(ddy(neumannTemp)+ddz(dirichletTemp));
         r3 -= ddy(dirichletTemp);
-        r2 -= ddz(dirichletTemp);
 
         InterpolateProduct(U1_tot, U2, neumannTemp);
         r1 -= ddy(neumannTemp);
@@ -156,20 +142,22 @@ void IMEXRK::BuildRHS()
     }
 
     // buoyancy nonlinear terms
-    InterpolateProduct(U1_tot, B, neumannTemp);
-    rB -= ddx(neumannTemp);
+    InterpolateProduct(U3, B, dirichletTemp);
 
     if(ThreeDimensional)
     {
         InterpolateProduct(U2, B, neumannTemp);
-        rB -= ddy(neumannTemp);
+        rB = -(ddz(dirichletTemp)+ddy(neumannTemp));
+    }
+    else
+    {
+        rB = -ddz(dirichletTemp);
     }
 
-    InterpolateProduct(U3, B, dirichletTemp);
-    rB -= ddz(dirichletTemp);
+    InterpolateProduct(U1_tot, B, neumannTemp);
 
     // advection term from background buoyancy
     ndTemp = U3*dB_dz;
     ndTemp.ToModal(dirichletTemp);
-    rB -= Reinterpolate(dirichletTemp);
+    rB -= ddx(neumannTemp)+Reinterpolate(dirichletTemp);
 }

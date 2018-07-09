@@ -1012,13 +1012,13 @@ private:
         // buoyancy force without hydrostatic part
         neumannTemp = b;
         RemoveHorizontalAverage(neumannTemp);
-        r3 -= Ri*Reinterpolate(neumannTemp); // buoyancy force
+        r3 = -Ri*Reinterpolate(neumannTemp); // buoyancy force
 
         nnTemp = U1_tot + U_;
 
         //////// NONLINEAR TERMS ////////
         InterpolateProduct(U1, nnTemp, neumannTemp);
-        r1 -= 2.0*ddx(neumannTemp);
+        r1 = -2.0*ddx(neumannTemp);
 
         InterpolateProduct(nnTemp, U1, U3, U3_tot, dirichletTemp);
         r3 -= ddx(dirichletTemp);
@@ -1030,7 +1030,7 @@ private:
         if(ThreeDimensional)
         {
             InterpolateProduct(U2, U2_tot, neumannTemp);
-            r2 -= 2.0*ddy(neumannTemp);
+            r2 = -2.0*ddy(neumannTemp);
 
             InterpolateProduct(U2_tot, U2, U3, U3_tot, dirichletTemp);
             r3 -= ddy(dirichletTemp);
@@ -1043,7 +1043,7 @@ private:
 
         // buoyancy nonlinear terms
         InterpolateProduct(nnTemp, U1, B, B_tot, neumannTemp);
-        rB -= ddx(neumannTemp);
+        rB = -ddx(neumannTemp);
 
         if(ThreeDimensional)
         {
@@ -1070,7 +1070,7 @@ private:
         //////// NONLINEAR TERMS ////////
         // advection of adjoint quantities by the direct flow
         InterpolateProduct(U1, U1_tot, neumannTemp);
-        r1 += ddx(neumannTemp);
+        r1 = ddx(neumannTemp);
         if(ThreeDimensional)
         {
             InterpolateProduct(U1, U2_tot, neumannTemp);
@@ -1082,7 +1082,7 @@ private:
         if(ThreeDimensional)
         {
             InterpolateProduct(U2, U1_tot, neumannTemp);
-            r2 += ddx(neumannTemp);
+            r2 = ddx(neumannTemp);
             InterpolateProduct(U2, U2_tot, neumannTemp);
             r2 += ddy(neumannTemp);
             InterpolateProduct(U2, U3_tot, dirichletTemp);
@@ -1090,7 +1090,7 @@ private:
         }
 
         InterpolateProduct(U3, U1_tot, dirichletTemp);
-        r3 += ddx(dirichletTemp);
+        r3 = ddx(dirichletTemp);
         if(ThreeDimensional)
         {
             InterpolateProduct(U3, U2_tot, dirichletTemp);
@@ -1100,7 +1100,7 @@ private:
         r3 += ddz(neumannTemp);
 
         InterpolateProduct(B, U1_tot, neumannTemp);
-        rB += ddx(neumannTemp);
+        rB = ddx(neumannTemp);
         if(ThreeDimensional)
         {
             InterpolateProduct(B, U2_tot, neumannTemp);
