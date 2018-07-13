@@ -28,7 +28,7 @@ public:
 
         stratifloat Delta = 1;
         int step = 0;
-        stratifloat targetResidual = 1e-10;
+        stratifloat targetResidual = 1e-8;
         while(true)
         {
             step++;
