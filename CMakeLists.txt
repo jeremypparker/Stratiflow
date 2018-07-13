@@ -109,3 +109,9 @@ target_link_libraries(InverseIteration StratiLib)
 
 add_executable(Benchmark Benchmark.cpp)
 target_link_libraries(Benchmark StratiLib)
+
+add_executable(Adjoint Adjoint.cpp)
+target_link_libraries(Adjoint StratiLib)
+
+add_executable(Direct Direct.cpp)
+target_link_libraries(Direct StratiLib)
