@@ -80,26 +80,14 @@ endif()
 
 add_subdirectory(tests)
 
-add_executable(DAL DAL.cpp)
-target_link_libraries(DAL StratiLib)
-
-add_executable(DNS DNS.cpp)
-target_link_libraries(DNS StratiLib)
-
 add_executable(OrrSommerfeld LargestGrowth.cpp)
 target_link_libraries(OrrSommerfeld StratiLib)
 
 add_executable(NewtonKrylov NewtonKrylov.cpp)
 target_link_libraries(NewtonKrylov StratiLib)
 
-add_executable(DALSteady DALSteady.cpp)
-target_link_libraries(DALSteady StratiLib)
-
 add_executable(FieldNorm FieldNorm.cpp)
 target_link_libraries(FieldNorm StratiLib)
-
-add_executable(PowerIterate PowerIterate.cpp)
-target_link_libraries(PowerIterate StratiLib)
 
 add_executable(PseudoArclength PseudoArclength.cpp)
 target_link_libraries(PseudoArclength StratiLib)
