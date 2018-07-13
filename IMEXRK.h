@@ -32,11 +32,6 @@ class IMEXRK
 public:
     stratifloat deltaT = 0.01f;
 
-    long totalForcing = 0;
-    long totalExplicit = 0;
-    long totalImplicit = 0;
-    long totalDivergence = 0;
-
 public:
     IMEXRK()
     : solveLaplacian(M1*N2)
@@ -83,16 +78,11 @@ public:
     }
 
     void TimeStep();
-    void TimeStepLinear(stratifloat time, bool evolving = true)
+    void TimeStepLinear(stratifloat time)
     {
         // see Numerical Renaissance
         for (int k=0; k<s; k++)
         {
-            if (evolving)
-            {
-                LoadAtTime(time, false);
-            }
-
             ExplicitCN(k);
             BuildRHSLinear();
             FinishRHS(k);
@@ -109,38 +99,44 @@ public:
         }
     }
 
-    void TimeStepAdjoint(stratifloat time, bool findSteady = false)
+    void TimeStepAdjoint(stratifloat time,
+                         const NeumannModal& u1Below,
+                         const NeumannModal& u2Below,
+                         const DirichletModal& u3Below,
+                         const NeumannModal& bBelow,
+                         const NeumannModal& u1Above,
+                         const NeumannModal& u2Above,
+                         const DirichletModal& u3Above,
+                         const NeumannModal& bAbove)
     {
+        stratifloat interpFrac = 0;
         for (int k=0; k<s; k++)
         {
-            auto t4 = std::chrono::high_resolution_clock::now();
+            // interpolate the direct state at the RK substep
+            u1_tot = (1-interpFrac)*u1Below + interpFrac*u1Above;
+            u2_tot = (1-interpFrac)*u2Below + interpFrac*u2Above;
+            u3_tot = (1-interpFrac)*u3Below + interpFrac*u3Above;
+            b_tot = (1-interpFrac)*bBelow + interpFrac*bAbove;
 
-            LoadAtTime(time);
+            // todo: add on background in modal?
+            u1_tot.ToNodal(U1_tot);
+            b_tot.ToNodal(B_tot);
 
-            if (findSteady)
-            {
-                UpdateAdjointVariablesSteady();
-            }
-            else
-            {
-                UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
-            }
+            U1_tot += U_;
+            B_tot += B_;
 
-            auto t0 = std::chrono::high_resolution_clock::now();
+            U1_tot.ToModal(u1_tot);
+            B_tot.ToModal(b_tot);
+
+            UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
 
             ExplicitCN(k);
             BuildRHSAdjoint();
             FinishRHS(k);
 
-            auto t1 = std::chrono::high_resolution_clock::now();
-
             ImplicitUpdate(k);
 
-            auto t2 = std::chrono::high_resolution_clock::now();
-
             RemoveDivergence(1/h[k]);
-
-            auto t3 = std::chrono::high_resolution_clock::now();
 
             if (k==s-1)
             {
@@ -149,12 +145,8 @@ public:
 
             PopulateNodalVariablesAdjoint();
 
-            totalForcing += std::chrono::duration_cast<std::chrono::milliseconds>(t0-t4).count();
-            totalExplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
-            totalImplicit += std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
-            totalDivergence += std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count();
-
             time -= h[k];
+            interpFrac += h[k]/deltaT;
         }
     }
 
@@ -199,11 +191,6 @@ public:
     {
         imageDirectory = imageDir;
 
-        totalExplicit = 0;
-        totalImplicit = 0;
-        totalDivergence = 0;
-        totalForcing = 0;
-
         PopulateNodalVariables();
 
         if (makeDirs)
@@ -216,7 +203,6 @@ public:
             MakeCleanDir(imageDirectory+"/pressure");
             MakeCleanDir(imageDirectory+"/vorticity");
             MakeCleanDir(imageDirectory+"/perturbvorticity");
-            MakeCleanDir(snapshotdir);
         }
     }
 
@@ -224,16 +210,9 @@ public:
     {
         imageDirectory = imageDir;
 
-        totalExplicit = 0;
-        totalImplicit = 0;
-        totalDivergence = 0;
-        totalForcing = 0;
-
         p.Zero();
 
         PopulateNodalVariablesAdjoint();
-
-        BuildFilenameMap();
 
         MakeCleanDir(imageDirectory+"/u1");
         MakeCleanDir(imageDirectory+"/u2");
@@ -245,21 +224,12 @@ public:
         MakeCleanDir(imageDirectory+"/buoyancyBG");
     }
 
-    void PrepareRunLinear(std::string imageDir, bool evolving=true, bool makeDirs = true)
+    void PrepareRunLinear(std::string imageDir, bool makeDirs = true)
     {
         imageDirectory = imageDir;
 
-        totalExplicit = 0;
-        totalImplicit = 0;
-        totalDivergence = 0;
-        totalForcing = 0;
-
         PopulateNodalVariables();
 
-        if (evolving)
-        {
-            BuildFilenameMap(false);
-        }
 
         if (makeDirs)
         {
@@ -437,7 +407,7 @@ public:
         return cfl;
     }
 
-    stratifloat CFLadjoint()
+    stratifloat CFLlinear()
     {
         static ArrayX z = VerticalPoints(L3, N3);
 
@@ -471,102 +441,10 @@ public:
 
     stratifloat PE() const
     {
-        // for (int j=0; j<N3; j++)
-        // {
-        //     if(dB_dz.Get()(j)>-0.001 && dB_dz.Get()(j)<0.001)
-        //     {
-        //         nnTemp1D.Get()(j) = 0;
-        //     }
-        //     else
-        //     {
-        //         nnTemp1D.Get()(j) = 1/dB_dz.Get()(j);
-        //     }
-        // }
-
         return Ri*0.5f*InnerProd(b, b, L3);
     }
 
     void RemoveDivergence(stratifloat pressureMultiplier=1.0f);
-
-    void SolveForPressure()
-    {
-        FilterAll();
-        PopulateNodalVariables();
-
-        // build up RHS for poisson eqn for p in p itself
-        p.Zero();
-
-        // // diagonal terms of ∇u..∇u
-        // neumannTemp = ddx(u1);
-        // neumannTemp.ToNodal(nnTemp);
-        // nnTemp2 = nnTemp*nnTemp;
-        // nnTemp2.ToModal(neumannTemp);
-        // p -= neumannTemp;
-
-
-        // if (ThreeDimensional)
-        // {
-        // neumannTemp = ddy(u2);
-        // neumannTemp.ToNodal(nnTemp);
-        // nnTemp2 = nnTemp*nnTemp;
-        // nnTemp2.ToModal(neumannTemp);
-        // p -= neumannTemp;
-        // }
-
-        // neumannTemp = ddz(u3);
-        // neumannTemp.ToNodal(nnTemp);
-        // nnTemp2 = nnTemp*nnTemp;
-        // nnTemp2.ToModal(neumannTemp);
-        // p -= neumannTemp;
-
-        // // cross terms
-        // dirichletTemp = ddx(u3);
-        // dirichletTemp.ToNodal(ndTemp);
-        // dirichletTemp = ddz(u1);
-        // dirichletTemp.ToNodal(ndTemp2);
-        // nnTemp2 = ndTemp*ndTemp2;
-        // nnTemp2.ToModal(neumannTemp);
-        // p -= 2.0*neumannTemp;
-
-        // if (ThreeDimensional)
-        // {
-        // neumannTemp = ddy(u1);
-        // neumannTemp.ToNodal(nnTemp);
-        // neumannTemp = ddx(u2);
-        // neumannTemp.ToNodal(nnTemp2);
-        // nnTemp2 = nnTemp*nnTemp2;
-        // nnTemp2.ToModal(neumannTemp);
-        // p -= 2.0*neumannTemp;
-
-        // dirichletTemp = ddy(u3);
-        // dirichletTemp.ToNodal(ndTemp);
-        // dirichletTemp = ddz(u2);
-        // dirichletTemp.ToNodal(ndTemp2);
-        // nnTemp2 = ndTemp*ndTemp2;
-        // nnTemp2.ToModal(neumannTemp);
-        // p -= 2.0*neumannTemp;
-        // }
-
-        // // background
-        // dirichletTemp1D = ddz(u_);
-        // dirichletTemp = ddx(u3);
-        // dirichletTemp1D.ToNodal(ndTemp1D);
-        // dirichletTemp.ToNodal(ndTemp);
-        // nnTemp2 = ndTemp*ndTemp1D;
-        // nnTemp2.ToModal(neumannTemp);
-        // p -= 2.0*neumannTemp;
-
-        // // buoyancy // todo: no hydrostatic
-        // dirichletTemp = ddz(b);
-        // dirichletTemp.ToNodal(ndTemp);
-        // nnTemp = ndTemp;
-        // nnTemp.ToModal(neumannTemp);
-        // p -= Ri*neumannTemp;
-
-        // // Now solve the poisson equation
-        // p.ZeroEnds();
-        // p.Solve(solveLaplacian, p);
-    }
 
     void SaveFlow(const std::string& filename) const
     {
@@ -576,20 +454,6 @@ public:
         U2.Save(filestream);
         U3.Save(filestream);
         B.Save(filestream);
-    }
-
-    void StoreSnapshot(stratifloat time) const
-    {
-        U1_tot = U1 + U_;
-        B_tot = B + B_;
-
-        std::ofstream filestream(snapshotdir+std::to_string(time)+".fields",
-                                    std::ios::out | std::ios::binary);
-
-        U1_tot.Save(filestream);
-        U2.Save(filestream);
-        U3.Save(filestream);
-        B_tot.Save(filestream);
     }
 
     void LoadFlow(const std::string& filename)
@@ -628,6 +492,12 @@ public:
                                 const DirichletModal& u3_total,
                                 const NeumannModal& b_total)
     {
+        // todo: remove some of these
+        u1_total.ToNodal(U1_tot);
+        u2_total.ToNodal(U2_tot);
+        u3_total.ToNodal(U3_tot);
+        b_total.ToNodal(B_tot);
+
         // work out variation of buoyancy from average
         static Neumann1D bAve;
         HorizontalAverage(b_total, bAve);
@@ -635,11 +505,9 @@ public:
         static Dirichlet1D wAve;
         HorizontalAverage(u3_total, wAve);
 
-        b_total.ToNodal(B_tot);
         nnTemp = B_tot + -1*bAve;
 
         // (b-<b>)*w
-        u3_total.ToNodal(U3_tot);
         ndTemp = nnTemp*U3_tot;
         ndTemp.ToModal(dirichletTemp);
 
@@ -658,41 +526,6 @@ public:
 
         u1Forcing.Zero();
         u2Forcing.Zero();
-    }
-
-    void UpdateAdjointVariablesSteady()
-    {
-        u1Forcing.Zero();
-        u2Forcing.Zero();
-        u3Forcing.Zero();
-        bForcing.Zero();
-    }
-
-    void BuildFilenameMap(bool reverse=true)
-    {
-        filenames.clear();
-
-        auto dir = opendir(snapshotdir.c_str());
-        struct dirent* file = nullptr;
-        while((file=readdir(dir)))
-        {
-            std::string foundfilename(file->d_name);
-            int end = foundfilename.find(".fields");
-            stratifloat foundtime = strtof(foundfilename.substr(0, end).c_str(), nullptr);
-
-            filenames.insert(std::pair<stratifloat, std::string>(foundtime, snapshotdir+foundfilename));
-        }
-        closedir(dir);
-
-        if (reverse)
-        {
-            fileAbove = filenames.end();
-            fileAbove--;
-        }
-        else
-        {
-            fileAbove = filenames.begin();
-        }
     }
 
     void UpdateForTimestep()
@@ -740,236 +573,7 @@ public:
         }
     }
 
-    stratifloat Optimise(stratifloat& epsilon,
-                         stratifloat E_0,
-                         NeumannModal& oldu1,
-                         NeumannModal& oldu2,
-                         DirichletModal& oldu3,
-                         NeumannModal& oldb,
-                         Neumann1D& backgroundB,
-                         Neumann1D& backgroundU)
-    {
-        PopulateNodalVariablesAdjoint();
-
-        stratifloat lambda;
-
-        static NeumannModal dLdu1;
-        static NeumannModal dLdu2;
-        static DirichletModal dLdu3;
-        static NeumannModal dLdb;
-
-        static NeumannModal dEdu1;
-        static NeumannModal dEdu2;
-        static DirichletModal dEdu3;
-        static NeumannModal dEdb;
-
-        dB_dz = ddz(backgroundB);
-
-        static Dirichlet1D Bgradientinv;
-        for (int j=0; j<N3; j++)
-        {
-            if(dB_dz.Get()(j)>-0.00001 && dB_dz.Get()(j)<0.00001)
-            {
-                Bgradientinv.Get()(j) = 0;
-            }
-            else
-            {
-                Bgradientinv.Get()(j) = 1/dB_dz.Get()(j);
-            }
-        }
-
-        stratifloat udotu = InnerProd(oldu1, oldu1, L3)
-                            + InnerProd(oldu3, oldu3, L3)
-                            + (ThreeDimensional?InnerProd(oldu2, oldu2, L3):0);
-
-        stratifloat vdotv = InnerProd(u1, u1, L3)
-                            + InnerProd(u3, u3, L3)
-                            + (ThreeDimensional?InnerProd(u2, u2, L3):0);
-
-        stratifloat udotv = InnerProd(u1, oldu1, L3)
-                            + InnerProd(u3, oldu3, L3)
-                            + InnerProd(b, oldb, L3)
-                            + (ThreeDimensional?InnerProd(u2, oldu2, L3):0);
-
-        udotu += InnerProd(oldb, oldb, L3, -Ri*Bgradientinv);
-        vdotv += InnerProd(b, b, L3, -(1/Ri)*dB_dz);
-
-        while(lambda==0)
-        {
-            lambda = SolveQuadratic(epsilon*udotu,
-                                    2*epsilon*udotv - 2*udotu,
-                                    epsilon*vdotv - 2*udotv);
-            if (lambda==0)
-            {
-                std::cout << "Reducing step size" << std::endl;
-                epsilon /= 2;
-            }
-        }
-
-        dLdu1 = u1;
-        dLdu2 = u2;
-        dLdu3 = u3;
-
-        nnTemp = -(1/Ri)*B*dB_dz;
-        nnTemp.ToModal(dLdb);
-
-        dEdu1 = oldu1;
-        dEdu2 = oldu2;
-        dEdu3 = oldu3;
-        dEdb = oldb;
-
-        // perform the gradient descent
-        oldu1 = oldu1 + -epsilon*dLdu1 + -epsilon*lambda*dEdu1;
-        oldu2 = oldu2 + -epsilon*dLdu2 + -epsilon*lambda*dEdu2;
-        oldu3 = oldu3 + -epsilon*dLdu3 + -epsilon*lambda*dEdu3;
-        oldb = oldb + -epsilon*dLdb + -epsilon*lambda*dEdb;
-
-        // now actually update the values for the next step
-        u1 = oldu1;
-        u2 = oldu2;
-        u3 = oldu3;
-        b = oldb;
-        p.Zero();
-
-        // find the residual
-        stratifloat residualNumerator = 0;
-
-        neumannTemp = dLdu1 + lambda*dEdu1;
-        residualNumerator += InnerProd(neumannTemp, neumannTemp, L3);
-        dirichletTemp = dLdu3 + lambda*dEdu3;
-        residualNumerator += InnerProd(dirichletTemp, dirichletTemp, L3);
-        neumannTemp = dLdb + lambda*dEdb;
-        residualNumerator += InnerProd(neumannTemp, neumannTemp, L3);
-        if(ThreeDimensional)
-        {
-            neumannTemp = dLdu2 + lambda*dEdu2;
-            residualNumerator += InnerProd(neumannTemp, neumannTemp, L3);
-        }
-
-        stratifloat residualDenominator = InnerProd(dLdu1, dLdu1, L3)
-                                        + InnerProd(dLdu3, dLdu3, L3)
-                                        + InnerProd(dLdb, dLdb, L3)
-                                        + (ThreeDimensional?InnerProd(dLdu2, dLdu2, L3):0);
-
-        return residualNumerator/residualDenominator;
-    }
-
-    void RescaleForEnergy(stratifloat energy)
-    {
-        stratifloat scale;
-
-        // energies are entirely quadratic
-        // which makes this easy
-
-        stratifloat energyBefore = KE() + PE();
-
-        if (energyBefore!=0.0f)
-        {
-            scale = sqrt(energy/energyBefore);
-        }
-        else
-        {
-            scale = 0.0f;
-        }
-
-        u1 *= scale;
-        u2 *= scale;
-        u3 *= scale;
-        b *= scale;
-    }
-
 private:
-    void LoadAtTime(stratifloat time, bool reverse=true)
-    {
-        if (reverse)
-        {
-            while(fileAbove->first >= time && std::prev(fileAbove) != filenames.begin())
-            {
-                fileAbove--;
-            }
-            fileAbove++;
-        }
-        else
-        {
-            while(fileAbove->first <= time && std::next(std::next(fileAbove)) != filenames.end())
-            {
-                fileAbove++;
-            }
-            fileAbove--;
-        }
-
-        static stratifloat timeabove = -1;
-        static stratifloat timebelow = -1;
-
-        static NeumannNodal u1Above;
-        static NeumannNodal u1Below;
-
-        static NeumannNodal u2Above;
-        static NeumannNodal u2Below;
-
-        static DirichletNodal u3Above;
-        static DirichletNodal u3Below;
-
-        static NeumannNodal bAbove;
-        static NeumannNodal bBelow;
-
-        if (timeabove != fileAbove->first)
-        {
-            if (timebelow == fileAbove->first)
-            {
-                u1Above = u1Below;
-                u2Above = u2Below;
-                u3Above = u3Below;
-                bAbove = bBelow;
-            }
-            else
-            {
-                LoadVariable(fileAbove->second, u1Above, 0);
-                LoadVariable(fileAbove->second, u2Above, 1);
-                LoadVariable(fileAbove->second, u3Above, 2);
-                LoadVariable(fileAbove->second, bAbove, 3);
-            }
-
-            if (reverse)
-            {
-                LoadVariable(std::prev(fileAbove)->second, u1Below, 0);
-                LoadVariable(std::prev(fileAbove)->second, u2Below, 1);
-                LoadVariable(std::prev(fileAbove)->second, u3Below, 2);
-                LoadVariable(std::prev(fileAbove)->second, bBelow, 3);
-            }
-            else
-            {
-                LoadVariable(std::next(fileAbove)->second, u1Below, 0);
-                LoadVariable(std::next(fileAbove)->second, u2Below, 1);
-                LoadVariable(std::next(fileAbove)->second, u3Below, 2);
-                LoadVariable(std::next(fileAbove)->second, bBelow, 3);
-            }
-
-            timeabove = fileAbove->first;
-
-            if (reverse)
-            {
-                timebelow = std::prev(fileAbove)->first;
-            }
-            else
-            {
-                timebelow = std::next(fileAbove)->first;
-            }
-        }
-
-        U1_tot = ((time-timebelow)/(timeabove-timebelow))*u1Above + ((timeabove-time)/(timeabove-timebelow))*u1Below;
-        U1_tot.ToModal(u1_tot);
-
-        U2_tot = ((time-timebelow)/(timeabove-timebelow))*u2Above + ((timeabove-time)/(timeabove-timebelow))*u2Below;
-        U2_tot.ToModal(u2_tot);
-
-        U3_tot = ((time-timebelow)/(timeabove-timebelow))*u3Above + ((timeabove-time)/(timeabove-timebelow))*u3Below;
-        U3_tot.ToModal(u3_tot);
-
-        B_tot = ((time-timebelow)/(timeabove-timebelow))*bAbove + ((timeabove-time)/(timeabove-timebelow))*bBelow;
-        B_tot.ToModal(b_tot);
-    }
-
     void CNSolve(NeumannModal& solve, NeumannModal& into, int k)
     {
         solve.ZeroEnds();
@@ -1004,180 +608,8 @@ private:
     void FinishRHS(int k);
     void ExplicitCN(int k, bool evolveBackground = false);
     void BuildRHS();
-
-    void BuildRHSLinear()
-    {
-        // build up right hand sides for the implicit solve in R
-
-        // buoyancy force without hydrostatic part
-        neumannTemp = b;
-        RemoveHorizontalAverage(neumannTemp);
-        r3 = -Ri*Reinterpolate(neumannTemp); // buoyancy force
-
-        nnTemp = U1_tot + U_;
-
-        //////// NONLINEAR TERMS ////////
-        InterpolateProduct(U1, nnTemp, neumannTemp);
-        r1 = -2.0*ddx(neumannTemp);
-
-        InterpolateProduct(nnTemp, U1, U3, U3_tot, dirichletTemp);
-        r3 -= ddx(dirichletTemp);
-        r1 -= ddz(dirichletTemp);
-
-        InterpolateProduct(U3, U3_tot, neumannTemp);
-        r3 -= 2.0*ddz(neumannTemp);
-
-        if(ThreeDimensional)
-        {
-            InterpolateProduct(U2, U2_tot, neumannTemp);
-            r2 = -2.0*ddy(neumannTemp);
-
-            InterpolateProduct(U2_tot, U2, U3, U3_tot, dirichletTemp);
-            r3 -= ddy(dirichletTemp);
-            r2 -= ddz(dirichletTemp);
-
-            InterpolateProduct(U2_tot, U2, U1, nnTemp, neumannTemp);
-            r1 -= ddy(neumannTemp);
-            r2 -= ddx(neumannTemp);
-        }
-
-        // buoyancy nonlinear terms
-        InterpolateProduct(nnTemp, U1, B, B_tot, neumannTemp);
-        rB = -ddx(neumannTemp);
-
-        if(ThreeDimensional)
-        {
-            InterpolateProduct(U2_tot, U2, B, B_tot, neumannTemp);
-            rB -= ddy(neumannTemp);
-        }
-
-        InterpolateProduct(B, B_tot, U3_tot, U3, dirichletTemp);
-        rB -= ddz(dirichletTemp);
-
-        // advection term from background buoyancy
-        ndTemp = U3*dB_dz;
-        ndTemp.ToModal(dirichletTemp);
-        rB -= Reinterpolate(dirichletTemp);
-    }
-
-    void BuildRHSAdjoint()
-    {
-        // build up right hand sides for the implicit solve in R
-
-        // adjoint buoyancy
-        bForcing -= Ri*Reinterpolate(U3);
-
-        //////// NONLINEAR TERMS ////////
-        // advection of adjoint quantities by the direct flow
-        InterpolateProduct(U1, U1_tot, neumannTemp);
-        r1 = ddx(neumannTemp);
-        if(ThreeDimensional)
-        {
-            InterpolateProduct(U1, U2_tot, neumannTemp);
-            r1 += ddy(neumannTemp);
-        }
-        InterpolateProduct(U1, U3_tot, dirichletTemp);
-        r1 += ddz(dirichletTemp);
-
-        if(ThreeDimensional)
-        {
-            InterpolateProduct(U2, U1_tot, neumannTemp);
-            r2 = ddx(neumannTemp);
-            InterpolateProduct(U2, U2_tot, neumannTemp);
-            r2 += ddy(neumannTemp);
-            InterpolateProduct(U2, U3_tot, dirichletTemp);
-            r2 += ddz(dirichletTemp);
-        }
-
-        InterpolateProduct(U3, U1_tot, dirichletTemp);
-        r3 = ddx(dirichletTemp);
-        if(ThreeDimensional)
-        {
-            InterpolateProduct(U3, U2_tot, dirichletTemp);
-            r3 += ddy(dirichletTemp);
-        }
-        InterpolateProduct(U3, U3_tot, neumannTemp);
-        r3 += ddz(neumannTemp);
-
-        InterpolateProduct(B, U1_tot, neumannTemp);
-        rB = ddx(neumannTemp);
-        if(ThreeDimensional)
-        {
-            InterpolateProduct(B, U2_tot, neumannTemp);
-            rB += ddy(neumannTemp);
-        }
-        InterpolateProduct(B, U3_tot, dirichletTemp);
-        rB += ddz(dirichletTemp);
-
-        // extra adjoint nonlinear terms
-        neumannTemp = ddx(u1_tot);
-        neumannTemp.ToNodal(nnTemp);
-        nnTemp2 = nnTemp*U1;
-        if(ThreeDimensional)
-        {
-            neumannTemp = ddx(u2_tot);
-            neumannTemp.ToNodal(nnTemp);
-            nnTemp2 += nnTemp*U2;
-        }
-        dirichletTemp = ddx(u3_tot);
-        dirichletTemp.ToNodal(ndTemp);
-        u1Forcing -= nnTemp2 + Reinterpolate(ndTemp*U3);
-
-        if(ThreeDimensional)
-        {
-            neumannTemp = ddy(u1_tot);
-            neumannTemp.ToNodal(nnTemp);
-            nnTemp2 = nnTemp*U1;
-            neumannTemp = ddy(u2_tot);
-            neumannTemp.ToNodal(nnTemp);
-            nnTemp2 += nnTemp*U2;
-            dirichletTemp = ddy(u3_tot);
-            dirichletTemp.ToNodal(ndTemp);
-            u2Forcing -= nnTemp2 + Reinterpolate(ndTemp*U3);
-        }
-
-        dirichletTemp = ddz(u1_tot);
-        dirichletTemp.ToNodal(ndTemp);
-        ndTemp2 = ndTemp*Reinterpolate(U1);
-        if(ThreeDimensional)
-        {
-            dirichletTemp = ddz(u2_tot);
-            dirichletTemp.ToNodal(ndTemp);
-            ndTemp2 += ndTemp*Reinterpolate(U2);
-        }
-        neumannTemp = ddz(u3_tot);
-        neumannTemp.ToNodal(nnTemp);
-        u3Forcing -= ndTemp2 + Reinterpolate(nnTemp)*U3;
-
-
-        neumannTemp = ddx(b_tot);
-        neumannTemp.ToNodal(nnTemp);
-        u1Forcing -= nnTemp*B;
-
-        if(ThreeDimensional)
-        {
-            neumannTemp = ddy(b_tot);
-            neumannTemp.ToNodal(nnTemp);
-            u2Forcing -= nnTemp*B;
-        }
-
-        dirichletTemp = ddz(b_tot);
-        dirichletTemp.ToNodal(ndTemp);
-        u3Forcing -= ndTemp*Reinterpolate(B);
-
-        // Now include all the forcing terms
-        u1Forcing.ToModal(neumannTemp);
-        r1 += neumannTemp;
-        if (ThreeDimensional)
-        {
-            u2Forcing.ToModal(neumannTemp);
-            r2 += neumannTemp;
-        }
-        u3Forcing.ToModal(dirichletTemp);
-        r3 += dirichletTemp;
-        bForcing.ToModal(neumannTemp);
-        rB += neumannTemp;
-    }
+    void BuildRHSLinear();
+    void BuildRHSAdjoint();
 
 public:
     // these are the actual variables we care about
@@ -1244,10 +676,5 @@ private:
     std::vector<Tridiagonal<stratifloat, N3>> implicitSolveBuoyancyNeumann[3];
     std::vector<Tridiagonal<stratifloat, N3>> solveLaplacian;
 
-    // for flow saving/loading
-    std::map<stratifloat, std::string> filenames;
-    std::map<stratifloat, std::string>::iterator fileAbove;
-
-    std::string snapshotdir = "snapshots/";
     std::string imageDirectory;
 };

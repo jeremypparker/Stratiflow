@@ -17,20 +17,12 @@ public:
 
     void FullEvolve(stratifloat T, StateVector& result, bool snapshot = false, bool screenshot = true) const;
 
-    void LinearEvolve(stratifloat T, StateVector& result) const;
+    void FixedEvolve(stratifloat deltaT, int steps, std::vector<StateVector>& result) const;
 
     void LinearEvolve(stratifloat T, const StateVector& about, StateVector& result) const;
 
-    void LinearEvolve(stratifloat T, const StateVector& about, const StateVector& aboutResult, StateVector& result) const;
+    void AdjointEvolve(stratifloat deltaT, int steps, const std::vector<StateVector>& intermediate, StateVector& result) const;
 
-    void AdjointEvolve(stratifloat T, StateVector& result) const;
-
-    void CalcPressure()
-    {
-        CopyToSolver();
-        solver.SolveForPressure();
-        CopyFromSolver();
-    }
 
     const StateVector& operator+=(const StateVector& other)
     {
@@ -41,7 +33,6 @@ public:
         }
         u3 += other.u3;
         b += other.b;
-        CalcPressure();
 
         return *this;
     }
@@ -55,8 +46,6 @@ public:
         }
         u3 -= other.u3;
         b  -= other.b;
-        CalcPressure();
-
         return *this;
     }
 
@@ -69,8 +58,6 @@ public:
         }
         u3 += a*B.u3;
         b  += a*B.b;
-        CalcPressure();
-
         return *this;
     }
 
@@ -83,8 +70,6 @@ public:
         }
         u3 *= other;
         b  *= other;
-        CalcPressure();
-
         return *this;
     }
 

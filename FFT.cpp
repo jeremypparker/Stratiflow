@@ -121,6 +121,7 @@ void Setup()
     printf("Setting up Stratiflow\n");
     f3_init_threads();
     f3_plan_with_nthreads(omp_get_max_threads());
+    printf("Using %d threads\n", omp_get_max_threads());
 }
 
 void Cleanup()
