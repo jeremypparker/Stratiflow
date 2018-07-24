@@ -1,6 +1,6 @@
 #include "StateVector.h"
 
-void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, bool screenshot) const
+stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, bool screenshot, bool calcmixing) const
 {
     CopyToSolver();
 
@@ -22,6 +22,8 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, 
     MakeCleanDir("snapshots");
 
     const int stepinterval = 100;
+
+    stratifloat mixing = 0;
 
     while (t+0.0001 < T)
     {
@@ -52,6 +54,12 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, 
         }
 
         solver.TimeStep();
+
+        if (calcmixing)
+        {
+            mixing += solver.JoverK() * solver.deltaT;
+        }
+
         t += solver.deltaT;
         step++;
 
@@ -70,6 +78,8 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, 
     }
 
     CopyFromSolver(result);
+
+    return mixing;
 }
 
 void StateVector::FixedEvolve(stratifloat deltaT, int steps, std::vector<StateVector>& result) const

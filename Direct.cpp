@@ -16,5 +16,6 @@ int main(int argc, char* argv[])
         state.LoadFromFile(argv[1]);
     }
 
-    state.FullEvolve(12, state, true, true);
+    stratifloat mixing = state.FullEvolve(12, state, true, true, true);
+    SaveValueToFile(mixing, "mixing");
 }

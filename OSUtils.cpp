@@ -9,6 +9,7 @@
 #include <cstring>
 #include <limits.h>
 #include <errno.h>
+#include <iomanip>
 
 int mkdir_p(const char *path)
 {
@@ -78,4 +79,17 @@ bool FileExists(const std::string& filename)
 {
     std::ifstream file(filename, std::ios::in | std::ios::binary);
     return file.good();
+}
+
+void SaveValueToFile(stratifloat value, const std::string& filename)
+{
+    std::ofstream paramFile(filename);
+    paramFile << std::setprecision(30);
+    paramFile << value;
+}
+
+void LoadValueFromFile(stratifloat& value, const std::string& filename)
+{
+    std::ifstream paramFile(filename);
+    paramFile >> value;
 }

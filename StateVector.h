@@ -15,7 +15,7 @@ public:
     NeumannModal b;
     NeumannModal p;
 
-    void FullEvolve(stratifloat T, StateVector& result, bool snapshot = false, bool screenshot = true) const;
+    stratifloat FullEvolve(stratifloat T, StateVector& result, bool snapshot = false, bool screenshot = true, bool calcmixing = false) const;
 
     void FixedEvolve(stratifloat deltaT, int steps, std::vector<StateVector>& result) const;
 

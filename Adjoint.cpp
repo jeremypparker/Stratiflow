@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
     // now in directState and adjointState we should have both at t=0
 
     // perform optimisation
-    stratifloat epsilon = 0.01;
+    stratifloat epsilon = std::stof(argv[2]);
 
     // scale for more uniform updating
     adjointState.b *= 1/Ri;

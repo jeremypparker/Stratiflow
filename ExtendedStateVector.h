@@ -2,8 +2,6 @@
 
 #include "StateVector.h"
 
-#include <iomanip>
-
 // A vector in the extended state space including one real parameter (Ri)
 class ExtendedStateVector
 {
@@ -94,16 +92,13 @@ public:
     void SaveToFile(const std::string& filename) const
     {
         x.SaveToFile(filename+".fields");
-        std::ofstream paramFile(filename+".params");
-        paramFile << std::setprecision(30);
-        paramFile << p;
+        SaveValueToFile(p, filename+".params");
     }
 
     void LoadFromFile(const std::string& filename)
     {
         x.LoadFromFile(filename+".fields");
-        std::ifstream paramFile(filename+".params");
-        paramFile >> p;
+        LoadValueFromFile(p, filename+".params");
     }
 
     void EnforceBCs()
