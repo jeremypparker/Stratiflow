@@ -117,31 +117,29 @@ void StateVector::LinearEvolve(stratifloat T, const StateVector& about, StateVec
     solver.deltaT = 0.01;
     solver.UpdateForTimestep();
 
-    while (t < T)
+    const int stepinterval = 100;
+
+    while (t+0.0001 < T)
     {
-        // on last step, arrive exactly
-        if (t + solver.deltaT > T)
+        if(step%stepinterval==0)
         {
-            solver.deltaT = T - t;
-            solver.UpdateForTimestep();
-            done = true;
+            stratifloat cfl = solver.CFLlinear();
+            std::cout << step << " " << t << std::endl;
+
+            // finish exactly for last step
+            stratifloat remaining = T-t;
+            int remainingSteps = (remaining / solver.deltaT)+1;
+            if (remainingSteps < stepinterval)
+            {
+                // make timestep slightly shorter
+                solver.deltaT = remaining/remainingSteps;
+                solver.UpdateForTimestep();
+            }
         }
 
         solver.TimeStepLinear(t);
         t += solver.deltaT;
-
-        if(step%50==0)
-        {
-            stratifloat cfl = solver.CFLlinear();
-            std::cout << step << " " << t << std::endl;
-        }
-
         step++;
-
-        if (done)
-        {
-            break;
-        }
     }
 
     CopyFromSolver(result);

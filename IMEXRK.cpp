@@ -175,14 +175,11 @@ void IMEXRK::BuildRHSLinear()
 
     //////// NONLINEAR TERMS ////////
     InterpolateProduct(U1, nnTemp, neumannTemp);
-    r1 = -2.0*ddx(neumannTemp);
-
     InterpolateProduct(nnTemp, U1, U3, U3_tot, dirichletTemp);
-    r3 -= ddx(dirichletTemp);
-    r1 -= ddz(dirichletTemp);
+    r1 = -(2.0*ddx(neumannTemp) +  ddz(dirichletTemp));
 
     InterpolateProduct(U3, U3_tot, neumannTemp);
-    r3 -= 2.0*ddz(neumannTemp);
+    r3 -= ddx(dirichletTemp) + 2.0*ddz(neumannTemp);
 
     if(ThreeDimensional)
     {
@@ -200,16 +197,14 @@ void IMEXRK::BuildRHSLinear()
 
     // buoyancy nonlinear terms
     InterpolateProduct(nnTemp, U1, B, B_tot, neumannTemp);
-    rB = -ddx(neumannTemp);
+    InterpolateProduct(B, B_tot, U3_tot, U3, dirichletTemp);
+    rB = -(ddx(neumannTemp) + ddz(dirichletTemp));
 
     if(ThreeDimensional)
     {
         InterpolateProduct(U2_tot, U2, B, B_tot, neumannTemp);
         rB -= ddy(neumannTemp);
     }
-
-    InterpolateProduct(B, B_tot, U3_tot, U3, dirichletTemp);
-    rB -= ddz(dirichletTemp);
 
     // advection term from background buoyancy
     ndTemp = U3*dB_dz;
@@ -227,44 +222,42 @@ void IMEXRK::BuildRHSAdjoint()
     //////// NONLINEAR TERMS ////////
     // advection of adjoint quantities by the direct flow
     InterpolateProduct(U1, U1_tot, neumannTemp);
-    r1 = ddx(neumannTemp);
+    InterpolateProduct(U1, U3_tot, dirichletTemp);
+    r1 = ddx(neumannTemp) + ddz(dirichletTemp);
+
     if(ThreeDimensional)
     {
         InterpolateProduct(U1, U2_tot, neumannTemp);
         r1 += ddy(neumannTemp);
     }
-    InterpolateProduct(U1, U3_tot, dirichletTemp);
-    r1 += ddz(dirichletTemp);
 
     if(ThreeDimensional)
     {
         InterpolateProduct(U2, U1_tot, neumannTemp);
         r2 = ddx(neumannTemp);
         InterpolateProduct(U2, U2_tot, neumannTemp);
-        r2 += ddy(neumannTemp);
         InterpolateProduct(U2, U3_tot, dirichletTemp);
-        r2 += ddz(dirichletTemp);
+        r2 += ddy(neumannTemp) + ddz(dirichletTemp);
     }
 
     InterpolateProduct(U3, U1_tot, dirichletTemp);
-    r3 = ddx(dirichletTemp);
+    InterpolateProduct(U3, U3_tot, neumannTemp);
+    r3 = ddx(dirichletTemp) + ddz(neumannTemp);
+
     if(ThreeDimensional)
     {
         InterpolateProduct(U3, U2_tot, dirichletTemp);
         r3 += ddy(dirichletTemp);
     }
-    InterpolateProduct(U3, U3_tot, neumannTemp);
-    r3 += ddz(neumannTemp);
 
     InterpolateProduct(B, U1_tot, neumannTemp);
-    rB = ddx(neumannTemp);
+    InterpolateProduct(B, U3_tot, dirichletTemp);
+    rB = ddx(neumannTemp) + ddz(dirichletTemp);
     if(ThreeDimensional)
     {
         InterpolateProduct(B, U2_tot, neumannTemp);
         rB += ddy(neumannTemp);
     }
-    InterpolateProduct(B, U3_tot, dirichletTemp);
-    rB += ddz(dirichletTemp);
 
     // extra adjoint nonlinear terms
     neumannTemp = ddx(u1_tot);
