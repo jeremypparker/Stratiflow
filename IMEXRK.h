@@ -419,7 +419,7 @@ public:
         cfl *= deltaT;
 
         // update timestep for target cfl
-        constexpr stratifloat targetCFL = 0.6;
+        constexpr stratifloat targetCFL = 0.4;
         deltaT *= targetCFL / cfl;
         UpdateForTimestep();
 
@@ -493,7 +493,7 @@ public:
                                 const NeumannModal& b_total)
     {
         // todo: remove some of these
-        u1_total.ToNodal(U1_tot);
+        //u1_total.ToNodal(U1_tot);
         u2_total.ToNodal(U2_tot);
         u3_total.ToNodal(U3_tot);
         b_total.ToNodal(B_tot);
