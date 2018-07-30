@@ -131,7 +131,6 @@ class FindHopf : public NewtonKrylov<HopfBifurcation>
 {
 public:
     stratifloat weight = 1;
-    stratifloat fixedLambda1;
 
     virtual void EnforceConstraints(HopfBifurcation& at)
     {
@@ -223,7 +222,6 @@ int main(int argc, char *argv[])
 
     FindHopf solver;
 
-    solver.fixedLambda1 = guess.lambda1;
     solver.EnforceConstraints(guess);
 
     solver.Run(guess);
