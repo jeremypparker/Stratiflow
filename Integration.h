@@ -115,24 +115,32 @@ stratifloat InnerProd(const NodalField<N1,N2,N3>& A, const NodalField<N1,N2,N3>&
 template<int N1, int N2, int N3>
 stratifloat InnerProd(const ModalField<N1,N2,N3>& a, const ModalField<N1,N2,N3>& b, stratifloat L3)
 {
-    static NodalField<N1,N2,N3> A(a.BC());
-    static NodalField<N1,N2,N3> B(b.BC());
+    assert(a.BC() == b.BC());
+    static Nodal1D<N1,N2,N3> horzAve(a.BC());
+    horzAve.Reset(a.BC());
 
-    A.Reset(a.BC());
-    B.Reset(b.BC());
+    for (int j3=0; j3<N3; j3++)
+    {
+        stratifloat sum = 0;
+        for (int j1=0; j1<M1; j1++)
+        {
+            for (int j2=0; j2<N2; j2++)
+            {
+                if (j1==0 && j2==0)
+                {
+                    sum += std::real(a(j1,j2,j3)*std::conj(b(j1,j2,j3)));
+                }
+                else
+                {
+                    sum += 2*std::real(a(j1,j2,j3)*std::conj(b(j1,j2,j3)));
+                }
+            }
+        }
 
-    a.ToNodal(A);
-    b.ToNodal(B);
+        horzAve.Get()[j3] = sum;
+    }
 
-    return InnerProd(A, B, L3);
-}
-
-template<int N1, int N2, int N3>
-stratifloat InnerProd(const ModalField<N1,N2,N3>& a, const ModalField<N1,N2,N3>& b, stratifloat L3, stratifloat weight)
-{
-    static Nodal1D<N1,N2,N3> w(BoundaryCondition::Neumann);
-    w.SetValue([weight](stratifloat z){return weight;}, L3);
-    return InnerProd(a, b, L3, w);
+    return IntegrateVertically(horzAve, L3);
 }
 
 stratifloat SolveQuadratic(stratifloat a, stratifloat b, stratifloat c, bool positiveSign=false);
