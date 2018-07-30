@@ -12,6 +12,10 @@ int main(int argc, char* argv[])
     {
         state.LoadFromFile(argv[1]);
         Ri = state.p;
+
+        // remove means
+        RemoveAverage(state.x.u1, L3);
+        RemoveAverage(state.x.b, L3);
     }
     else
     {
@@ -37,7 +41,7 @@ int main(int argc, char* argv[])
 
     // follow the trajectory
     ExtendedStateVector result;
-    state.FullEvolve(13000, result, true, true);
+    state.FullEvolve(5000, result, true, true);
 
     result.SaveToFile("result");
 }

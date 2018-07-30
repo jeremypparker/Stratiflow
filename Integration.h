@@ -71,6 +71,11 @@ stratifloat IntegrateAllSpace(const NodalField<N1,N2,N3>& U, stratifloat L1, str
     return IntegrateVertically(horzAve,L3)*L1*L2;
 }
 
+template<int N1, int N2, int N3>
+void RemoveAverage(ModalField<N1,N2,N3>& field, stratifloat L3)
+{
+    field.stack(0,0) -= IntegrateAllSpace(field, 1, 1, L3)/L3/2;
+}
 
 template<typename C, typename T, int N1, int N2, int N3>
 stratifloat InnerProd(const NodalField<N1,N2,N3>& A, const NodalField<N1,N2,N3>& B, stratifloat L3, const StackContainer<C,T,N1,N2,N3>& weight)

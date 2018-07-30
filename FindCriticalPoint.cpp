@@ -115,6 +115,10 @@ public:
             at.v.MulAdd(-proj, phaseShift);
         }
 
+        // Remove any average in eigenvector (another symmetry)
+        RemoveAverage(at.v.u1, L3);
+        RemoveAverage(at.v.b, L3);
+
         at.v.Rescale(weight);
     }
 private:
@@ -144,8 +148,6 @@ int main(int argc, char *argv[])
     Pe = Re*Pr;
     DumpParameters();
     StateVector::ResetForParams();
-
-    BasicArnoldi eigenSolver;
 
     CriticalPoint guess;
 
