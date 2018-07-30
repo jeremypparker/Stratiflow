@@ -28,7 +28,7 @@ public:
 
         stratifloat Delta = 1;
         int step = 0;
-        stratifloat targetResidual = 1e-8;
+        stratifloat targetResidual = 1e-7;
         while(true)
         {
             step++;
@@ -82,6 +82,9 @@ public:
             // update
             x += dx;
 
+            // do this a few times, as relative precision can mean it gets better
+            EnforceConstraints(x);
+            EnforceConstraints(x);
             EnforceConstraints(x);
         }
     }
