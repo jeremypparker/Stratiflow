@@ -17,10 +17,10 @@ void IMEXRK::TimeStep()
 
         RemoveDivergence(1/h[k]);
 
-        if (k==s-1)
-        {
+        //if (k==s-1)
+        //{
             FilterAll();
-        }
+        //}
 
         PopulateNodalVariables();
     }
@@ -142,7 +142,7 @@ void IMEXRK::BuildRHS()
     }
 
     // buoyancy nonlinear terms
-    InterpolateProduct(U3, B, dirichletTemp);
+    InterpolateProduct(B, U3, dirichletTemp);
 
     if(ThreeDimensional)
     {
@@ -240,13 +240,13 @@ void IMEXRK::BuildRHSAdjoint()
         r2 += ddy(neumannTemp) + ddz(dirichletTemp);
     }
 
-    InterpolateProduct(U3, U1_tot, dirichletTemp);
+    InterpolateProduct(U1_tot, U3, dirichletTemp);
     InterpolateProduct(U3, U3_tot, neumannTemp);
     r3 = ddx(dirichletTemp) + ddz(neumannTemp);
 
     if(ThreeDimensional)
     {
-        InterpolateProduct(U3, U2_tot, dirichletTemp);
+        InterpolateProduct(U2_tot, U3, dirichletTemp);
         r3 += ddy(dirichletTemp);
     }
 

@@ -78,7 +78,7 @@ public:
     }
 
     void TimeStep();
-    void TimeStepLinear(stratifloat time)
+    void TimeStepLinear()
     {
         // see Numerical Renaissance
         for (int k=0; k<s; k++)
@@ -94,8 +94,6 @@ public:
                 FilterAll();
             //}
             PopulateNodalVariables();
-
-            time += h[k];
         }
     }
 

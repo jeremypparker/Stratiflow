@@ -147,7 +147,7 @@ void StateVector::LinearEvolve(stratifloat T, const StateVector& about, StateVec
             }
         }
 
-        solver.TimeStepLinear(t);
+        solver.TimeStepLinear();
         t += solver.deltaT;
         step++;
     }

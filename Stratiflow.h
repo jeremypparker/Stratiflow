@@ -102,48 +102,21 @@ void InterpolateProduct(const NeumannNodal& A, const NeumannNodal& B, NeumannMod
     prod = A*B;
     prod.ToModal(to);
 }
-void InterpolateProduct(const NeumannNodal& A, const NeumannNodal& B, DirichletModal& to)
-{
-    static DirichletNodal prod;
-    prod = Reinterpolate(A)*Reinterpolate(B);
-    prod.ToModal(to);
-}
+
 void InterpolateProduct(const NeumannNodal& A, const DirichletNodal& B, DirichletModal& to)
 {
     static DirichletNodal prod;
     prod = Reinterpolate(A)*B;
     prod.ToModal(to);
 }
-void InterpolateProduct(const DirichletNodal& B, const NeumannNodal& A, DirichletModal& to)
-{
-    static DirichletNodal prod;
-    prod = Reinterpolate(A)*B;
-    prod.ToModal(to);
-}
-void InterpolateProduct(const NeumannNodal& B, const DirichletNodal& A, NeumannModal& to)
-{
-    static NeumannNodal prod;
-    prod = Reinterpolate(A)*B;
-    prod.ToModal(to);
-}
-void InterpolateProduct(const DirichletNodal& A, const NeumannNodal& B, NeumannModal& to)
-{
-    static NeumannNodal prod;
-    prod = Reinterpolate(A)*B;
-    prod.ToModal(to);
-}
+
 void InterpolateProduct(const DirichletNodal& A, const DirichletNodal& B, NeumannModal& to)
 {
     static NeumannNodal prod;
     prod = Reinterpolate(A)*Reinterpolate(B);
     prod.ToModal(to);
 }
-void InterpolateProduct(const DirichletNodal& A, const DirichletNodal& B, DirichletModal& to)
-{
-    static DirichletNodal prod;
-    prod = A*B;
-    prod.ToModal(to);
-}
+
 void InterpolateProduct(const NeumannNodal& A1, const NeumannNodal& A2,
                         const NeumannNodal& B1, const NeumannNodal& B2,
                         NeumannModal& to)
