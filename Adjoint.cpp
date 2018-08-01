@@ -88,8 +88,12 @@ int main(int argc, char* argv[])
         }
     }
 
-    StateVector result;
-    result = directState - epsilon*(adjointState + lambda*directState);
+    StateVector deriv = adjointState + lambda*directState;
+    StateVector result = directState - epsilon*deriv;
+
+    stratifloat residual = deriv.Norm2();
+
+    SaveValueToFile(residual, "residual");
 
     result.Rescale(directState.Energy());
 
