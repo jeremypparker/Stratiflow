@@ -31,7 +31,8 @@ int main(int argc, char *argv[])
         if (FileExists(argv[2]))
         {
             std::cout << "Interpretting " << argv[2] << " as path to guess" << std::endl;
-            guess.LoadFromFile(argv[2]);
+            guess.LoadAndInterpolate<256,1,384>(argv[2]);
+            //guess.LoadFromFile(argv[2]);
         }
         else
         {

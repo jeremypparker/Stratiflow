@@ -20,13 +20,14 @@ int main(int argc, char* argv[])
         field.LoadFromFile(argv[1]);
     }
 
-    ExtendedStateVector endfield;
-    field.FullEvolve(5, endfield);
+    Ri = field.p;
 
-    endfield -= field;
+    // ExtendedStateVector endfield;
+    // field.FullEvolve(5, endfield);
+
+    // endfield -= field;
 
     std::cout << "STATIONARY POINT "
               << field.p << " "
-              << field.x.Norm() << " "
-              << endfield.x.Norm() << std::endl;
+              << field.x.Norm() << std::endl;
 }

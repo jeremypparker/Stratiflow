@@ -5,12 +5,21 @@
 
 // These are runtime parameters - could load from a file in future
 
-stratifloat L1 = 12.56637;// size of domain streamwise
-stratifloat L2 = 4.0f;  // size of domain spanwise
-stratifloat L3 = 15.0f; // half-size of domain vertically
-stratifloat Re = 500;
-stratifloat Ri = 0.24;
-stratifloat R = 1;
+ stratifloat L1 = 12.56637;// size of domain streamwise
+ stratifloat L2 = 4;  // size of domain spanwise
+ stratifloat L3 = 10.0f; // half-size of domain vertically
+ stratifloat Re = 4000;
+ stratifloat Ri = 0.24;
+ stratifloat R = 1;
+
+
+// stratifloat L1 = 12.56637;// size of domain streamwise
+// stratifloat L2 = 1.570795;  // size of domain spanwise
+// stratifloat L3 = 10.0f; // half-size of domain vertically
+// stratifloat Re = 4000;
+// stratifloat Ri = 0.16;
+// stratifloat R = 1;
+
 stratifloat Pr = R*R;
 stratifloat Pe = Re*Pr;
 bool EnforceSymmetry = false;
