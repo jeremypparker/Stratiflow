@@ -7,15 +7,20 @@ int main(int argc, char* argv[])
 
     StateVector state;
 
-    if (argc == 1)
+    stratifloat energy = std::stof(argv[1]);
+
+    if (argc == 2)
     {
-        state.Randomise(0.01);
+        state.Randomise(energy);
     }
     else
     {
-        state.LoadFromFile(argv[1]);
+        state.LoadFromFile(argv[2]);
+        state.Rescale(energy);
     }
 
-    stratifloat mixing = state.FullEvolve(12, state, true, true, true);
+    std::cout << state.Energy() << std::endl;
+
+    stratifloat mixing = state.FullEvolve(25, state, true, true, true);
     SaveValueToFile(mixing, "mixing");
 }
