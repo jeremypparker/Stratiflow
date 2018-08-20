@@ -30,7 +30,7 @@ stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool sna
         if(step%stepinterval==0)
         {
             stratifloat cfl = solver.CFL();
-            std::cout << step << " " << t << " " << sqrt(2*(solver.KE() + solver.PE())) << std::endl;
+            std::cout << step << " " << t << " " << (solver.KE() + solver.PE()) << std::endl;
 
             // finish exactly for last step
             stratifloat remaining = T-t;
@@ -188,6 +188,12 @@ void StateVector::AdjointEvolve(stratifloat deltaT, int steps, const std::vector
 
 void StateVector::Rescale(stratifloat energy)
 {
+    CopyToSolver();
+    solver.FilterAll();
+    solver.PopulateNodalVariables();
+    solver.RemoveDivergence(0.0f);
+    CopyFromSolver();
+
     stratifloat scale;
 
     // energies are entirely quadratic
@@ -211,6 +217,12 @@ void StateVector::Rescale(stratifloat energy)
     }
     u3 *= scale;
     b *= scale;
+
+    CopyToSolver();
+    solver.FilterAll();
+    solver.PopulateNodalVariables();
+    solver.RemoveDivergence(0.0f);
+    CopyFromSolver();
 }
 
 IMEXRK StateVector::solver;
