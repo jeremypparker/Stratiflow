@@ -196,10 +196,10 @@ public:
         NeumannNodal B;
 
         ArrayX oldNeumannPoints = VerticalPoints(L3, K3);
-        ArrayX oldDirichletPoints = VerticalPointsStaggered(L3, K3);
+        ArrayX oldDirichletPoints = VerticalPointsFractional(L3, K3);
 
         ArrayX newNeumannPoints = VerticalPoints(L3, N3);
-        ArrayX newDirichletPoints = VerticalPointsStaggered(L3, N3);
+        ArrayX newDirichletPoints = VerticalPointsFractional(L3, N3);
 
         // just 2D for simplicity for now
         assert(K2==1);
@@ -373,9 +373,9 @@ public:
         HeatPlot(u3, L1, L3, 0, directory+"/u3.png");
         HeatPlot(b, L1, L3, 0, directory+"/b.png");
 
-        DirichletModal StaggeredTemp;
-        StaggeredTemp = ddz(u1)+-1.0*ddx(u3);
-        HeatPlot(StaggeredTemp, L1, L3, 0, directory+"/vorticity.png");
+        DirichletModal FractionalTemp;
+        FractionalTemp = ddz(u1)+-1.0*ddx(u3);
+        HeatPlot(FractionalTemp, L1, L3, 0, directory+"/vorticity.png");
     }
 
     stratifloat ToEigenMode(stratifloat energy, int mode=1)

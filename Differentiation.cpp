@@ -13,7 +13,7 @@ MatrixX VerticalSecondDerivativeMatrix(stratifloat L, int N, BoundaryCondition o
     }
     else
     {
-        d = dzStaggered(L, N);
+        d = dzFractional(L, N);
     }
 
     MatrixX D = MatrixX::Zero(N,N);
@@ -86,7 +86,7 @@ MatrixX VerticalDerivativeMatrix(stratifloat L, int N, BoundaryCondition origina
         D.diagonal().head(N-1) = 1/diff;
         D.diagonal(1) = -1/diff;
 
-        ArrayX diff2 = dzStaggered(L, N);
+        ArrayX diff2 = dzFractional(L, N);
 
         // do third order inside domain
         // (second order would be asymmetric)
@@ -107,7 +107,7 @@ MatrixX VerticalDerivativeMatrix(stratifloat L, int N, BoundaryCondition origina
     else
     {
         // this is second order because of symmetry
-        ArrayX diff = dzStaggered(L,N);
+        ArrayX diff = dzFractional(L,N);
 
         D.diagonal(-1).head(N-2) = 1/diff;
         D.diagonal(0).segment(1,N-2) = -1/diff;
@@ -126,7 +126,7 @@ MatrixX VerticalReinterpolationMatrix(stratifloat L, int N, BoundaryCondition or
     if (originalBC == BoundaryCondition::Neumann)
     {
         // 2nd order interpolation (Note - causes some bits not to be conserving)
-        ArrayX diff = dzStaggered(L,N); // N-2 of these
+        ArrayX diff = dzFractional(L,N); // N-2 of these
         ArrayX diff2 = dz(L,N);         // N-1 of these
 
         D.diagonal(1).segment(1,N-3) = 0.5*diff.head(N-3)/diff2.segment(1,N-3);

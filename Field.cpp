@@ -2,7 +2,7 @@
 
 ArrayX VerticalPoints(stratifloat L, int N)
 {
-    ArrayX z = VerticalPointsStaggered(L,N);
+    ArrayX z = VerticalPointsFractional(L,N);
     ArrayX ret(N);
 
     ret.head(N-1).tail(N-2) = 0.5*(z.head(N-2)+z.tail(N-2));
@@ -12,7 +12,7 @@ ArrayX VerticalPoints(stratifloat L, int N)
     return ret;
 }
 
-ArrayX VerticalPointsStaggered(stratifloat L, int N)
+ArrayX VerticalPointsFractional(stratifloat L, int N)
 {
     assert(N%4 == 0); // need for alignment
     ArrayX x =  ArrayX::LinSpaced(N-1, -1, 1);
@@ -27,11 +27,11 @@ ArrayX dz(stratifloat L, int N)
     return z.head(N-1) - z.tail(N-1);
 }
 
-ArrayX dzStaggered(stratifloat L, int N)
+ArrayX dzFractional(stratifloat L, int N)
 {
-    ArrayX zStaggered = VerticalPointsStaggered(L, N);
+    ArrayX zFractional = VerticalPointsFractional(L, N);
 
-    return zStaggered.head(N-2) - zStaggered.tail(N-2);
+    return zFractional.head(N-2) - zFractional.tail(N-2);
 }
 
 ArrayX FourierPoints(stratifloat L, int N)

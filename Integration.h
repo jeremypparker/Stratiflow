@@ -24,7 +24,7 @@ stratifloat IntegrateVertically(const Nodal1D<N1,N2,N3>& U, stratifloat L3)
     }
     else
     {
-        static ArrayX z = VerticalPointsStaggered(L3,N3);
+        static ArrayX z = VerticalPointsFractional(L3,N3);
 
         stratifloat result = 0;
 
