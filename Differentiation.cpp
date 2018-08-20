@@ -111,6 +111,9 @@ MatrixX VerticalDerivativeMatrix(stratifloat L, int N, BoundaryCondition origina
 
         D.diagonal(-1).head(N-2) = 1/diff;
         D.diagonal(0).segment(1,N-2) = -1/diff;
+
+        D.row(0) = D.row(1);
+        D.row(N-1) = D.row(N-2);
     }
 
     return D;
