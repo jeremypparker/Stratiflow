@@ -605,7 +605,14 @@ public:
     void ZeroEnds()
     {
         Get()(0) = 0;
+        Get()(1) = 0;
+        Get()(N3-2) = 0;
         Get()(N3-1) = 0;
+
+        if (BC() == BoundaryCondition::Dirichlet)
+        {
+            Get()(2) = 0;
+        }
     }
 
     virtual BoundaryCondition BC() const override
