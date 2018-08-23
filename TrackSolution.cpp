@@ -20,11 +20,13 @@ int main(int argc, char* argv[])
     else
     {
         state.p = Ri;
-        state.x.Randomise(0.001);
+        NeumannNodal B;
+        B.SetValue([](stratifloat x, stratifloat y, stratifloat z)
+        {
+            return cos(x/2)*sin(y*2)/cosh(z);
+        }, L1, L2, L3);
 
-        // remove means
-        state.x.u1.stack(0,0) -= IntegrateAllSpace(state.x.u1, L1, L2, L3)/L1/L2/L3/2;
-        state.x.b.stack(0,0) -= IntegrateAllSpace(state.x.b, L1, L2, L3)/L1/L2/L3/2;
+        B.ToModal(state.x.b);
     }
 
     if (argc == 3)
@@ -41,7 +43,7 @@ int main(int argc, char* argv[])
 
     // follow the trajectory
     ExtendedStateVector result;
-    state.FullEvolve(5000, result, true, true);
+    state.FullEvolve(200, result, false, true);
 
     result.SaveToFile("result");
 }
