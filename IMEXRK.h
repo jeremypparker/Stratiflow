@@ -86,7 +86,7 @@ public:
         for (int k=0; k<s; k++)
         {
             ExplicitCN(k);
-            //BuildRHSLinear();
+            BuildRHSLinear();
             FinishRHS(k);
 
             ImplicitUpdate(k);
