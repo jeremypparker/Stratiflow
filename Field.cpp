@@ -2,7 +2,7 @@
 
 ArrayX VerticalPoints(stratifloat L, int N)
 {
-    stratifloat cs = 1.75;
+    stratifloat cs = 2;
 
     assert(N%4 == 0); // need for alignment
 
