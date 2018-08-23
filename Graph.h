@@ -39,7 +39,7 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
 
     for (int n1=0; n1<N1; n1++)
     {
-        for (int n3=0; n3<N3; n3++)
+        for (int n3=2; n3<N3-2; n3++)
         {
             imdata[n3*N1 + n1] = U(n1,j2,n3);
         }
