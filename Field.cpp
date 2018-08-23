@@ -2,36 +2,54 @@
 
 ArrayX VerticalPoints(stratifloat L, int N)
 {
-    ArrayX z = VerticalPointsFractional(L,N);
-    ArrayX ret(N);
+    stratifloat cs = 1.75;
 
-    ret.head(N-1).tail(N-2) = 0.5*(z.head(N-2)+z.tail(N-2));
-    ret(0) = 2*ret(1) - ret(2);
-    ret(N-1) = 2*ret(N-2) - ret(N-3);
+    assert(N%4 == 0); // need for alignment
+
+    ArrayX x =  ArrayX::LinSpaced(N-1, -1, 1);
+
+    ArrayX ret(N);
+    ret.tail(N-1) = L*(cs*x*x*x + x)/(cs+1);
+
+    stratifloat offsetPoint = (ret(1) + ret(2))/2;
+
+    ret.tail(N-1) *= -L/offsetPoint;
 
     return ret;
 }
 
 ArrayX VerticalPointsFractional(stratifloat L, int N)
 {
-    assert(N%4 == 0); // need for alignment
-    ArrayX x =  ArrayX::LinSpaced(N-1, -1, 1);
+    ArrayX z = VerticalPoints(L,N);
+    ArrayX ret(N);
 
-    return -L*tan(x*1.3)/tan(1.3);
+    ret.segment(1, N-2) = 0.5*(z.segment(1,N-2)+z.tail(N-2));
+    ret(0) = 2*ret(1)-ret(2);
+    ret(N-1) = 2*ret(N-2)-ret(N-3);
+
+    return ret;
 }
 
 ArrayX dz(stratifloat L, int N)
 {
-    ArrayX z = VerticalPoints(L, N);
+    ArrayX zFractional = VerticalPointsFractional(L, N);
 
-    return z.head(N-1) - z.tail(N-1);
+    ArrayX ret(N);
+    ret.tail(N-1) = zFractional.tail(N-1) - zFractional.head(N-1);
+
+    return ret;
 }
 
 ArrayX dzFractional(stratifloat L, int N)
 {
-    ArrayX zFractional = VerticalPointsFractional(L, N);
+    ArrayX z = VerticalPoints(L, N);
 
-    return zFractional.head(N-2) - zFractional.tail(N-2);
+    ArrayX ret(N);
+    ret.segment(1,N-2) = z.tail(N-2) - z.segment(1,N-2);
+
+    ret(N-1) = ret(N);
+
+    return ret;
 }
 
 ArrayX FourierPoints(stratifloat L, int N)

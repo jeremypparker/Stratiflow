@@ -465,15 +465,13 @@ public:
     void ZeroEnds()
     {
         slice(0).setZero();
+        slice(1).setZero();
+        slice(N3-1).setZero();
+        slice(N3-2).setZero();
 
-        if (BC() == BoundaryCondition::Neumann)
+        if (BC() == BoundaryCondition::Dirichlet)
         {
-            slice(N3-1).setZero();
-        }
-        else
-        {
-            slice(N3-1).setZero(); // should be true anyway
-            slice(N3-2).setZero();
+            slice(2).setZero();
         }
     }
 
@@ -487,8 +485,7 @@ public:
         }
         else
         {
-            slice(N3-1).setZero(); // should be true anyway
-            slice(N3-2) = slice(N3-3);
+            assert(false);
         }
     }
 
@@ -636,7 +633,7 @@ public:
 
     void SetValue(std::function<stratifloat(stratifloat)> f, stratifloat L3)
     {
-        ArrayX z = VerticalPoints(L3, N3);
+        ArrayX z = VerticalPointsFractional(L3, N3);
         for (int j3=0; j3<N3; j3++)
         {
             this->Get()(j3) = f(z(j3));
@@ -738,7 +735,13 @@ public:
 
     void SetValue(std::function<stratifloat(stratifloat)> f, stratifloat L3)
     {
-        ArrayX z = VerticalPoints(L3, N3);
+        ArrayX z = VerticalPointsFractional(L3, N3);
+
+        if (this->BC() == BoundaryCondition::Dirichlet)
+        {
+            z = VerticalPoints(L3,N3);
+        }
+
         for (int j3=0; j3<N3; j3++)
         {
             this->slice(j3).setConstant(f(z(j3)));
@@ -749,7 +752,13 @@ public:
     {
         ArrayX x = FourierPoints(L1, N1);
         ArrayX y = FourierPoints(L2, N2);
-        ArrayX z = VerticalPoints(L3, N3);
+
+        ArrayX z = VerticalPointsFractional(L3, N3);
+
+        if (this->BC() == BoundaryCondition::Dirichlet)
+        {
+            z = VerticalPoints(L3,N3);
+        }
 
         for (int j1=0; j1<N1; j1++)
         {
@@ -881,17 +890,16 @@ public:
         std::mt19937 generator(rd());
         std::uniform_real_distribution<stratifloat> rng(-1.0,1.0);
 
-        int j3min = 0;
-        int j3max = N3;
+        int j3min = 1;
+        int j3max = N3-1;
+        this->slice(0).setZero();
+        this->slice(N3-1).setZero();
 
         if (this->BC() == BoundaryCondition::Dirichlet)
         {
-            j3min = 1;
-            j3max = N3-2;
+            j3min = 2;
 
-            this->slice(0).setZero();
-            this->slice(N3-1).setZero();
-            this->slice(N3-2).setZero();
+            this->slice(1).setZero();
         }
 
         for (int j1=0; j1<0.5*cutoff*N1; j1++)

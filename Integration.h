@@ -7,31 +7,32 @@ stratifloat IntegrateVertically(const Nodal1D<N1,N2,N3>& U, stratifloat L3)
 {
     if (U.BC() == BoundaryCondition::Neumann)
     {
-        static ArrayX z = VerticalPoints(L3,N3);
+        static ArrayX z = VerticalPointsFractional(L3,N3);
 
         stratifloat result = 0;
 
-        result += (z(0)-z(1))*(3*U.Get()(1)+U.Get()(0))*0.125;
-
         for (int k=1; k<N3-2; k++)
         {
-            result += (z(k)-z(k+1))*(U.Get()(k+1)+U.Get()(k))*0.5;
+            result += (z(k+1)-z(k))*(U.Get()(k+1)+U.Get()(k))*0.5;
         }
 
-        result += (z(N3-2)-z(N3-1))*(3*U.Get()(N3-2)+U.Get()(N3-1))*0.125;
 
         return result;
     }
     else
     {
-        static ArrayX z = VerticalPointsFractional(L3,N3);
+        static ArrayX z = VerticalPoints(L3,N3);
 
         stratifloat result = 0;
 
-        for (int k=0; k<N3-2; k++)
+        // result += (z(0)-z(1))*(3*U.Get()(1)+U.Get()(0))*0.125;
+
+        for (int k=2; k<N3-1; k++)
         {
-            result += (z(k)-z(k+1))*(U.Get()(k+1)+U.Get()(k))*0.5;
+            result += (z(k+1)-z(k))*(U.Get()(k+1)+U.Get()(k))*0.5;
         }
+
+        // result += (z(N3-2)-z(N3-1))*(3*U.Get()(N3-2)+U.Get()(N3-1))*0.125;
 
         return result;
     }
@@ -127,7 +128,7 @@ stratifloat InnerProd(const ModalField<N1,N2,N3>& a, const ModalField<N1,N2,N3>&
     for (int j3=0; j3<N3; j3++)
     {
         stratifloat sum = 0;
-        for (int j1=0; j1<M1; j1++)
+        for (int j1=0; j1<N1/2 + 1; j1++)
         {
             for (int j2=0; j2<N2; j2++)
             {

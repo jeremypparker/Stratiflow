@@ -68,6 +68,8 @@ public:
                 {
                     laplacian.row(0).setZero();
                     laplacian(0,0) = 1;
+                    laplacian.row(1).setZero();
+                    laplacian(1,1) = 1;
                 }
 
                 solveLaplacian[j1*N2+j2].compute(laplacian);
@@ -84,7 +86,7 @@ public:
         for (int k=0; k<s; k++)
         {
             ExplicitCN(k);
-            BuildRHSLinear();
+            //BuildRHSLinear();
             FinishRHS(k);
 
             ImplicitUpdate(k);
@@ -129,7 +131,7 @@ public:
             UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
 
             ExplicitCN(k);
-            BuildRHSAdjoint();
+            //BuildRHSAdjoint();
             FinishRHS(k);
 
             ImplicitUpdate(k);

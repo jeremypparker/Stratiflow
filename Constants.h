@@ -83,8 +83,8 @@ using complex = std::complex<stratifloat>;
 
 enum class BoundaryCondition
 {
-    Dirichlet, // these are located on a grid of height N3-1 including boundaries
-    Neumann    // these are located on a grid of height N3 past boundaries
+    Dirichlet, // these are located on a grid past boundaries
+    Neumann    // these are located on a fractional grid that includes the boundaries
 };
 
 template <typename T>
