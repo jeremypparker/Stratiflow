@@ -34,7 +34,7 @@ inline stratifloat InitialU(stratifloat z)
 // background stratification
 inline stratifloat InitialB(stratifloat z)
 {
-    return -tanh(R*z);
+    return tanh(R*z);
 }
 
 constexpr stratifloat zlim = 8;

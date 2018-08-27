@@ -113,7 +113,7 @@ void IMEXRK::BuildRHS()
     // buoyancy force without hydrostatic part
     neumannTemp = b;
     RemoveHorizontalAverage(neumannTemp);
-    r3 = -Ri*ReinterpolateFull(neumannTemp); // buoyancy force
+    r3 = Ri*ReinterpolateFull(neumannTemp); // buoyancy force
 
     //////// NONLINEAR TERMS ////////
 
@@ -169,7 +169,7 @@ void IMEXRK::BuildRHSLinear()
     // buoyancy force without hydrostatic part
     neumannTemp = b;
     RemoveHorizontalAverage(neumannTemp);
-    r3 = -Ri*ReinterpolateFull(neumannTemp); // buoyancy force
+    r3 = Ri*ReinterpolateFull(neumannTemp); // buoyancy force
 
     nnTemp = U1_tot + U_;
     nnTemp2 = B_tot + B_;
@@ -216,7 +216,7 @@ void IMEXRK::BuildRHSLinear()
 //     // build up right hand sides for the implicit solve in R
 
 //     // adjoint buoyancy
-//     bForcing -= Ri*Reinterpolate(U3);
+//     bForcing += Ri*Reinterpolate(U3);
 
 //     //////// NONLINEAR TERMS ////////
 //     // advection of adjoint quantities by the direct flow
