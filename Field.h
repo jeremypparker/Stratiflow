@@ -867,7 +867,7 @@ public:
             #pragma omp parallel for collapse(2)
             for (int j2=0; j2<N2; j2++)
             {
-                for (int j1=N1/3; j1<actualN1; j1++)
+                for (int j1=N1/3+1; j1<actualN1; j1++)
                 {
                     this->stack(j1, j2).setZero();
                 }
@@ -877,7 +877,7 @@ public:
         if (N2>2)
         {
             #pragma omp parallel for collapse(2)
-            for (int j2=N2/3; j2<=2*N2/3; j2++)
+            for (int j2=(N2/3)+1; j2<N2-(N2/3)-1; j2++)
             {
                 for (int j1=0; j1<actualN1; j1++)
                 {
@@ -927,13 +927,14 @@ public:
 
     virtual void ParallelPerStack(std::function<void(int j1, int j2)> f) const override
     {
-        int maxN1 = std::min(N1/2 + 1, 2*(N1/2 + 1)/3+1);
-        int halfMaxN2 = N2/3+1;
+        int maxN1 = N1/3+1;
+        int maxN2 = N2/3+1;
+        int minN2 = N2-(N2/3)-1;
 
         if(N2>1)
         {
             #pragma omp parallel for collapse(2)
-            for (int j2=0; j2<halfMaxN2; j2++)
+            for (int j2=0; j2<maxN2; j2++)
             {
                 for (int j1=0; j1<maxN1; j1++)
                 {
@@ -942,7 +943,7 @@ public:
             }
 
             #pragma omp parallel for collapse(2)
-            for (int j2=N2-halfMaxN2; j2<N2; j2++)
+            for (int j2=minN2; j2<N2; j2++)
             {
                 for (int j1=0; j1<maxN1; j1++)
                 {
