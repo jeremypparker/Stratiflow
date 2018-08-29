@@ -440,6 +440,17 @@ public:
         );
     }
 
+    template<typename Solver>
+    void Solve(Solver& solver, Field<T, N1, N2, N3>& result) const
+    {
+        ParallelPerStack(
+            [&solver,&result,this](int j1, int j2)
+            {
+                Dim3Solve(solver, j1, j2, result);
+            }
+        );
+    }
+
     virtual void ParallelPerStack(std::function<void(int j1, int j2)> f) const
     {
         #pragma omp parallel for collapse(2)
@@ -497,7 +508,17 @@ public:
 private:
 
     template<typename Solver>
-    void Dim3Solve(Solver& solver, int j1, int j2, Field<T, N1, N2, N3>& result) const
+    void Dim3Solve(Solver& solver, int j1, int j2, Field<stratifloat, N1, N2, N3>& result) const
+    {
+        assert(solver.rows() == N3);
+
+        Matrix<stratifloat, N3, 1> col = stack(j1, j2);
+        Matrix<stratifloat, N3, 1> res = solver.solve(col);
+        result.stack(j1, j2) = res;
+    }
+
+    template<typename Solver>
+    void Dim3Solve(Solver& solver, int j1, int j2, Field<complex, N1, N2, N3>& result) const
     {
         assert(solver.rows() == N3);
 
@@ -877,7 +898,7 @@ public:
         if (N2>2)
         {
             #pragma omp parallel for collapse(2)
-            for (int j2=(N2/3)+1; j2<N2-(N2/3)-1; j2++)
+            for (int j2=(N2/3)+1; j2<=N2-(N2/3)-1; j2++)
             {
                 for (int j1=0; j1<actualN1; j1++)
                 {
@@ -929,7 +950,7 @@ public:
     {
         int maxN1 = N1/3+1;
         int maxN2 = N2/3+1;
-        int minN2 = N2-(N2/3)-1;
+        int minN2 = N2-(N2/3);
 
         if(N2>1)
         {
