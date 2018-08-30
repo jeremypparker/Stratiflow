@@ -94,7 +94,7 @@ ArrayX k(int n)
         // handle this separately for 2D
         return ArrayX::Zero(1);
     }
-    assert(n % 2 == 0); // odd case not handled
+
     assert(n > 0);
 
     ArrayX k(n);
@@ -107,36 +107,30 @@ ArrayX k(int n)
     return k;
 }
 
-DiagonalMatrix<stratifloat, -1> FourierSecondDerivativeMatrix(stratifloat L, int N, int dimension)
+ArrayXc KVector(stratifloat L, int N, int dimension)
 {
-    VectorX ret = -4*pi*pi*k(N)*k(N)/(L*L);
+    ArrayXc ret = i*(k(N)*(2*pi)/L);
 
     if (dimension == 2)
     {
-        return ret.asDiagonal();
+        return ret;
     }
     else if(dimension == 1)
     {
-        return ret.head(N/2 +1).asDiagonal();
+        return ret.head(N/2 +1);
     }
 
     assert(0);
-    return DiagonalMatrix<stratifloat, -1>();
+    return ArrayXc();
+}
+
+DiagonalMatrix<stratifloat, -1> FourierSecondDerivativeMatrix(stratifloat L, int N, int dimension)
+{
+    return (KVector(L,N,dimension)*KVector(L,N,dimension)).real().matrix().asDiagonal();
 }
 
 DiagonalMatrix<complex, -1> FourierDerivativeMatrix(stratifloat L, int N, int dimension)
 {
-    VectorXc ret = 2.0f*pi*i*k(N)/L;
+    return KVector(L,N,dimension).matrix().asDiagonal();
 
-    if (dimension == 2)
-    {
-        return ret.asDiagonal();
-    }
-    else if(dimension == 1)
-    {
-        return ret.head(N/2 +1).asDiagonal();
-    }
-
-    assert(0);
-    return DiagonalMatrix<complex, -1>();
 }
