@@ -60,7 +60,7 @@
     #define f3_plan                 fftwf_plan
 #endif
 
-constexpr stratifloat pi = 3.14159265358979;
+constexpr stratifloat pi = 3.141592653589793238462;
 constexpr std::complex<stratifloat> i(0, 1);
 constexpr stratifloat phi = 1.61803398874989;
 
