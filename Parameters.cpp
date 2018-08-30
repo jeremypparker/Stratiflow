@@ -5,7 +5,7 @@
 
 // These are runtime parameters - could load from a file in future
 
- stratifloat L1 = 4*3.14159;// size of domain streamwise
+ stratifloat L1 = 12.56636;// size of domain streamwise
  stratifloat L2 = 3.14159;  // size of domain spanwise
  stratifloat L3 = 10; // half-size of domain vertically
  stratifloat Re = 1000;

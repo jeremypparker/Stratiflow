@@ -25,6 +25,7 @@
 #define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
 #define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
 #define MatMulDim3 Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
+#define MatMulDim3Nodal Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, N1, N2, N3>
 #define MatMul1D Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, N1, N2, N3>
 
 class IMEXRK
@@ -93,7 +94,7 @@ public:
             RemoveDivergence(1/h[k]);
             //if (k==s-1)
             //{
-                FilterAll();
+            //    FilterAll();
             //}
             PopulateNodalVariables();
         }
@@ -138,10 +139,10 @@ public:
 
             RemoveDivergence(1/h[k]);
 
-            if (k==s-1)
-            {
-                FilterAll();
-            }
+            // if (k==s-1)
+            // {
+            //     FilterAll();
+            // }
 
             PopulateNodalVariablesAdjoint();
 
@@ -428,11 +429,18 @@ public:
 
     stratifloat KE() const
     {
-        stratifloat energy = 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u3, u3, L3));
+        nnTemp = U1 + U_;
+        nnTemp.ToModal(neumannTemp);
+        RemoveHorizontalAverage(neumannTemp);
+        dirichletTemp = u3;
+        RemoveHorizontalAverage(dirichletTemp);
+        stratifloat energy = 0.5f*(InnerProd(neumannTemp, neumannTemp, L3) + InnerProd(dirichletTemp, dirichletTemp, L3));
 
         if(ThreeDimensional)
         {
-            energy += 0.5f*InnerProd(u2, u2, L3);
+            neumannTemp = u2;
+            RemoveHorizontalAverage(neumannTemp);
+            energy += 0.5f*InnerProd(neumannTemp, neumannTemp, L3);
         }
 
         return energy;
@@ -441,19 +449,25 @@ public:
 
     stratifloat PE() const
     {
-        return Ri*0.5f*InnerProd(b, b, L3);
+        nnTemp = B + B_;
+        nnTemp.ToModal(neumannTemp);
+        RemoveHorizontalAverage(neumannTemp);
+        return Ri*0.5f*InnerProd(neumannTemp, neumannTemp, L3);
     }
 
-    void RemoveDivergence(stratifloat pressureMultiplier=1.0f);
+    void RemoveDivergence(stratifloat pressureMultiplier=1.0);
 
     void SaveFlow(const std::string& filename) const
     {
         std::ofstream filestream(filename, std::ios::out | std::ios::binary);
 
-        U1.Save(filestream);
+        nnTemp = U1 + U_;
+        nnTemp.Save(filestream);
         U2.Save(filestream);
         U3.Save(filestream);
-        B.Save(filestream);
+
+        nnTemp = B + B_;
+        nnTemp.Save(filestream);
     }
 
     void LoadFlow(const std::string& filename)
@@ -532,9 +546,9 @@ public:
     {
         std::cout << "Solving matices..." << std::endl;
 
-        h[0] = deltaT*8.0f/15.0f;
-        h[1] = deltaT*2.0f/15.0f;
-        h[2] = deltaT*5.0f/15.0f;
+        h[0] = deltaT*8.0/15.0;
+        h[1] = deltaT*2.0/15.0;
+        h[2] = deltaT*5.0/15.0;
 
 
         #pragma omp parallel for
@@ -548,8 +562,6 @@ public:
                 for (int k=0; k<s; k++)
                 {
                     laplacian = dim3Derivative2Neumann;
-                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
-                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
                     Neumannify(solve);
@@ -561,8 +573,6 @@ public:
 
 
                     laplacian = dim3Derivative2Dirichlet;
-                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
-                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
                     Dirichlify(solve);
@@ -590,6 +600,24 @@ private:
     {
         solve.ZeroEnds();
         solve.Solve(implicitSolveBuoyancyNeumann[k], into);
+    }
+
+    void CNSolve(NeumannNodal& solve, NeumannNodal& into, int k)
+    {
+        solve.ZeroEnds();
+        solve.Solve(implicitSolveVelocityNeumann[k][0], into);
+    }
+
+    void CNSolve(DirichletNodal& solve, DirichletNodal& into, int k)
+    {
+        solve.ZeroEnds();
+        solve.Solve(implicitSolveVelocityDirichlet[k][0], into);
+    }
+
+    void CNSolveBuoyancy(NeumannNodal& solve, NeumannNodal& into, int k)
+    {
+        solve.ZeroEnds();
+        solve.Solve(implicitSolveBuoyancyNeumann[k][0], into);
     }
 
     void CNSolve1D(Neumann1D& solve, Neumann1D& into, int k, bool buoyancy = false)
@@ -638,8 +666,8 @@ private:
     // parameters for the scheme
     static constexpr int s = 3;
     stratifloat h[3];
-    static constexpr stratifloat beta[3] = {1.0f, 25.0f/8.0f, 9.0f/4.0f};
-    static constexpr stratifloat zeta[3] = {0, -17.0f/8.0f, -5.0f/4.0f};
+    static constexpr stratifloat beta[3] = {1.0, 25.0/8.0, 9.0/4.0};
+    static constexpr stratifloat zeta[3] = {0, -17.0/8.0, -5.0/4.0};
 
     // these are intermediate variables used in the computation, preallocated for efficiency
     NeumannModal R1, R2, RB;

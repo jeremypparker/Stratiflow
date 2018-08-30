@@ -116,10 +116,10 @@ void InterpolateProduct(const NeumannNodal& A, const NeumannNodal& B, NeumannMod
     prod.ToModal(to);
 }
 
-void InterpolateProductBar(const NeumannNodal& A, const DirichletNodal& B, DirichletModal& to)
+void DifferentiateProductBar(const NeumannNodal& A, const DirichletNodal& B, NeumannModal& to)
 {
-    static DirichletNodal prod;
-    prod = ReinterpolateBar(A)*B;
+    static NeumannNodal prod;
+    prod = ddz(ReinterpolateBar(A)*B);
     prod.ToModal(to);
 }
 
