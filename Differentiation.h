@@ -23,11 +23,11 @@ void Neumannify(M& matrix)
     matrix.coeffRef(0,1) = 0;
     matrix.coeffRef(0,2) = 0;
     matrix.coeffRef(1,0) = 0;
-    matrix.coeffRef(1,1) = -1;
-    matrix.coeffRef(1,2) = 1;
+    matrix.coeffRef(1,1) = 1;
+    matrix.coeffRef(1,2) = -1;
 
-    matrix.coeffRef(N3-2, N3-3) = -1;
-    matrix.coeffRef(N3-2, N3-2) = 1;
+    matrix.coeffRef(N3-2, N3-3) = 1;
+    matrix.coeffRef(N3-2, N3-2) = -1;
     matrix.coeffRef(N3-2, N3-1) = 0;
     matrix.coeffRef(N3-1, N3-3) = 0;
     matrix.coeffRef(N3-1, N3-2) = 0;
