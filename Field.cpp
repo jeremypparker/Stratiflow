@@ -47,7 +47,8 @@ ArrayX dzFractional(stratifloat L, int N)
     ArrayX ret(N);
     ret.segment(1,N-2) = z.tail(N-2) - z.segment(1,N-2);
 
-    ret(N-1) = ret(N);
+    ret(N-1) = ret(N-2);
+    ret(0) = ret(1);
 
     return ret;
 }
