@@ -57,3 +57,46 @@ ArrayX FourierPoints(stratifloat L, int N)
 {
     return ArrayX::LinSpaced(N, 0, L - L/static_cast<stratifloat>(N));
 }
+
+
+stratifloat Hermite(unsigned int n, stratifloat x)
+{
+    if (n==0)
+    {
+        return 1;
+    }
+
+    ArrayX coeffs_minus1(n+1);
+    ArrayX coeffs(n+1);
+
+    coeffs_minus1.setZero();
+    coeffs.setZero();
+
+    coeffs_minus1(0) = 1;
+    coeffs(1) = 2;
+
+    ArrayX coeffsnew(n+1);
+
+    for (int m=1; m<n; m++)
+    {
+        coeffsnew.setZero();
+
+        coeffsnew(0) = -2*m*coeffs_minus1(0);
+        for (int k=1; k<m+2; k++)
+        {
+            coeffsnew(k) = 2*coeffs(k-1) - 2*m*coeffs_minus1(k);
+        }
+
+        coeffs_minus1 = coeffs;
+        coeffs = coeffsnew;
+    }
+
+    stratifloat ret = 0;
+    stratifloat mult = 1;
+    for (int k=0; k<n+1; k++)
+    {
+        ret += mult * coeffs(k);
+        mult *= x;
+    }
+    return ret;
+}

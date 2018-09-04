@@ -45,6 +45,8 @@
         "tuple": "cpp",
         "typeinfo": "cpp",
         "utility": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "cstdarg": "cpp",
+        "hash_map": "cpp"
     }
 }

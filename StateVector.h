@@ -116,6 +116,8 @@ public:
 
     void Rescale(stratifloat energy);
 
+    void ExciteLowWavenumbers(stratifloat energy);
+
     void Randomise(stratifloat energy, bool restrictToMiddle = false)
     {
         u1.RandomizeCoefficients(0.3);

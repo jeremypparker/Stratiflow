@@ -225,6 +225,16 @@ void StateVector::Rescale(stratifloat energy)
     CopyFromSolver();
 }
 
+void StateVector::ExciteLowWavenumbers(stratifloat energy)
+{
+    u1.ExciteLowWavenumbers(L3);
+    u2.ExciteLowWavenumbers(L3);
+    u3.ExciteLowWavenumbers(L3);
+    b.ExciteLowWavenumbers(L3);
+
+    Rescale(energy);
+}
+
 IMEXRK StateVector::solver;
 
 StateVector operator+(const StateVector& lhs, const StateVector& rhs)

@@ -21,6 +21,8 @@ ArrayX dz(stratifloat L, int N);
 ArrayX dzFractional(stratifloat L, int N);
 ArrayX FourierPoints(stratifloat L, int N);
 
+stratifloat Hermite(unsigned int n, stratifloat x);
+
 template<typename A, typename T, int N1, int N2, int N3>
 class StackContainer
 {
@@ -993,6 +995,46 @@ public:
                 for (int j2=N2-1; j2>(1-0.5*cutoff)*N2; j2--)
                 {
                     this->operator()(j1,j2,j3) = rng(generator) + i*rng(generator);
+                }
+            }
+        }
+    }
+
+    void ExciteLowWavenumbers(stratifloat L)
+    {
+        std::random_device rd;
+        std::mt19937 generator(rd());
+        std::uniform_real_distribution<stratifloat> rng(-1.0,1.0);
+
+        ArrayX z = VerticalPointsFractional(L,N3);
+
+        if (this->BC() == BoundaryCondition::Dirichlet)
+        {
+            z = VerticalPoints(L,N3);
+        }
+
+        for (int j1=0; j1<N1/6; j1++)
+        {
+            for (int j2=-N2/6; j2<=N2/6; j2++)
+            {
+                complex hermiteCoeff[N3/6];
+
+                for (int h=0; h<N3/6; h++)
+                {
+                    hermiteCoeff[h] = pow(j1*j1+j2*j2+h*h+1,-5.0/3.0)*(rng(generator) + i*rng(generator));
+                }
+
+                int actualj2 = j2;
+                if (actualj2<0) actualj2 += N2;
+
+                for (int j3=0; j3<N3; j3++)
+                {
+                    this->operator()(j1,actualj2,j3) = 0;
+
+                    for (int h=0; h<N3/6; h++)
+                    {
+                        this->operator()(j1,actualj2,j3) += hermiteCoeff[h]*exp(-z(j3)*z(j3)*2)*Hermite(h, z(j3)*2);
+                    }
                 }
             }
         }
