@@ -37,32 +37,6 @@ inline stratifloat InitialB(stratifloat z)
     return tanh(R*z);
 }
 
-constexpr stratifloat zlim = 8;
-
-inline stratifloat zFunc(stratifloat z)
-{
-    if (z>zlim || z<-zlim)
-    {
-        return 0;
-    }
-    else
-    {
-        return z;
-    }
-}
-
-inline stratifloat zFilter(stratifloat z)
-{
-    if (z>zlim || z<-zlim)
-    {
-        return 0;
-    }
-    else
-    {
-        return 1;
-    }
-}
-
 void DumpParameters();
 void PrintParameters();
 void LoadParameters(const std::string& file);
