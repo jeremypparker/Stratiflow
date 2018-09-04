@@ -459,13 +459,10 @@ public:
     {
         std::ofstream filestream(filename, std::ios::out | std::ios::binary);
 
-        //nnTemp = U1 + U_;
         U1.Save(filestream);
         U2.Save(filestream);
         U3.Save(filestream);
-
-        nnTemp = B + B_;
-        nnTemp.Save(filestream);
+        B.Save(filestream);
     }
 
     void LoadFlow(const std::string& filename)
