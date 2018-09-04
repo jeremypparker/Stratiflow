@@ -18,11 +18,7 @@ void IMEXRK::TimeStep()
 
         RemoveDivergence(1/h[k]);
 
-        //if (k==s-1)
-        //{
-            FilterAll();
-        //}
-
+        FilterAll();
         PopulateNodalVariables();
     }
 }

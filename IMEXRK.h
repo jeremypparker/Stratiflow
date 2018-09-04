@@ -166,8 +166,6 @@ public:
 
     void PopulateNodalVariables()
     {
-        dB_dz = ddz(B_);
-
         u1.ToNodal(U1);
         if (ThreeDimensional)
         {
@@ -646,7 +644,6 @@ public:
 private:
     // background flow
     Neumann1D U_, B_;
-    Dirichlet1D dB_dz;
 
     // direct flow (used for adjoint evolution)
     NeumannModal u1_tot, u2_tot, b_tot;
