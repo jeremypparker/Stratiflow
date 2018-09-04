@@ -86,7 +86,7 @@ public:
         // see Numerical Renaissance
         for (int k=0; k<s; k++)
         {
-            ExplicitCN(k);
+            ExplicitRK(k);
             BuildRHSLinear();
             FinishRHS(k);
 
@@ -131,7 +131,7 @@ public:
 
             UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
 
-            ExplicitCN(k);
+            ExplicitRK(k);
             //BuildRHSAdjoint();
             FinishRHS(k);
 
@@ -634,7 +634,7 @@ private:
 
     void CrankNicolson(int k, bool evolveBackground = false);
     void FinishRHS(int k);
-    void ExplicitCN(int k, bool evolveBackground = false);
+    void ExplicitRK(int k, bool evolveBackground = false);
     void BuildRHS();
     void BuildRHSLinear();
     void BuildRHSAdjoint();

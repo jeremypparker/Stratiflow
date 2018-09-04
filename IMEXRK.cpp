@@ -10,7 +10,7 @@ void IMEXRK::TimeStep()
     // see Numerical Renaissance
     for (int k=0; k<s; k++)
     {
-        ExplicitCN(k, EvolveBackground);
+        ExplicitRK(k, EvolveBackground);
         BuildRHS();
         FinishRHS(k);
 
@@ -61,29 +61,20 @@ void IMEXRK::RemoveDivergence(stratifloat pressureMultiplier)
 
 void IMEXRK::CrankNicolson(int k, bool evolveBackground)
 {
-    R1.ToNodal(nnTemp);
-    nnTemp += (0.5f*h[k]/Re)*MatMulDim3Nodal(dim3Derivative2Neumann, U1);
-    CNSolve(nnTemp, U1, k);
+    R1 += (0.5f*h[k]/Re)*MatMulDim3(dim3Derivative2Neumann, u1);
+    CNSolve(R1, u1, k);
 
     if(ThreeDimensional)
     {
-        R2.ToNodal(nnTemp);
-        nnTemp += (0.5f*h[k]/Re)*MatMulDim3Nodal(dim3Derivative2Neumann, U2);
-        CNSolve(nnTemp, U2, k);
+        R2 += (0.5f*h[k]/Re)*MatMulDim3(dim3Derivative2Neumann, u2);
+        CNSolve(R2, u2, k);
     }
 
-    R3.ToNodal(ndTemp);
-    ndTemp += (0.5f*h[k]/Re)*MatMulDim3Nodal(dim3Derivative2Dirichlet, U3);
-    CNSolve(ndTemp, U3, k);
+    R3 += (0.5f*h[k]/Re)*MatMulDim3(dim3Derivative2Dirichlet, u3);
+    CNSolve(R3, u3, k);
 
-    RB.ToNodal(nnTemp);
-    nnTemp += (0.5f*h[k]/Pe)*MatMulDim3Nodal(dim3Derivative2Neumann, B);
-    CNSolveBuoyancy(nnTemp, B, k);
-
-    U1.ToModal(u1);
-    U2.ToModal(u2);
-    U3.ToModal(u3);
-    B.ToModal(b);
+    RB += (0.5f*h[k]/Pe)*MatMulDim3(dim3Derivative2Neumann, b);
+    CNSolveBuoyancy(RB, b, k);
 
     if (EvolveBackground)
     {
@@ -107,7 +98,7 @@ void IMEXRK::FinishRHS(int k)
     RB += (h[k]*beta[k])*rB;
 }
 
-void IMEXRK::ExplicitCN(int k, bool evolveBackground)
+void IMEXRK::ExplicitRK(int k, bool evolveBackground)
 {
     //   old      last rk step         pressure
     R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) ;
@@ -123,29 +114,26 @@ void IMEXRK::BuildRHS()
 {
     // build up right hand sides for the implicit solve in R
 
+    // diffusion terms (todo: make more efficient)
+    r1 = (1/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1));
+    r2 = (1/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2));
+    r3 = (1/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3));
+    rB = (1/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b));
+
     // buoyancy force without hydrostatic part
     neumannTemp = b;
     RemoveHorizontalAverage(neumannTemp);
-    r3 = Ri*ReinterpolateFull(neumannTemp); // buoyancy force
-
-    r1.Zero();
-    r2.Zero();
-    rB.Zero();
+    r3 += Ri*ReinterpolateFull(neumannTemp); // buoyancy force
 
     //////// NONLINEAR TERMS ////////
-
     // calculate products at nodes in physical space
-    u1.ToNodal(U1);
-    u2.ToNodal(U2);
-    u3.ToNodal(U3);
-    b.ToNodal(B);
 
     // take into account background shear for nonlinear terms
     U1_tot = U1 + U_;
     B_tot = B + B_;
 
     InterpolateProduct(U1_tot, U1_tot, neumannTemp);
-    r1 = -ddx(neumannTemp);
+    r1 -= ddx(neumannTemp);
 
     DifferentiateProductBar(U1_tot, U3, neumannTemp);
     r1 -= neumannTemp;
@@ -157,7 +145,7 @@ void IMEXRK::BuildRHS()
     if(ThreeDimensional)
     {
         InterpolateProduct(U2, U2, neumannTemp);
-        r2 = -ddy(neumannTemp);
+        r2 -= ddy(neumannTemp);
 
         DifferentiateProductBar(U2, U3, neumannTemp);
         r2 -= neumannTemp;
@@ -172,7 +160,7 @@ void IMEXRK::BuildRHS()
 
     // buoyancy nonlinear terms
     DifferentiateProductBar(B_tot, U3, neumannTemp);
-    rB = -neumannTemp;
+    rB -= neumannTemp;
 
     if(ThreeDimensional)
     {
@@ -182,12 +170,6 @@ void IMEXRK::BuildRHS()
 
     InterpolateProduct(U1_tot, B_tot, neumannTemp);
     rB -= ddx(neumannTemp);
-
-    // diffusion terms (todo: make more efficient)
-    r1 += (1/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1));
-    r2 += (1/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2));
-    r3 += (1/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3));
-    rB += (1/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b));
 }
 
 void IMEXRK::BuildRHSLinear()
