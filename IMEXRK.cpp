@@ -23,6 +23,23 @@ void IMEXRK::TimeStep()
     }
 }
 
+void IMEXRK::TimeStepLinear()
+{
+    // see Numerical Renaissance
+    for (int k=0; k<s; k++)
+    {
+        ExplicitRK(k);
+        BuildRHSLinear();
+        FinishRHS(k);
+
+        CrankNicolson(k);
+        RemoveDivergence(1/h[k]);
+
+        FilterAll();
+        PopulateNodalVariables();
+    }
+}
+
 void IMEXRK::RemoveDivergence(stratifloat pressureMultiplier)
 {
     // construct the diverence of u
@@ -170,51 +187,64 @@ void IMEXRK::BuildRHS()
 
 void IMEXRK::BuildRHSLinear()
 {
-    // // build up right hand sides for the implicit solve in R
+    // build up right hand sides for the implicit solve in R
 
-    // // buoyancy force without hydrostatic part
-    // neumannTemp = b;
-    // RemoveHorizontalAverage(neumannTemp);
-    // r3 = Ri*ReinterpolateFull(neumannTemp); // buoyancy force
+    // diffusion terms (todo: make more efficient)
+    r1 = (1/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1));
+    r2 = (1/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2));
+    r3 = (1/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3));
+    rB = (1/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b));
 
-    // nnTemp = U1_tot + U_;
-    // nnTemp2 = B_tot + B_;
+    // buoyancy force without hydrostatic part
+    neumannTemp = b;
+    RemoveHorizontalAverage(neumannTemp);
+    r3 += Ri*ReinterpolateFull(neumannTemp); // buoyancy force
 
-    // //////// NONLINEAR TERMS ////////
-    // InterpolateProduct(U1, nnTemp, neumannTemp);
-    // InterpolateProductBar(nnTemp, U1, U3, U3_tot, dirichletTemp);
-    // r1 = -(2.0*ddx(neumannTemp) +  ddz(dirichletTemp));
+    //////// NONLINEAR TERMS ////////
+    // calculate products at nodes in physical space
 
-    // InterpolateProductTilde(nnTemp, U1, U3, U3_tot, dirichletTemp);
-    // InterpolateProduct(U3, U3_tot, neumannTemp);
-    // r3 -= ddx(dirichletTemp) + 2.0*ddz(neumannTemp);
+    // take into account background shear for nonlinear terms
+    nnTemp = U1_tot + U_;
+    nnTemp2 = B_tot + B_;
 
-    // if(ThreeDimensional)
-    // {
-    //     InterpolateProduct(U2, U2_tot, neumannTemp);
-    //     r2 = -2.0*ddy(neumannTemp);
+    InterpolateProduct(U1, nnTemp, neumannTemp);
+    r1 -= ddx(neumannTemp);
 
-    //     InterpolateProductTilde(U2_tot, U2, U3, U3_tot, dirichletTemp);
-    //     r3 -= ddy(dirichletTemp);
+    DifferentiateProductBar(U1, nnTemp, U3_tot, U3, neumannTemp);
+    r1 -= neumannTemp;
 
-    //     InterpolateProductBar(U2_tot, U2, U3, U3_tot, dirichletTemp);
-    //     r2 -= ddz(dirichletTemp);
+    InterpolateProductTilde(U1, nnTemp, U3_tot, U3, dirichletTemp);
+    InterpolateProduct(U3, U3_tot, neumannTemp);
+    r3 -= ddx(dirichletTemp)+ddz(neumannTemp);
 
-    //     InterpolateProduct(U2_tot, U2, U1, nnTemp, neumannTemp);
-    //     r1 -= ddy(neumannTemp);
-    //     r2 -= ddx(neumannTemp);
-    // }
+    if(ThreeDimensional)
+    {
+        InterpolateProduct(U2, U2_tot, neumannTemp);
+        r2 -= ddy(neumannTemp);
 
-    // // buoyancy nonlinear terms
-    // InterpolateProduct(nnTemp, U1, B, nnTemp2, neumannTemp);
-    // InterpolateProductBar(B, nnTemp2, U3_tot, U3, dirichletTemp);
-    // rB = -(ddx(neumannTemp) + ddz(dirichletTemp));
+        DifferentiateProductBar(U2, U2_tot, U3_tot, U3, neumannTemp);
+        r2 -= neumannTemp;
 
-    // if(ThreeDimensional)
-    // {
-    //     InterpolateProduct(U2_tot, U2, B, nnTemp2, neumannTemp);
-    //     rB -= ddy(neumannTemp);
-    // }
+        InterpolateProductTilde(U2, U2_tot, U3_tot, U3,  dirichletTemp);
+        r3 -= ddy(dirichletTemp);
+
+        InterpolateProduct(U1, nnTemp, U2_tot, U2, neumannTemp);
+        r1 -= ddy(neumannTemp);
+        r2 -= ddx(neumannTemp);
+    }
+
+    // buoyancy nonlinear terms
+    DifferentiateProductBar(B, nnTemp2, U3_tot, U3, neumannTemp);
+    rB -= neumannTemp;
+
+    if(ThreeDimensional)
+    {
+        InterpolateProduct(B, nnTemp2, U2_tot, U2, neumannTemp);
+        rB -= ddy(neumannTemp);
+    }
+
+    InterpolateProduct(B, nnTemp2, nnTemp, U1, neumannTemp);
+    rB -= ddx(neumannTemp);
 }
 
 // void IMEXRK::BuildRHSAdjoint()

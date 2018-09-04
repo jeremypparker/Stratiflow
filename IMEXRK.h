@@ -81,24 +81,7 @@ public:
     }
 
     void TimeStep();
-    void TimeStepLinear()
-    {
-        // see Numerical Renaissance
-        for (int k=0; k<s; k++)
-        {
-            ExplicitRK(k);
-            BuildRHSLinear();
-            FinishRHS(k);
-
-            CrankNicolson(k);
-            RemoveDivergence(1/h[k]);
-            //if (k==s-1)
-            //{
-            //    FilterAll();
-            //}
-            PopulateNodalVariables();
-        }
-    }
+    void TimeStepLinear();
 
     void TimeStepAdjoint(stratifloat time,
                          const NeumannModal& u1Below,
