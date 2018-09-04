@@ -14,7 +14,7 @@ void IMEXRK::TimeStep()
         BuildRHS();
         FinishRHS(k);
 
-        ImplicitUpdate(k, EvolveBackground);
+        CrankNicolson(k, EvolveBackground);
 
         RemoveDivergence(1/h[k]);
 
@@ -23,7 +23,7 @@ void IMEXRK::TimeStep()
             FilterAll();
         //}
 
-        // PopulateNodalVariables();
+        PopulateNodalVariables();
     }
 }
 
@@ -59,7 +59,7 @@ void IMEXRK::RemoveDivergence(stratifloat pressureMultiplier)
     p += pressureMultiplier*q;
 }
 
-void IMEXRK::ImplicitUpdate(int k, bool evolveBackground)
+void IMEXRK::CrankNicolson(int k, bool evolveBackground)
 {
     R1.ToNodal(nnTemp);
     nnTemp += (0.5f*h[k]/Re)*MatMulDim3Nodal(dim3Derivative2Neumann, U1);
@@ -127,6 +127,10 @@ void IMEXRK::BuildRHS()
     neumannTemp = b;
     RemoveHorizontalAverage(neumannTemp);
     r3 = Ri*ReinterpolateFull(neumannTemp); // buoyancy force
+
+    r1.Zero();
+    r2.Zero();
+    rB.Zero();
 
     //////// NONLINEAR TERMS ////////
 

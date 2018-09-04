@@ -666,6 +666,20 @@ public:
         {
             this->Get()(j3) = f(z(j3));
         }
+
+        if (this->BC() == BoundaryCondition::Neumann)
+        {
+            this->Get()(1)=this->Get()(2);
+            this->Get()(0)=this->Get()(1);
+            this->Get()(N3-2)=this->Get()(N3-3);
+            this->Get()(N3-1)=this->Get()(N3-2);
+        }
+        else
+        {
+            this->Get()(1)=-this->Get()(2);
+            this->Get()(0)=this->Get()(1);
+            this->Get()(N3-1)=-this->Get()(N3-2);
+        }
     }
 };
 
@@ -704,7 +718,7 @@ public:
                                         odims,
                                         N3,
                                         1,
-                                        FFTW_PATIENT);
+                                        FFTW_ESTIMATE);
 
     }
 
@@ -727,7 +741,7 @@ public:
                                         odims,
                                         N3,
                                         1,
-                                        FFTW_PATIENT);
+                                        FFTW_ESTIMATE);
         f3_execute(plan);
         f3_destroy_plan(plan);
 
@@ -774,9 +788,23 @@ public:
         {
             this->slice(j3).setConstant(f(z(j3)));
         }
+
+        if (this->BC() == BoundaryCondition::Neumann)
+        {
+            this->slice(1)=this->slice(2);
+            this->slice(0)=this->slice(1);
+            this->slice(N3-2)=this->slice(N3-3);
+            this->slice(N3-1)=this->slice(N3-2);
+        }
+        else
+        {
+            this->slice(1)=-this->slice(2);
+            this->slice(0)=this->slice(1);
+            this->slice(N3-1)=-this->slice(N3-2);
+        }
     }
 
-    void SetValue(std::function<stratifloat(stratifloat,stratifloat,stratifloat)> f, stratifloat L1, stratifloat L2, stratifloat L3)
+    void SetValue(std::function<stratifloat(stratifloat,stratifloat,stratifloat)> f, stratifloat L1, stratifloat L2, stratifloat L3, bool imposeVelBC=false)
     {
         ArrayX x = FourierPoints(L1, N1);
         ArrayX y = FourierPoints(L2, N2);
@@ -797,6 +825,30 @@ public:
                     (*this)(j1,j2,j3) = f(x(j1), y(j2), z(j3));
                 }
             }
+        }
+
+        if (this->BC() == BoundaryCondition::Neumann)
+        {
+
+            if (imposeVelBC)
+            {
+                this->slice(1)=this->slice(2);
+                this->slice(N3-2)=this->slice(N3-3);
+
+                this->slice(0)=this->slice(1);
+                this->slice(N3-1)=this->slice(N3-2);
+            }
+            else
+            {
+                this->slice(0).setZero();
+                this->slice(N3-1).setZero();
+            }
+        }
+        else
+        {
+            this->slice(1)=-this->slice(2);
+            this->slice(0)=this->slice(1);
+            this->slice(N3-1)=-this->slice(N3-2);
         }
     }
 
@@ -845,7 +897,7 @@ public:
                                 dims,
                                 N3,
                                 1,
-                                FFTW_PATIENT);
+                                FFTW_ESTIMATE);
 
     }
 
@@ -876,7 +928,7 @@ public:
                                         dims,
                                         N3,
                                         1,
-                                        FFTW_PATIENT);
+                                        FFTW_ESTIMATE);
         f3_execute(plan);
         f3_destroy_plan(plan);
     }

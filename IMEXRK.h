@@ -90,7 +90,7 @@ public:
             BuildRHSLinear();
             FinishRHS(k);
 
-            ImplicitUpdate(k);
+            CrankNicolson(k);
             RemoveDivergence(1/h[k]);
             //if (k==s-1)
             //{
@@ -135,7 +135,7 @@ public:
             //BuildRHSAdjoint();
             FinishRHS(k);
 
-            ImplicitUpdate(k);
+            CrankNicolson(k);
 
             RemoveDivergence(1/h[k]);
 
@@ -461,8 +461,8 @@ public:
     {
         std::ofstream filestream(filename, std::ios::out | std::ios::binary);
 
-        nnTemp = U1 + U_;
-        nnTemp.Save(filestream);
+        //nnTemp = U1 + U_;
+        U1.Save(filestream);
         U2.Save(filestream);
         U3.Save(filestream);
 
@@ -632,7 +632,7 @@ private:
         solve.Solve(implicitSolveBuoyancyNeumann[k][0], into);
     }
 
-    void ImplicitUpdate(int k, bool evolveBackground = false);
+    void CrankNicolson(int k, bool evolveBackground = false);
     void FinishRHS(int k);
     void ExplicitCN(int k, bool evolveBackground = false);
     void BuildRHS();

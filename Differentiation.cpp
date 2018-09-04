@@ -2,36 +2,59 @@
 #include "Differentiation.h"
 #include "Eigen.h"
 #include "Field.h"
+#include <iomanip>
 
 MatrixX VerticalSecondDerivativeMatrix(stratifloat L, int N, BoundaryCondition originalBC)
 {
+    MatrixX D = MatrixX::Zero(N,N);
+
+    ArrayX DY = dz(L,N);
+    ArrayX DYF = dzFractional(L,N);
+
     if (originalBC == BoundaryCondition::Neumann)
     {
-        return VerticalDerivativeMatrix(L,N,BoundaryCondition::Dirichlet)*
-               VerticalDerivativeMatrix(L,N,BoundaryCondition::Neumann);
+        for (int j=1; j<=N-1; j++)
+        {
+            D(j,j-1) = 1/DY(j)/DYF(j);
+            D(j,j) = -1/DY(j)/DYF(j) -1/DY(j+1)/DYF(j);
+            D(j,j+1) = 1/DY(j+1)/DYF(j);
+        }
     }
     else
     {
-        return VerticalDerivativeMatrix(L,N,BoundaryCondition::Neumann)*
-               VerticalDerivativeMatrix(L,N,BoundaryCondition::Dirichlet);
+        for (int j=2; j<=N-1; j++)
+        {
+            D(j,j-1) = 1/DYF(j-1)/DY(j);
+            D(j,j) = -1/DYF(j-1)/DY(j) -1/DYF(j)/DY(j);
+            D(j,j+1) = 1/DYF(j)/DY(j);
+        }
     }
+
+    return D;
 }
 
 MatrixX VerticalDerivativeMatrix(stratifloat L, int N, BoundaryCondition originalBC)
 {
     MatrixX D = MatrixX::Zero(N,N);
 
+    ArrayX DY = dz(L,N);
+    ArrayX DYF = dzFractional(L,N);
+
     if (originalBC == BoundaryCondition::Neumann)
     {
-        ArrayX diff = dz(L,N);
-        D.diagonal(0).tail(N-1) = 1/diff.tail(N-1);
-        D.diagonal(-1) = -1/diff.tail(N-1);
+        for (int j=2; j<=N-1; j++)
+        {
+            D(j,j-1) = -1/DY(j);
+            D(j,j) = 1/DY(j);
+        }
     }
     else
     {
-        ArrayX diff = dzFractional(L,N);
-        D.diagonal(1).tail(N-2) = 1/diff.segment(1,N-2);
-        D.diagonal(0).segment(1,N-2) = -1/diff.segment(1,N-2);
+        for (int j=1; j<=N-1; j++)
+        {
+            D(j,j) = -1/DYF(j);
+            D(j,j+1) = 1/DYF(j);
+        }
     }
 
     return D;
@@ -101,8 +124,9 @@ ArrayX k(int n)
 
     // using this for k gives a result which matches the FT of the real
     // derivative
-    k << ArrayX::LinSpaced(n / 2, 0, n / 2 - 1),
-         ArrayX::LinSpaced(n / 2, -n / 2, -1);
+    k << ArrayX::LinSpaced(n / 3 + 1, 0, n / 3),
+         ArrayX::Zero(n-2*(n/3)-1),
+         ArrayX::LinSpaced(n / 3, -n / 3, -1);
 
     return k;
 }
