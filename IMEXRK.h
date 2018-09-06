@@ -410,18 +410,11 @@ public:
 
     stratifloat KE() const
     {
-        nnTemp = U1 + U_;
-        nnTemp.ToModal(neumannTemp);
-        RemoveHorizontalAverage(neumannTemp);
-        dirichletTemp = u3;
-        RemoveHorizontalAverage(dirichletTemp);
-        stratifloat energy = 0.5f*(InnerProd(neumannTemp, neumannTemp, L3) + InnerProd(dirichletTemp, dirichletTemp, L3));
+        stratifloat energy = 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u3, u3, L3));
 
         if(ThreeDimensional)
         {
-            neumannTemp = u2;
-            RemoveHorizontalAverage(neumannTemp);
-            energy += 0.5f*InnerProd(neumannTemp, neumannTemp, L3);
+            energy += 0.5f*InnerProd(u2, u2, L3);
         }
 
         return energy;
@@ -430,10 +423,7 @@ public:
 
     stratifloat PE() const
     {
-        nnTemp = B + B_;
-        nnTemp.ToModal(neumannTemp);
-        RemoveHorizontalAverage(neumannTemp);
-        return Ri*0.5f*InnerProd(neumannTemp, neumannTemp, L3);
+        return Ri*0.5f*InnerProd(b, b, L3);
     }
 
     void RemoveDivergence(stratifloat pressureMultiplier=1.0);
