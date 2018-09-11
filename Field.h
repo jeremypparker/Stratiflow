@@ -720,7 +720,7 @@ public:
                                         odims,
                                         N3,
                                         1,
-                                        FFTW_ESTIMATE);
+                                        FFTW_PATIENT);
 
     }
 
@@ -743,7 +743,7 @@ public:
                                         odims,
                                         N3,
                                         1,
-                                        FFTW_ESTIMATE);
+                                        FFTW_PATIENT);
         f3_execute(plan);
         f3_destroy_plan(plan);
 
@@ -899,7 +899,7 @@ public:
                                 dims,
                                 N3,
                                 1,
-                                FFTW_ESTIMATE);
+                                FFTW_PATIENT);
 
     }
 
@@ -930,7 +930,7 @@ public:
                                         dims,
                                         N3,
                                         1,
-                                        FFTW_ESTIMATE);
+                                        FFTW_PATIENT);
         f3_execute(plan);
         f3_destroy_plan(plan);
     }
@@ -1017,9 +1017,9 @@ public:
         {
             for (int j2=-N2/6; j2<=N2/6; j2++)
             {
-                complex hermiteCoeff[N3/6];
+                complex hermiteCoeff[2];
 
-                for (int h=0; h<N3/6; h++)
+                for (int h=0; h<2; h++)
                 {
                     hermiteCoeff[h] = pow(j1*j1+j2*j2+h*h+1,-5.0/3.0)*(rng(generator) + i*rng(generator));
                 }
@@ -1031,7 +1031,7 @@ public:
                 {
                     this->operator()(j1,actualj2,j3) = 0;
 
-                    for (int h=0; h<N3/6; h++)
+                    for (int h=0; h<2; h++)
                     {
                         this->operator()(j1,actualj2,j3) += hermiteCoeff[h]*exp(-z(j3)*z(j3)*2)*Hermite(h, z(j3)*2);
                     }
@@ -1074,6 +1074,14 @@ public:
                 f(j1, 0);
             }
         }
+    }
+
+    void PhaseShift(stratifloat shift)
+    {
+        ParallelPerStack([this, shift](int j1, int j2)
+        {
+            this->stack(j1,j2) *= exp(i*j1*shift);
+        });
     }
 
     void Antisymmetrise()

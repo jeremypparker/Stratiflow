@@ -12,6 +12,11 @@ public:
     , deltaS(deltaS)
     {}
 
+    virtual void EnforceConstraints(ExtendedStateVector& at) override
+    {
+        at.x.RemovePhaseShift();
+    }
+
 protected:
     virtual ExtendedStateVector EvalFunction(const ExtendedStateVector& at) override
     {

@@ -21,6 +21,9 @@ int main(int argc, char *argv[])
     x1.LoadFromFile(argv[1]);
     x2.LoadFromFile(argv[2]);
 
+    x1.x.RemovePhaseShift();
+    x2.x.RemovePhaseShift();
+
     // see stationarystates.pdf
     ExtendedStateVector v;
 
@@ -53,6 +56,8 @@ int main(int argc, char *argv[])
     guess.MulAdd(delta, v);
 
     PseudoArclengthContinuation solver(x2, v, delta);
+
+    solver.EnforceConstraints(guess);
     solver.Run(guess);
 
     guess.SaveToFile("final");

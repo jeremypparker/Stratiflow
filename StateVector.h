@@ -73,6 +73,18 @@ public:
         return *this;
     }
 
+    void RemovePhaseShift()
+    {
+        stratifloat shift = -std::arg(u1(1,0,N3/2));
+        u1.PhaseShift(shift);
+        if (ThreeDimensional)
+        {
+            u2.PhaseShift(shift);
+        }
+        u3.PhaseShift(shift);
+        b.PhaseShift(shift);
+    }
+
     stratifloat Dot(const StateVector& other) const
     {
         stratifloat prod = InnerProd(u1, other.u1, L3)
