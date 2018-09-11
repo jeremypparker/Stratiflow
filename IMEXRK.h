@@ -115,19 +115,15 @@ public:
             UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
 
             ExplicitRK(k);
-            //BuildRHSAdjoint();
+            BuildRHSAdjoint();
             FinishRHS(k);
 
             CrankNicolson(k);
 
             RemoveDivergence(1/h[k]);
+            FilterAll();
 
-            // if (k==s-1)
-            // {
-            //     FilterAll();
-            // }
-
-            PopulateNodalVariablesAdjoint();
+            PopulateNodalVariables();
 
             time -= h[k];
             interpFrac += h[k]/deltaT;
@@ -148,17 +144,6 @@ public:
     }
 
     void PopulateNodalVariables()
-    {
-        u1.ToNodal(U1);
-        if (ThreeDimensional)
-        {
-            u2.ToNodal(U2);
-        }
-        u3.ToNodal(U3);
-        b.ToNodal(B);
-    }
-
-    void PopulateNodalVariablesAdjoint()
     {
         u1.ToNodal(U1);
         if (ThreeDimensional)
@@ -194,7 +179,7 @@ public:
 
         p.Zero();
 
-        PopulateNodalVariablesAdjoint();
+        PopulateNodalVariables();
 
         MakeCleanDir(imageDirectory+"/u1");
         MakeCleanDir(imageDirectory+"/u2");
