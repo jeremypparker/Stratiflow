@@ -4,23 +4,18 @@
 class FindHopf : public NewtonKrylov<HopfBifurcation>
 {
 public:
-    stratifloat weight = 1;
+    StateVector A;
 
     virtual void EnforceConstraints(HopfBifurcation& at)
     {
         Ri = at.p;
 
-        // ensure unit eigenvector
-        stratifloat totalEnergy = at.v1.Energy() + at.v2.Energy();
+        stratifloat theta = atan2(-at.v2.Dot(A),at.v1.Dot(A));
+        stratifloat r = 1/(cos(theta)*at.v1.Dot(A) - sin(theta)*at.v2.Dot(A));
 
-        StateVector a = sqrt(weight/totalEnergy)*at.v1;
-        StateVector b = sqrt(weight/totalEnergy)*at.v2;
-
-        // now rotate so that ||v1|| = ||v2||
-        stratifloat theta = 0.5*atan((a.Energy()-b.Energy())/a.Dot(b));
-
-        at.v1 = cos(theta)*a - sin(theta)*b;
-        at.v2 = sin(theta)*a + cos(theta)*b;
+        StateVector newv1 = r*cos(theta)*at.v1 - r*sin(theta)*at.v2;
+        at.v2 = r*sin(theta)*at.v1 + r*cos(theta)*at.v2;
+        at.v1 = newv1;
     }
 private:
     virtual HopfBifurcation EvalFunction(const HopfBifurcation& at) override
@@ -33,23 +28,20 @@ private:
         at.v2.LinearEvolve(T, at.x, result.v2);
 
         result.x -= at.x;
-        result.v1.MulAdd(-at.lambda1, at.v1);
-        result.v1.MulAdd(at.lambda2, at.v2);
-        result.v2.MulAdd(-at.lambda2, at.v1);
-        result.v2.MulAdd(-at.lambda1, at.v2);
+        result.v1.MulAdd(-cos(at.theta), at.v1);
+        result.v1.MulAdd(sin(at.theta), at.v2);
+        result.v2.MulAdd(-sin(at.theta), at.v1);
+        result.v2.MulAdd(-cos(at.theta), at.v2);
 
-        result.lambda1 = at.v1.Energy() - at.v2.Energy();
-        result.lambda2 = at.lambda1*at.lambda1 + at.lambda2*at.lambda2 - 1;
-
-        result.p = at.v1.Energy() + at.v2.Energy() - weight;
+        result.theta = at.v1.Dot(A) - 1;
+        result.p = at.v2.Dot(A);
 
         std::cout << at.v1.Norm() << " " << at.v2.Norm() << std::endl;
 
         std::cout << result.x.Norm2() << " "
                    << result.v1.Norm2() << " "
                    << result.v2.Norm2() << " "
-                   << result.lambda1*result.lambda1 << " "
-                   << result.lambda2*result.lambda2 << " "
+                   << result.theta*result.theta << " "
                    << result.p*result.p << std::endl;
 
         return result;
@@ -96,6 +88,7 @@ int main(int argc, char *argv[])
 
     FindHopf solver;
 
+    solver.A = guess.v1;
     solver.EnforceConstraints(guess);
 
     solver.Run(guess);

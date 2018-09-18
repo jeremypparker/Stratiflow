@@ -11,8 +11,7 @@ public:
     StateVector v2;
 
     // complex eigenvalue lambda1 + i lambda2
-    stratifloat lambda1;
-    stratifloat lambda2;
+    stratifloat theta;
     stratifloat p;
 
     stratifloat Dot(const HopfBifurcation& other) const
@@ -20,8 +19,7 @@ public:
         return x.Dot(other.x)
              + v1.Dot(other.v1)
              + v2.Dot(other.v2)
-             + lambda1*other.lambda1
-             + lambda2*other.lambda2
+             + theta*other.theta
              + p*other.p;
     }
 
@@ -40,8 +38,7 @@ public:
         x.MulAdd(b,A.x);
         v1.MulAdd(b,A.v1);
         v2.MulAdd(b,A.v2);
-        lambda1 += b*A.lambda1;
-        lambda2 += b*A.lambda2;
+        theta += b*A.theta;
         p += b*A.p;
     }
 
@@ -50,8 +47,7 @@ public:
         x += other.x;
         v1 += other.v1;
         v2 += other.v2;
-        lambda1 += other.lambda1;
-        lambda2 += other.lambda2;
+        theta += other.theta;
         p += other.p;
         return *this;
     }
@@ -61,8 +57,7 @@ public:
         x -= other.x;
         v1 -= other.v1;
         v2 -= other.v2;
-        lambda1 -= other.lambda1;
-        lambda2 -= other.lambda2;
+        theta -= other.theta;
         p -= other.p;
         return *this;
     }
@@ -72,8 +67,7 @@ public:
         x *= mult;
         v1 *= mult;
         v2 *= mult;
-        lambda1 *= mult;
-        lambda2 *= mult;
+        theta *= mult;
         p *= mult;
         return *this;
     }
@@ -83,8 +77,7 @@ public:
         x.Zero();
         v1.Zero();
         v2.Zero();
-        lambda1 = 0;
-        lambda2 = 0;
+        theta = 0;
         p = 0;
     }
 
@@ -96,8 +89,7 @@ public:
         std::ofstream paramFile(filename+".params");
         paramFile << std::setprecision(30);
         paramFile << p;
-        paramFile << std::endl << lambda1;
-        paramFile << std::endl << lambda2;
+        paramFile << std::endl << theta;
     }
 
     void LoadFromFile(const std::string& filename)
@@ -107,7 +99,7 @@ public:
         v2.LoadFromFile(filename+"-eig2.fields");
         std::ifstream paramFile(filename+".params");
         paramFile >> p;
-        paramFile >> lambda1 >> lambda2;
+        paramFile >> theta;
     }
 
     void EnforceBCs()
