@@ -1017,9 +1017,9 @@ public:
         {
             for (int j2=-N2/6; j2<=N2/6; j2++)
             {
-                complex hermiteCoeff[2];
+                complex hermiteCoeff[4];
 
-                for (int h=0; h<2; h++)
+                for (int h=0; h<4; h++)
                 {
                     hermiteCoeff[h] = pow(j1*j1+j2*j2+h*h+1,-5.0/3.0)*(rng(generator) + i*rng(generator));
                 }
@@ -1031,7 +1031,7 @@ public:
                 {
                     this->operator()(j1,actualj2,j3) = 0;
 
-                    for (int h=0; h<2; h++)
+                    for (int h=0; h<4; h++)
                     {
                         this->operator()(j1,actualj2,j3) += hermiteCoeff[h]*exp(-z(j3)*z(j3)*2)*Hermite(h, z(j3)*2);
                     }

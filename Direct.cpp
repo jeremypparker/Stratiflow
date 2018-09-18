@@ -11,7 +11,7 @@ int main(int argc, char* argv[])
 
     if (argc == 2)
     {
-        state.Randomise(energy);
+        state.ExciteLowWavenumbers(energy);
     }
     else
     {
