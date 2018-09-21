@@ -1080,7 +1080,7 @@ public:
     {
         ParallelPerStack([this, shift](int j1, int j2)
         {
-            this->stack(j1,j2) *= exp(i*j1*shift);
+            this->stack(j1,j2) *= exp(i*(j1*shift));
         });
     }
 
