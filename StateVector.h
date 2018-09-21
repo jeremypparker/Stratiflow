@@ -9,6 +9,20 @@
 class StateVector
 {
 public:
+    StateVector()
+    {
+        Zero();
+    }
+
+    StateVector(const StateVector& other)
+    {
+        u1 = other.u1;
+        u2 = other.u2;
+        u3 = other.u3;
+        b = other.b;
+        EnforceBCs();
+    }
+
     NeumannModal u1;
     NeumannModal u2;
     DirichletModal u3;
@@ -33,6 +47,7 @@ public:
         }
         u3 += other.u3;
         b += other.b;
+        EnforceBCs();
 
         return *this;
     }
@@ -46,6 +61,7 @@ public:
         }
         u3 -= other.u3;
         b  -= other.b;
+        EnforceBCs();
         return *this;
     }
 
@@ -58,6 +74,7 @@ public:
         }
         u3 += a*B.u3;
         b  += a*B.b;
+        EnforceBCs();
         return *this;
     }
 
@@ -70,6 +87,17 @@ public:
         }
         u3 *= other;
         b  *= other;
+        EnforceBCs();
+        return *this;
+    }
+
+    const StateVector& operator=(const StateVector& other)
+    {
+        u1 = other.u1;
+        u2 = other.u2;
+        u3 = other.u3;
+        b = other.b;
+        EnforceBCs();
         return *this;
     }
 
@@ -318,6 +346,8 @@ public:
         U2.ToModal(u2);
         U3.ToModal(u3);
         B.ToModal(b);
+
+        EnforceBCs();
     }
 
     void EnforceBCs()
@@ -435,6 +465,7 @@ private:
         into.u3 = solver.u3;
         into.b = solver.b;
         into.p = solver.p;
+        into.EnforceBCs();
     }
 
     static IMEXRK solver;
