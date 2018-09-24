@@ -237,16 +237,16 @@ public:
         DirichletNodal U3;
         NeumannNodal B;
 
-        ArrayX oldNeumannPoints = VerticalPoints(L3, K3);
-        ArrayX oldDirichletPoints = VerticalPointsFractional(L3, K3);
+        ArrayX oldNeumannPoints = VerticalPointsFractional(L3, K3);
+        ArrayX oldDirichletPoints = VerticalPoints(L3, K3);
 
-        ArrayX newNeumannPoints = VerticalPoints(L3, N3);
-        ArrayX newDirichletPoints = VerticalPointsFractional(L3, N3);
+        ArrayX newNeumannPoints = VerticalPointsFractional(L3, N3);
+        ArrayX newDirichletPoints = VerticalPoints(L3, N3);
 
         // just 2D for simplicity for now
         assert(K2==1);
         assert(N2==1);
-        assert(ThreeDimensional);
+        assert(!ThreeDimensional);
 
         for (int j1=0; j1<N1; j1++)
         {
@@ -264,23 +264,23 @@ public:
             if (k1_left<0) k1_left += K1;
             if (k1_right>=K1) k1_right -= K1;
 
-            for (int j3=1; j3<N3-1; j3++)
+            for (int j3=0; j3<N3; j3++)
             {
                 stratifloat z = newNeumannPoints(j3);
 
-                int k3_above;
-                int k3_below = 0;
+                int k3_below;
+                int k3_above = 0;
                 stratifloat z_below;
                 stratifloat z_above;
 
                 do
                 {
-                    k3_below++;
-                    k3_above = k3_below-1;
+                    k3_above++;
+                    k3_below = k3_above-1;
 
                     z_below = oldNeumannPoints(k3_below);
                     z_above = oldNeumannPoints(k3_above);
-                } while(z_below>z);
+                } while(z_above<z);
 
                 stratifloat weight_above = (z-z_below)/(z_above-z_below);
                 stratifloat weight_below = (z_above-z)/(z_above-z_below);
@@ -310,23 +310,23 @@ public:
             U2(j1,0,N3-1)=U2(j1,0,N3-2);
             B(j1,0,N3-1) = B(j1,0,N3-2);
 
-            for (int j3=1; j3<N3-2; j3++)
+            for (int j3=1; j3<N3; j3++)
             {
                 stratifloat z = newDirichletPoints(j3);
 
-                int k3_above;
-                int k3_below = 0;
+                int k3_below;
+                int k3_above = 1;
                 stratifloat z_below;
                 stratifloat z_above;
 
                 do
                 {
-                    k3_below++;
-                    k3_above = k3_below-1;
+                    k3_above++;
+                    k3_below = k3_above-1;
 
                     z_below = oldDirichletPoints(k3_below);
                     z_above = oldDirichletPoints(k3_above);
-                } while(z_below>z);
+                } while(z_above<z);
 
                 stratifloat weight_above = (z-z_below)/(z_above-z_below);
                 stratifloat weight_below = (z_above-z)/(z_above-z_below);
@@ -336,10 +336,6 @@ public:
                             + weight_right*weight_below*U3Loaded(k1_right,0,k3_below)
                             + weight_right*weight_above*U3Loaded(k1_right,0,k3_above);
             }
-
-            // dirichlet endpoints match up exactly
-            U3(j1,0,0)    = weight_left*U3Loaded(k1_left,0,0)    + weight_right*U3Loaded(k1_right,0,0);
-            U3(j1,0,N3-2) = weight_left*U3Loaded(k1_left,0,K3-2) + weight_right*U3Loaded(k1_right,0,K3-2);
         }
 
         U1.ToModal(u1);
