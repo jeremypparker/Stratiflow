@@ -74,19 +74,27 @@ void IMEXRK::RemoveDivergence(stratifloat pressureMultiplier)
 
 void IMEXRK::CrankNicolson(int k, bool evolveBackground)
 {
-    R1 += (0.5f*h[k]/Re)*MatMulDim3(dim3Derivative2Neumann, u1);
+    R1 += (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)
+                         +MatMulDim2(dim2Derivative2, u1)
+                         +MatMulDim3(dim3Derivative2Neumann, u1));
     CNSolve(R1, u1, k);
 
     if(ThreeDimensional)
     {
-        R2 += (0.5f*h[k]/Re)*MatMulDim3(dim3Derivative2Neumann, u2);
+        R2 += (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)
+                             +MatMulDim2(dim2Derivative2, u2)
+                             +MatMulDim3(dim3Derivative2Neumann, u2));
         CNSolve(R2, u2, k);
     }
 
-    R3 += (0.5f*h[k]/Re)*MatMulDim3(dim3Derivative2Dirichlet, u3);
+    R3 += (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)
+                         +MatMulDim2(dim2Derivative2, u3)
+                         +MatMulDim3(dim3Derivative2Dirichlet, u3));
     CNSolve(R3, u3, k);
 
-    RB += (0.5f*h[k]/Pe)*MatMulDim3(dim3Derivative2Neumann, b);
+    RB += (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)
+                         +MatMulDim2(dim2Derivative2, b)
+                         +MatMulDim3(dim3Derivative2Neumann, b));
     CNSolveBuoyancy(RB, b, k);
 
     if (EvolveBackground)
@@ -122,11 +130,10 @@ void IMEXRK::ExplicitRK(int k, bool evolveBackground)
     R3 = u3 + (h[k]*zeta[k])*r3 + (-h[k])*ddz(p) ;
     RB = b  + (h[k]*zeta[k])*rB                  ;
 
-    // diffusion terms (todo: make more efficient)
-    r1 = (1/Re)*(MatMulDim1(dim1Derivative2, u1)+MatMulDim2(dim2Derivative2, u1));
-    r2 = (1/Re)*(MatMulDim1(dim1Derivative2, u2)+MatMulDim2(dim2Derivative2, u2));
-    r3 = (1/Re)*(MatMulDim1(dim1Derivative2, u3)+MatMulDim2(dim2Derivative2, u3));
-    rB = (1/Pe)*(MatMulDim1(dim1Derivative2, b)+MatMulDim2(dim2Derivative2, b));
+    r1.Zero();
+    r2.Zero();
+    r3.Zero();
+    rB.Zero();
 }
 
 void IMEXRK::BuildRHS()

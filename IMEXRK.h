@@ -36,9 +36,9 @@ public:
 public:
     IMEXRK()
     : solveLaplacian(M1*N2)
-    , implicitSolveVelocityNeumann{std::vector<Tridiagonal<stratifloat, N3>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>>(M1*N2)}
-    , implicitSolveVelocityDirichlet{std::vector<Tridiagonal<stratifloat, N3>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>>(M1*N2)}
-    , implicitSolveBuoyancyNeumann{std::vector<Tridiagonal<stratifloat, N3>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>>(M1*N2)}
+    , implicitSolveVelocityNeumann{std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2)}
+    , implicitSolveVelocityDirichlet{std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2)}
+    , implicitSolveBuoyancyNeumann{std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2)}
     {
         assert(ThreeDimensional || N2 == 1);
 
@@ -361,7 +361,7 @@ public:
 
         stratifloat delta1 = L1/N1;
         stratifloat delta2 = L2/N2;
-        stratifloat delta3 = z(N3/2) - z(N3/2+1); // smallest gap in middle
+        stratifloat delta3 = z(N3/2+1) - z(N3/2); // smallest gap in middle
 
         stratifloat cfl = U1_tot.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
@@ -380,7 +380,7 @@ public:
 
         stratifloat delta1 = L1/N1;
         stratifloat delta2 = L2/N2;
-        stratifloat delta3 = z(N3/2) - z(N3/2+1); // smallest gap in middle
+        stratifloat delta3 = z(N3/2+1) - z(N3/2); // smallest gap in middle
 
         stratifloat cfl = (1+U1_tot.Max())/delta1 + U2_tot.Max()/delta2 + U3_tot.Max()/delta3;
         cfl *= deltaT;
@@ -460,7 +460,7 @@ public:
                                 const NeumannModal& b_total)
     {
         // todo: remove some of these
-        //u1_total.ToNodal(U1_tot);
+        u1_total.ToNodal(U1_tot);
         u2_total.ToNodal(U2_tot);
         u3_total.ToNodal(U3_tot);
         b_total.ToNodal(B_tot);
@@ -474,8 +474,8 @@ public:
 
         nnTemp = B_tot + -1*bAve;
 
-        // (b-<b>)*w
-        ndTemp = nnTemp*U3_tot;
+        // (<b>-b)*w
+        ndTemp = -1*nnTemp*U3_tot;
         ndTemp.ToModal(dirichletTemp);
 
         // construct integrand for J
@@ -486,10 +486,10 @@ public:
         K = 2;
 
         // forcing term for u3
-        u3Forcing = (-1/K)*(B_tot+(-1)*bAve);
+        u3Forcing = (1/K)*(B_tot+(-1)*bAve);
 
         // forcing term for b
-        bForcing = (-1/K)*(U3_tot+(-1)*wAve);
+        bForcing = (1/K)*(U3_tot+(-1)*wAve);
 
         u1Forcing.Zero();
         u2Forcing.Zero();
@@ -515,6 +515,8 @@ public:
                 for (int k=0; k<s; k++)
                 {
                     laplacian = dim3Derivative2Neumann;
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
                     Neumannify(solve);
@@ -526,6 +528,8 @@ public:
 
 
                     laplacian = dim3Derivative2Dirichlet;
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
 
                     solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
                     Dirichlify(solve);
@@ -651,10 +655,10 @@ private:
     MatrixX dim3Derivative2Neumann;
     MatrixX dim3Derivative2Dirichlet;
 
-    std::vector<Tridiagonal<stratifloat, N3>> implicitSolveVelocityNeumann[3];
-    std::vector<Tridiagonal<stratifloat, N3>> implicitSolveVelocityDirichlet[3];
-    std::vector<Tridiagonal<stratifloat, N3>> implicitSolveBuoyancyNeumann[3];
-    std::vector<Tridiagonal<stratifloat, N3>> solveLaplacian;
+    std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>> implicitSolveVelocityNeumann[3];
+    std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>> implicitSolveVelocityDirichlet[3];
+    std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>> implicitSolveBuoyancyNeumann[3];
+    std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>> solveLaplacian;
 
     std::string imageDirectory;
 };
