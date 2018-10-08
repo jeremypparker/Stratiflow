@@ -13,7 +13,7 @@ MatrixX VerticalSecondDerivativeMatrix(stratifloat L, int N, BoundaryCondition o
 
     if (originalBC == BoundaryCondition::Neumann)
     {
-        for (int j=1; j<=N-1; j++)
+        for (int j=1; j<N-1; j++)
         {
             D(j,j-1) = 1/DY(j)/DYF(j);
             D(j,j) = -1/DY(j)/DYF(j) -1/DY(j+1)/DYF(j);
@@ -22,7 +22,7 @@ MatrixX VerticalSecondDerivativeMatrix(stratifloat L, int N, BoundaryCondition o
     }
     else
     {
-        for (int j=2; j<=N-1; j++)
+        for (int j=2; j<N-1; j++)
         {
             D(j,j-1) = 1/DYF(j-1)/DY(j);
             D(j,j) = -1/DYF(j-1)/DY(j) -1/DYF(j)/DY(j);

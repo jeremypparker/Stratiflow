@@ -142,6 +142,14 @@ public:
         return sqrt(Norm2());
     }
 
+    stratifloat Enstrophy() const
+    {
+        DirichletModal FractionalTemp;
+        FractionalTemp = ddz(u1)+-1.0*ddx(u3);
+
+        return InnerProd(FractionalTemp, FractionalTemp, L3);
+    }
+
     void Zero()
     {
         u1.Zero();

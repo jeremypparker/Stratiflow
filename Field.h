@@ -431,7 +431,7 @@ public:
 
 
     template<typename Solver>
-    void Solve(std::vector<Solver>& solvers, Field<T, N1, N2, N3>& result) const
+    void Solve(std::vector<Solver, aligned_allocator<Solver>>& solvers, Field<T, N1, N2, N3>& result) const
     {
         assert(solvers.size() == N1*N2);
         ParallelPerStack(

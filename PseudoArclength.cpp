@@ -8,11 +8,10 @@ int main(int argc, char *argv[])
     if (argc==5)
     {
         L3 = std::stof(argv[4]);
+        StateVector::ResetForParams();
     }
 
     DumpParameters();
-    StateVector::ResetForParams();
-
 
     stratifloat delta = std::stof(argv[3]);
 
@@ -20,6 +19,8 @@ int main(int argc, char *argv[])
     ExtendedStateVector x2;
     x1.LoadFromFile(argv[1]);
     x2.LoadFromFile(argv[2]);
+
+    Ri = x2.p;
 
     x1.x.RemovePhaseShift();
     x2.x.RemovePhaseShift();
