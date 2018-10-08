@@ -4,30 +4,6 @@
 
 #include <matplotlib-cpp.h>
 
-template<int N1, int N2, int N3>
-inline void HeatPlot1D(const Nodal1D<N1, N2, N3> &U, std::string filename)
-{
-    matplotlibcpp::figure();
-
-    int cols = N3;
-    int rows = N3;
-
-    std::vector<stratifloat> imdata(rows*cols);
-
-    for (int col=0; col<cols; col++)
-    {
-        for (int row=0; row<rows; row++)
-        {
-            imdata[row*cols + col] = U.Get()(row);
-        }
-    }
-
-    matplotlibcpp::imshow(imdata, rows, cols);
-
-    matplotlibcpp::save(filename);
-    matplotlibcpp::close();
-}
-
 #ifdef DEBUG_PLOT
 
 template<int N1, int N2, int N3>
@@ -39,7 +15,7 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
 
     for (int n1=0; n1<N1; n1++)
     {
-        for (int n3=2; n3<N3-2; n3++)
+        for (int n3=0; n3<N3; n3++)
         {
             imdata[n3*N1 + n1] = U(n1,j2,n3);
         }
@@ -51,6 +27,83 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
     matplotlibcpp::close();
 }
 
+#else
+
+template<int K1, int K2, int K3>
+inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloat L3, int j2, std::string filename)
+{
+    const int N1 = L1*100;
+    const int N3 = 2*L3*100;
+
+    matplotlibcpp::figure();
+
+    ArrayX oldNeumannPoints = VerticalPointsFractional(L3, K3);
+    ArrayX oldDirichletPoints = VerticalPoints(L3, K3);
+
+    std::vector<stratifloat> imdata(N1*N3);
+
+    for (int j1=0; j1<N1; j1++)
+    {
+        stratifloat x = j1*L1/N1;
+
+        int k1_left = static_cast<int>(x/(L1/K1));
+        int k1_right = k1_left+1;
+
+        stratifloat x_left = k1_left*L1/K1;
+        stratifloat x_right = k1_right*L1/K1;
+
+        stratifloat weight_left = (x_right-x)/(x_right-x_left);
+        stratifloat weight_right = (x-x_left)/(x_right-x_left);
+
+        if (k1_left<0) k1_left += K1;
+        if (k1_right>=K1) k1_right -= K1;
+
+        for (int j3=0; j3<N3; j3++)
+        {
+
+            stratifloat z = j3*2*L3/N3 - L3;
+
+
+            int k3_below;
+            int k3_above = 0;
+            stratifloat z_below;
+            stratifloat z_above;
+
+            do
+            {
+                k3_above++;
+                k3_below = k3_above-1;
+
+                if (U.BC() == BoundaryCondition::Neumann)
+                {
+                    z_below = oldNeumannPoints(k3_below);
+                    z_above = oldNeumannPoints(k3_above);
+                }
+                else
+                {
+                    z_below = oldDirichletPoints(k3_below);
+                    z_above = oldDirichletPoints(k3_above);
+                }
+            } while(z_above<z);
+
+            stratifloat weight_above = (z-z_below)/(z_above-z_below);
+            stratifloat weight_below = (z_above-z)/(z_above-z_below);
+
+            imdata[j3*N1 + j1] = weight_left*weight_below*U(k1_left,j2,k3_below)
+                            + weight_left*weight_above*U(k1_left,j2,k3_above)
+                            + weight_right*weight_below*U(k1_right,j2,k3_below)
+                            + weight_right*weight_above*U(k1_right,j2,k3_above);
+        }
+    }
+
+    matplotlibcpp::imshow(imdata, N3, N1);
+
+    matplotlibcpp::save(filename);
+    matplotlibcpp::close();
+}
+
+#endif
+
 template<int N1, int N2, int N3>
 inline void HeatPlot(const ModalField<N1, N2, N3> &u, stratifloat L1, stratifloat L3, int j2, std::string filename)
 {
@@ -58,52 +111,5 @@ inline void HeatPlot(const ModalField<N1, N2, N3> &u, stratifloat L1, stratifloa
 
     u.ToNodal(U);
 
-    HeatPlot(U, L1, L3, j2, filename);
+    HeatPlot<N1,N2,N3>(U, L1, L3, j2, filename);
 }
-
-#else
-
-template<int N1, int N2, int N3>
-inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloat L3, int j2, std::string filename)
-{
-    matplotlibcpp::figure();
-
-
-    int scale = 1;
-
-    int cols = N1*scale;
-    int rows = N1*scale;
-
-    ArrayX x = ArrayX::LinSpaced(rows, 0.5*L1*scale, -0.5*L1*scale);
-
-    std::vector<stratifloat> imdata(rows*cols);
-
-    for (int col=0; col<N1; col++)
-    {
-        ArrayX y = Evaluate(U.stack(col, j2), x, L3, U.BC());
-
-        for (int row=0; row<rows; row++)
-        {
-            for (int repeat = 0; repeat < scale; repeat++)
-            {
-                imdata[row*cols + repeat*N1 + col] = y(row);
-            }
-        }
-    }
-
-    matplotlibcpp::imshow(imdata, rows, cols);
-
-    matplotlibcpp::save(filename);
-    matplotlibcpp::close();
-}
-
-template<int N1, int N2, int N3>
-inline void HeatPlot(const ModalField<N1, N2, N3> &u, stratifloat L1, stratifloat L3, int j2, std::string filename)
-{
-    NodalField<N1, N2, N3> U(u.BC());
-    u.ToNodalHorizontal(U);
-
-    HeatPlot(U, L1, L3, j2, filename);
-}
-
-#endif
