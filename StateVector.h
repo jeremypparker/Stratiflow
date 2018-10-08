@@ -228,6 +228,10 @@ public:
     template<int K1, int K2, int K3>
     void LoadAndInterpolate(const std::string& filename)
     {
+        // Set everything to zero. It interpolating to more modes, higher modes will not be overwritten
+        Zero();
+
+        // Load in to modal fields
         NodalField<K1,K2,K3> U1Loaded(BoundaryCondition::Neumann);
         NodalField<K1,K2,K3> U2Loaded(BoundaryCondition::Neumann);
         NodalField<K1,K2,K3> U3Loaded(BoundaryCondition::Dirichlet);
@@ -240,11 +244,17 @@ public:
         U3Loaded.Load(filestream);
         BLoaded.Load(filestream);
 
-        NeumannNodal U1;
-        NeumannNodal U2;
-        DirichletNodal U3;
-        NeumannNodal B;
+        ModalField<K1,K2,K3> u1Loaded(BoundaryCondition::Neumann);
+        ModalField<K1,K2,K3> u2Loaded(BoundaryCondition::Neumann);
+        ModalField<K1,K2,K3> u3Loaded(BoundaryCondition::Dirichlet);
+        ModalField<K1,K2,K3> bLoaded(BoundaryCondition::Neumann);
 
+        U1Loaded.ToModal(u1Loaded);
+        U2Loaded.ToModal(u2Loaded);
+        U3Loaded.ToModal(u3Loaded);
+        BLoaded.ToModal(bLoaded);
+
+        // Vertical points to interpolate to/from
         ArrayX oldNeumannPoints = VerticalPointsFractional(L3, K3);
         ArrayX oldDirichletPoints = VerticalPoints(L3, K3);
 
@@ -256,26 +266,14 @@ public:
         assert(N2==1);
         assert(!ThreeDimensional);
 
-        for (int j1=0; j1<N1; j1++)
+        for (int j1=0; j1<std::min(K1/2+1,N1/2+1); j1++)
         {
-            stratifloat x = j1*L1/N1;
-
-            int k1_left = static_cast<int>(x/(L1/K1));
-            int k1_right = k1_left+1;
-
-            stratifloat x_left = k1_left*L1/K1;
-            stratifloat x_right = k1_right*L1/K1;
-
-            stratifloat weight_left = (x_right-x)/(x_right-x_left);
-            stratifloat weight_right = (x-x_left)/(x_right-x_left);
-
-            if (k1_left<0) k1_left += K1;
-            if (k1_right>=K1) k1_right -= K1;
-
+            // Neumann fields u1, u2 and b
             for (int j3=0; j3<N3; j3++)
             {
                 stratifloat z = newNeumannPoints(j3);
 
+                // for each new gridpoint, find the old gridpoints either side
                 int k3_below;
                 int k3_above = 0;
                 stratifloat z_below;
@@ -290,34 +288,30 @@ public:
                     z_above = oldNeumannPoints(k3_above);
                 } while(z_above<z);
 
+                // linearly interpolate between these points
                 stratifloat weight_above = (z-z_below)/(z_above-z_below);
                 stratifloat weight_below = (z_above-z)/(z_above-z_below);
 
-                U1(j1,0,j3) = weight_left*weight_below*U1Loaded(k1_left,0,k3_below)
-                            + weight_left*weight_above*U1Loaded(k1_left,0,k3_above)
-                            + weight_right*weight_below*U1Loaded(k1_right,0,k3_below)
-                            + weight_right*weight_above*U1Loaded(k1_right,0,k3_above);
+                u1(j1,0,j3) = weight_below*u1Loaded(j1,0,k3_below)
+                            + weight_above*u1Loaded(j1,0,k3_above);
 
-                U2(j1,0,j3) = weight_left*weight_below*U2Loaded(k1_left,0,k3_below)
-                            + weight_left*weight_above*U2Loaded(k1_left,0,k3_above)
-                            + weight_right*weight_below*U2Loaded(k1_right,0,k3_below)
-                            + weight_right*weight_above*U2Loaded(k1_right,0,k3_above);
+                u2(j1,0,j3) = weight_below*u2Loaded(j1,0,k3_below)
+                            + weight_above*u2Loaded(j1,0,k3_above);
 
-                B(j1,0,j3) = weight_left*weight_below*BLoaded(k1_left,0,k3_below)
-                            + weight_left*weight_above*BLoaded(k1_left,0,k3_above)
-                            + weight_right*weight_below*BLoaded(k1_right,0,k3_below)
-                            + weight_right*weight_above*BLoaded(k1_right,0,k3_above);
+                b(j1,0,j3) = weight_below*bLoaded(j1,0,k3_below)
+                           + weight_above*bLoaded(j1,0,k3_above);
             }
 
             // neumann conditions
-            U1(j1,0,0) = U1(j1,0,1);
-            U2(j1,0,0) = U2(j1,0,1);
-            B(j1,0,0)   = B(j1,0,1);
+            u1(j1,0,0) = u1(j1,0,1);
+            u2(j1,0,0) = u2(j1,0,1);
+            b(j1,0,0)   = b(j1,0,1);
 
-            U1(j1,0,N3-1)=U1(j1,0,N3-2);
-            U2(j1,0,N3-1)=U2(j1,0,N3-2);
-            B(j1,0,N3-1) = B(j1,0,N3-2);
+            u1(j1,0,N3-1)=u1(j1,0,N3-2);
+            u2(j1,0,N3-1)=u2(j1,0,N3-2);
+            b(j1,0,N3-1) = b(j1,0,N3-2);
 
+            // same for dirichlet field u3
             for (int j3=1; j3<N3; j3++)
             {
                 stratifloat z = newDirichletPoints(j3);
@@ -339,17 +333,10 @@ public:
                 stratifloat weight_above = (z-z_below)/(z_above-z_below);
                 stratifloat weight_below = (z_above-z)/(z_above-z_below);
 
-                U3(j1,0,j3) = weight_left*weight_below*U3Loaded(k1_left,0,k3_below)
-                            + weight_left*weight_above*U3Loaded(k1_left,0,k3_above)
-                            + weight_right*weight_below*U3Loaded(k1_right,0,k3_below)
-                            + weight_right*weight_above*U3Loaded(k1_right,0,k3_above);
+                u3(j1,0,j3) = weight_below*u3Loaded(j1,0,k3_below)
+                            + weight_above*u3Loaded(j1,0,k3_above);
             }
         }
-
-        U1.ToModal(u1);
-        U2.ToModal(u2);
-        U3.ToModal(u3);
-        B.ToModal(b);
 
         EnforceBCs();
     }
