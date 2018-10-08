@@ -118,15 +118,32 @@ void Perform1DR2R(int size, const stratifloat* in, stratifloat* out, f3_r2r_kind
 
 void Setup()
 {
+    // We use printf here because of weird std bugs when using cout
     printf("Setting up Stratiflow\n");
-    f3_init_threads();
+
+    if (f3_init_threads() == 0)
+    {
+        fprintf(stderr, "Failed to initialise fftw threads.\n");
+    }
+
     f3_plan_with_nthreads(omp_get_max_threads());
+
+    if (f3_import_wisdom_from_filename("~/fftw_wisdom") == 0)
+    {
+        fprintf(stderr, "Importing fftw wisdom failed. Non-fatal.\n");
+    }
+
     printf("Using %d threads\n", omp_get_max_threads());
 }
 
 void Cleanup()
 {
     f3_cleanup_threads();
+
+    if (f3_export_wisdom_to_filename("~/fftw_wisdom") == 0)
+    {
+        fprintf(stderr, "Exporting fftw wisdom failed.\n");
+    }
 }
 
 int InitialiserClass::counter;
