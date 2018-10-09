@@ -138,12 +138,12 @@ void Setup()
 
 void Cleanup()
 {
-    f3_cleanup_threads();
-
     if (f3_export_wisdom_to_filename("~/fftw_wisdom") == 0)
     {
         fprintf(stderr, "Exporting fftw wisdom failed.\n");
     }
+
+    f3_cleanup_threads();
 }
 
 int InitialiserClass::counter;

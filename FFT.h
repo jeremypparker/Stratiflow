@@ -43,6 +43,15 @@ public:
             Setup();
         }
     }
+
+    ~InitialiserClass()
+    {
+        counter--;
+        if (counter==0)
+        {
+            Cleanup();
+        }
+    }
 private:
     static int counter;
 };
