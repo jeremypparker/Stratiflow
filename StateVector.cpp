@@ -161,7 +161,7 @@ void StateVector::AdjointEvolve(stratifloat deltaT, int steps, const std::vector
     solver.SetBackground(InitialU, InitialB);
 
     solver.FilterAll();
-    solver.PopulateNodalVariablesAdjoint();
+    solver.PopulateNodalVariables();
     solver.RemoveDivergence(0.0f);
 
     static int runnum = 0;
