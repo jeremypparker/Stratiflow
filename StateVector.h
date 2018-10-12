@@ -286,11 +286,23 @@ public:
 
                     z_below = oldNeumannPoints(k3_below);
                     z_above = oldNeumannPoints(k3_above);
-                } while(z_above<z);
+                } while(z_above<z && k3_above<K3-1);
 
                 // linearly interpolate between these points
                 stratifloat weight_above = (z-z_below)/(z_above-z_below);
                 stratifloat weight_below = (z_above-z)/(z_above-z_below);
+
+                if(weight_above > 1)
+                {
+                    weight_above = 1;
+                    weight_below = 1;
+                }
+
+                if (weight_below > 1)
+                {
+                    weight_below = 1;
+                    weight_above = 1;
+                }
 
                 u1(j1,0,j3) = weight_below*u1Loaded(j1,0,k3_below)
                             + weight_above*u1Loaded(j1,0,k3_above);
@@ -328,10 +340,22 @@ public:
 
                     z_below = oldDirichletPoints(k3_below);
                     z_above = oldDirichletPoints(k3_above);
-                } while(z_above<z);
+                } while(z_above<z && k3_above<K3-1);
 
                 stratifloat weight_above = (z-z_below)/(z_above-z_below);
                 stratifloat weight_below = (z_above-z)/(z_above-z_below);
+
+                if(weight_above > 1)
+                {
+                    weight_above = 1;
+                    weight_below = 1;
+                }
+
+                if (weight_below > 1)
+                {
+                    weight_below = 1;
+                    weight_above = 1;
+                }
 
                 u3(j1,0,j3) = weight_below*u3Loaded(j1,0,k3_below)
                             + weight_above*u3Loaded(j1,0,k3_above);
