@@ -79,6 +79,16 @@ public:
         paramFile >> p;
     }
 
+    template<int K1, int K2, int K3>
+    void LoadAndInterpolate(const std::string& filename)
+    {
+        x.LoadAndInterpolate<K1,K2,K3>(filename+".fields");
+        v.LoadAndInterpolate<K1,K2,K3>(filename+"-eig.fields");
+        std::ifstream paramFile(filename+".params");
+        paramFile >> p;
+    }
+
+
     void EnforceBCs()
     {
         x.EnforceBCs();
@@ -172,6 +182,7 @@ int main(int argc, char *argv[])
     else
     {
         guess.LoadFromFile(argv[2]);
+        // guess.LoadAndInterpolate<256,1,384>(argv[2]);
     }
 
 
