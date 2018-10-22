@@ -98,4 +98,7 @@ int main(int argc, char* argv[])
     result.Rescale(directState.Energy());
 
     result.SaveToFile("final");
+
+    std::cout << "Current epsilon " << epsilon << std::endl;
+    std::cout << "Bound epsilon " << -2*udotu/udotv << std::endl;
 }

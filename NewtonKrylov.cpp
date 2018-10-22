@@ -4,7 +4,7 @@ int main(int argc, char *argv[])
 {
     std::cout << "STRATIFLOW Newton-GMRES" << std::endl;
 
-    Ri = std::stof(argv[1]);
+    Ri = std::stod(argv[1]);
     DumpParameters();
 
     StateVector guess;
@@ -31,8 +31,8 @@ int main(int argc, char *argv[])
         if (FileExists(argv[2]))
         {
             std::cout << "Interpretting " << argv[2] << " as path to guess" << std::endl;
-            guess.LoadAndInterpolate<256,1,384>(argv[2]);
-            //guess.LoadFromFile(argv[2]);
+            // guess.LoadAndInterpolate<256,1,384>(argv[2]);
+            guess.LoadFromFile(argv[2]);
         }
         else
         {
@@ -49,7 +49,12 @@ int main(int argc, char *argv[])
         std::cerr << "Incorrect number of args" << std::endl;
     }
 
+    RemoveAverage(guess.u1, L3);
+    RemoveAverage(guess.b, L3);
+
     BasicNewtonKrylov solver;
 
     solver.Run(guess);
+
+    guess.SaveToFile("final");
 }
