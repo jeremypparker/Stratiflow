@@ -92,7 +92,7 @@ void IMEXRK::CrankNicolson(int k, bool evolveBackground)
                          +MatMulDim3(dim3Derivative2Dirichlet, u3));
     CNSolve(R3, u3, k);
 
-    RB += (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, b)
+    RB += (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)
                          +MatMulDim2(dim2Derivative2, b)
                          +MatMulDim3(dim3Derivative2Neumann, b));
     CNSolveBuoyancy(RB, b, k);
