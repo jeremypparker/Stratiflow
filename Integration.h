@@ -7,13 +7,13 @@ stratifloat IntegrateVertically(const Nodal1D<N1,N2,N3>& U, stratifloat L3)
 {
     if (U.BC() == BoundaryCondition::Neumann)
     {
-        static ArrayX z = VerticalPointsFractional(L3,N3);
+        static ArrayX z = VerticalPoints(L3,N3);
 
         stratifloat result = 0;
 
-        for (int k=1; k<N3-2; k++)
+        for (int k=1; k<N3-1; k++)
         {
-            result += (z(k+1)-z(k))*(U.Get()(k+1)+U.Get()(k))*0.5;
+            result += (z(k+1)-z(k))*U.Get()(k);
         }
 
 
@@ -21,18 +21,14 @@ stratifloat IntegrateVertically(const Nodal1D<N1,N2,N3>& U, stratifloat L3)
     }
     else
     {
-        static ArrayX z = VerticalPoints(L3,N3);
+        static ArrayX z = VerticalPointsFractional(L3,N3);
 
         stratifloat result = 0;
 
-        // result += (z(0)-z(1))*(3*U.Get()(1)+U.Get()(0))*0.125;
-
         for (int k=2; k<N3-1; k++)
         {
-            result += (z(k+1)-z(k))*(U.Get()(k+1)+U.Get()(k))*0.5;
+            result += (z(k)-z(k-1))*U.Get()(k);
         }
-
-        // result += (z(N3-2)-z(N3-1))*(3*U.Get()(N3-2)+U.Get()(N3-1))*0.125;
 
         return result;
     }

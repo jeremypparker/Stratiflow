@@ -110,4 +110,11 @@ public:
     {
         x.PlotAll(directory);
     }
+
+    template<int K1, int K2, int K3>
+    void LoadAndInterpolate(const std::string& filename)
+    {
+        x.LoadAndInterpolate<K1, K2, K3>(filename+".fields");
+        LoadValueFromFile(p, filename+".params");
+    }
 };

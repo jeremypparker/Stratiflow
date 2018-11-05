@@ -152,6 +152,18 @@ public:
         }
         u3.ToNodal(U3);
         b.ToNodal(B);
+
+        // U1.Antisymmetrise();
+        // if (ThreeDimensional)
+        // {
+        //     U2.Antisymmetrise();
+        // }
+        // U3.Antisymmetrise();
+        // B.Antisymmetrise();
+
+        // U1.ToModal(u1);
+        // U3.ToModal(u3);
+        // B.ToModal(b);
     }
 
     void PrepareRun(std::string imageDir, bool makeDirs = true)
@@ -600,9 +612,11 @@ public:
     // these are the actual variables we care about
     NeumannModal u1, u2, b, p;
     DirichletModal u3;
-private:
+
     // background flow
     Neumann1D U_, B_;
+private:
+
 
     // direct flow (used for adjoint evolution)
     NeumannModal u1_tot, u2_tot, b_tot;

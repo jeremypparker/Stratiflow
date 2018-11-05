@@ -103,7 +103,7 @@ public:
 
     void RemovePhaseShift()
     {
-        stratifloat shift = -std::arg(u1(1,0,N3/2));
+        stratifloat shift = -std::arg(u1(1,0,N3/2))+pi/2;
         u1.PhaseShift(shift);
         if (ThreeDimensional)
         {
@@ -255,8 +255,8 @@ public:
         BLoaded.ToModal(bLoaded);
 
         // Vertical points to interpolate to/from
-        ArrayX oldNeumannPoints = VerticalPointsFractional(L3, K3);
-        ArrayX oldDirichletPoints = VerticalPoints(L3, K3);
+        ArrayX oldNeumannPoints = VerticalPointsFractional(10, K3);
+        ArrayX oldDirichletPoints = VerticalPoints(10, K3);
 
         ArrayX newNeumannPoints = VerticalPointsFractional(L3, N3);
         ArrayX newDirichletPoints = VerticalPoints(L3, N3);
@@ -275,7 +275,7 @@ public:
 
                 // for each new gridpoint, find the old gridpoints either side
                 int k3_below;
-                int k3_above = 0;
+                int k3_above = 1;
                 stratifloat z_below;
                 stratifloat z_above;
 
@@ -286,7 +286,7 @@ public:
 
                     z_below = oldNeumannPoints(k3_below);
                     z_above = oldNeumannPoints(k3_above);
-                } while(z_above<z && k3_above<K3-1);
+                } while(z_above<z && k3_above<K3-2);
 
                 // linearly interpolate between these points
                 stratifloat weight_above = (z-z_below)/(z_above-z_below);
@@ -295,13 +295,13 @@ public:
                 if(weight_above > 1)
                 {
                     weight_above = 1;
-                    weight_below = 1;
+                    weight_below = 0;
                 }
 
                 if (weight_below > 1)
                 {
                     weight_below = 1;
-                    weight_above = 1;
+                    weight_above = 0;
                 }
 
                 u1(j1,0,j3) = weight_below*u1Loaded(j1,0,k3_below)
@@ -348,13 +348,13 @@ public:
                 if(weight_above > 1)
                 {
                     weight_above = 1;
-                    weight_below = 1;
+                    weight_below = 0;
                 }
 
                 if (weight_below > 1)
                 {
                     weight_below = 1;
-                    weight_above = 1;
+                    weight_above = 0;
                 }
 
                 u3(j1,0,j3) = weight_below*u3Loaded(j1,0,k3_below)
@@ -483,6 +483,7 @@ private:
         into.EnforceBCs();
     }
 
+public:
     static IMEXRK solver;
 };
 

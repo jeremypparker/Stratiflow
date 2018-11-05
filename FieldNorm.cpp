@@ -5,9 +5,10 @@ int main(int argc, char* argv[])
     if (argc == 4)
     {
         LoadParameters(argv[3]);
+        StateVector::ResetForParams();
     }
     PrintParameters();
-    StateVector::ResetForParams();
+
 
     ExtendedStateVector field;
     if (argc >= 3)
@@ -22,12 +23,13 @@ int main(int argc, char* argv[])
 
     Ri = field.p;
 
-    // ExtendedStateVector endfield;
-    // field.FullEvolve(5, endfield);
-
-    // endfield -= field;
 
     std::cout << "STATIONARY POINT "
               << field.p << " "
-              << field.x.Norm() << std::endl;
+              << field.x.Norm() << " "
+              << field.x.Energy() << " "
+              << field.x.Enstrophy() << std::endl;
+
+    field.x.AddBackground();
+    field.PlotAll("plots");
 }

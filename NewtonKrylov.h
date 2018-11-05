@@ -28,7 +28,8 @@ public:
 
         stratifloat Delta = 1;
         int step = 0;
-        stratifloat targetResidual = 1e-10;
+        stratifloat targetResidual = 1e-8;
+        int worsefor = 0;
         while(true)
         {
             step++;
@@ -40,7 +41,7 @@ public:
             VectorType rhs = EvalFunction(x);
             linearAboutStart = x;
             linearAboutEnd = rhs;
-            stratifloat residual = rhs.Norm()/x.Norm();
+            stratifloat residual = rhs.Norm();
 
             std::cout << "NEWTON STEP " << step << ", RESIDUAL: " << residual << std::endl;
 
@@ -58,11 +59,14 @@ public:
                 linEndPrevious = linearAboutEnd;
                 rhsPrevious = rhs;
 
-                // will have to construct Krylov space from scratch
-                vectorsToReuse = 0;
-                H.setZero();
+                worsefor = 0;
             }
             else
+            {
+                worsefor++;
+            }
+
+            if (false/*worsefor > 3*/)
             {
                 // not good enough, reduce trust region size and retry
                 Delta /= 2;
@@ -74,10 +78,22 @@ public:
                 linearAboutStart = linStartPrevious;
                 linearAboutEnd = linEndPrevious;
                 rhs = rhsPrevious;
+
+                if (worsefor == 4)
+                {
+                    vectorsToReuse = 0;
+                    H.setZero();
+                }
+            }
+            else
+            {
+                // will have to construct Krylov space from scratch
+                vectorsToReuse = 0;
+                H.setZero();
             }
 
             // solve matrix system
-            GMRES(rhs, dx, 0.05, Delta);
+            GMRES(rhs, dx, 0.01, Delta);
 
             // update
             x += dx;
@@ -94,7 +110,7 @@ public:
 protected:
     virtual VectorType EvalFunction(const VectorType& at) = 0;
 
-    stratifloat T = 5; // time interval for integration
+    stratifloat T = 11; // time interval for integration
 
 private:
     VectorType linearAboutStart;
@@ -102,7 +118,7 @@ private:
 
     VectorType EvalDerivative(const VectorType& at)
     {
-        const stratifloat eps = 0.000001;
+        const stratifloat eps = 1e-7*linearAboutStart.Norm()/at.Norm();
         VectorType temp = linearAboutStart;
 
         temp.MulAdd(eps, at);
@@ -218,7 +234,7 @@ private:
         }
     }
 
-    int K = 512; // max iterations
+    int K = 1024; // max iterations
     int vectorsToReuse = 0;
     std::vector<VectorType> q;
     MatrixX H; // upper Hessenberg matrix

@@ -863,6 +863,36 @@ public:
         return *this;
     }
 
+    void Antisymmetrise()
+    {
+        for (int j1=1; j1<N1/2; j1++)
+        {
+            int otherj1 = N1-j1;
+            for (int j2=0; j2<N2; j2++)
+            {
+                for (int j3=0; j3<N3/2; j3++)
+                {
+                    int otherj3 = N3-j3;
+
+                    if (this->BC() == BoundaryCondition::Neumann)
+                    {
+                        otherj3--;
+
+                        stratifloat average = 0.5*(this->operator()(j1,j2,j3)-this->operator()(otherj1,j2,otherj3));
+                        this->operator()(j1,j2,j3) = average;
+                        this->operator()(otherj1,j2,otherj3) = -average;
+                    }
+                    else
+                    {
+                        stratifloat average = 0.5*(this->operator()(j1,j2,j3)-this->operator()(otherj1,j2,otherj3));
+                        this->operator()(j1,j2,j3) = average;
+                        this->operator()(otherj1,j2,otherj3) = -average;
+                    }
+                }
+            }
+        }
+    }
+
     using Field<stratifloat, N1, N2, N3>::operator-=;
 };
 
@@ -942,7 +972,7 @@ public:
             #pragma omp parallel for collapse(2)
             for (int j2=0; j2<N2; j2++)
             {
-                for (int j1=N1/3+1; j1<actualN1; j1++)
+                for (int j1=N1/3; j1<actualN1; j1++)
                 {
                     this->stack(j1, j2).setZero();
                 }
@@ -952,7 +982,7 @@ public:
         if (N2>2)
         {
             #pragma omp parallel for collapse(2)
-            for (int j2=(N2/3)+1; j2<=N2-(N2/3)-1; j2++)
+            for (int j2=(N2/3); j2<=N2-(N2/3); j2++)
             {
                 for (int j1=0; j1<actualN1; j1++)
                 {
@@ -1042,9 +1072,9 @@ public:
 
     virtual void ParallelPerStack(std::function<void(int j1, int j2)> f) const override
     {
-        int maxN1 = N1/3+1;
-        int maxN2 = N2/3+1;
-        int minN2 = N2-(N2/3);
+        int maxN1 = N1/3;
+        int maxN2 = N2/3;
+        int minN2 = N2-(N2/3)+1;
 
         if(N2>1)
         {
@@ -1084,38 +1114,33 @@ public:
         });
     }
 
-    void Antisymmetrise()
+    void SetValue(std::function<stratifloat(stratifloat)> f, stratifloat L3)
     {
-        // if (this->BC() == BoundaryCondition::Decaying)
-        // {
-        //     #pragma omp parallel for
-        //     for3D(actualN1,N2,N3)
-        //     {
-        //         if (j3%2 == 0)
-        //         {
-        //             this->operator()(j1,j2,j3).imag(0); // imaginary part antisymmetric
-        //         }
-        //         else
-        //         {
-        //             this->operator()(j1,j2,j3).real(0); // real part symmetric
-        //         }
-        //     } endfor3D
-        // }
-        // else
-        // {
-        //     #pragma omp parallel for
-        //     for3D(actualN1,N2,N3)
-        //     {
-        //         if (j3%2 == 0)
-        //         {
-        //             this->operator()(j1,j2,j3).real(0); // real part antisymmetric
-        //         }
-        //         else
-        //         {
-        //             this->operator()(j1,j2,j3).imag(0); // imaginary part symmetric
-        //         }
-        //     } endfor3D
-        // }
+        ArrayX z = VerticalPointsFractional(L3, N3);
+
+        if (this->BC() == BoundaryCondition::Dirichlet)
+        {
+            z = VerticalPoints(L3,N3);
+        }
+
+        for (int j3=0; j3<N3; j3++)
+        {
+            this->operator()(0, 0, j3) = f(z(j3));
+        }
+
+        if (this->BC() == BoundaryCondition::Neumann)
+        {
+            this->slice(1)=this->slice(2);
+            this->slice(0)=this->slice(1);
+            this->slice(N3-2)=this->slice(N3-3);
+            this->slice(N3-1)=this->slice(N3-2);
+        }
+        else
+        {
+            this->slice(1)=-this->slice(2);
+            this->slice(0)=this->slice(1);
+            this->slice(N3-1)=-this->slice(N3-2);
+        }
     }
 
 private:

@@ -68,15 +68,15 @@ public:
             }
 
             // exclude things that look like a phase shift
-            for (int j=0; j<k; j++)
-            {
-                complex proj = ces.eigenvectors().col(j).dot(phaseShiftTransformed);
-                stratifloat prod = phaseShiftTransformed.norm()*ces.eigenvectors().col(j).norm();
-                if (proj.real() > 0.7*prod || proj.real() < -0.7*prod)
-                {
-                    eigenvalues(j) = 0;
-                }
-            }
+//            for (int j=0; j<k; j++)
+//            {
+//                complex proj = ces.eigenvectors().col(j).dot(phaseShiftTransformed);
+//                stratifloat prod = phaseShiftTransformed.norm()*ces.eigenvectors().col(j).norm();
+//                if (proj.real() > 0.7*prod || proj.real() < -0.7*prod)
+//                {
+//                    eigenvalues(j) = 0;
+//                }
+//            }
 
             int maxIndex;
             stratifloat maxCoeff = eigenvalues.maxCoeff(&maxIndex);
@@ -108,15 +108,10 @@ public:
             phaseShiftTransformed[j] = phaseShift.Dot(q[j]);
         }
 
-        // exclude things that look like a phase shift
+        // remove any phase shift component
         for (int j=0; j<K-1; j++)
         {
-                complex proj = ces.eigenvectors().col(j).dot(phaseShiftTransformed);
-                stratifloat prod = phaseShiftTransformed.norm()*ces.eigenvectors().col(j).norm();
-                if (proj.real() > 0.7*prod || proj.real() < -0.7*prod)
-                {
-                    eigenvalues(j) = 0;
-                }
+                ces.eigenvectors().col(j) -= (ces.eigenvectors().col(j).dot(phaseShiftTransformed)/phaseShiftTransformed.norm()/phaseShiftTransformed.norm())*phaseShiftTransformed;
         }
 
 
@@ -142,6 +137,8 @@ public:
         VectorType imag1;
         VectorType imag2;
         VectorType imag3;
+
+        VectorType phaseShiftBack;
         for (int k=0; k<K-1; k++)
         {
             result += eigenvector(k).real() * q[k];
@@ -150,11 +147,14 @@ public:
             imag2 += eigenvector2(k).imag() * q[k];
             result3 += eigenvector3(k).real() * q[k];
             imag3 += eigenvector3(k).imag() * q[k];
+            phaseShiftBack += phaseShiftTransformed(k) * q[k];
         }
 
         result.PlotAll("eigReal");
         result2.PlotAll("eig2Real");
         result3.PlotAll("eig3Real");
+        
+        phaseShiftBack.PlotAll("phaseShift");
 
         result.SaveToFile("eigReal");
         imag1.SaveToFile("eigImag");
@@ -191,12 +191,12 @@ protected:
     virtual VectorType EvalFunction(const VectorType& at) = 0;
     virtual VectorType EvalLinearised(const VectorType& at) = 0;
 
-    stratifloat T = 11; // time interval for integration
+    stratifloat T = 3; // time interval for integration
 
     VectorType linearAboutStart;
 
 public:
-    int K = 512; // max iterations
+    int K = 3072; // max iterations
     std::vector<VectorType> q;
     MatrixX H; // upper Hessenberg matrix
 };
