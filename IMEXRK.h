@@ -104,13 +104,10 @@ public:
 
             // todo: add on background in modal?
             u1_tot.ToNodal(U1_tot);
-            b_tot.ToNodal(B_tot);
 
             U1_tot += U_;
-            B_tot += B_;
 
             U1_tot.ToModal(u1_tot);
-            B_tot.ToModal(b_tot);
 
             UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
 
@@ -225,23 +222,16 @@ public:
 
     void PlotBuoyancy(std::string filename, int j2, bool includeBackground = true) const
     {
-        if (includeBackground)
-        {
-            nnTemp = B_ + B;
-            nnTemp.ToModal(neumannTemp);
-            HeatPlot(neumannTemp, L1, L3, j2, filename);
-        }
-        else
-        {
+        // if (includeBackground)
+        // {
+        //     nnTemp = B_ + B;
+        //     nnTemp.ToModal(neumannTemp);
+        //     HeatPlot(neumannTemp, L1, L3, j2, filename);
+        // }
+        // else
+        // {
             HeatPlot(b, L1, L3, j2, filename);
-        }
-    }
-
-    void PlotBuoyancyBG(std::string filename, int j2) const
-    {
-        nnTemp = B_;
-        nnTemp.ToModal(neumannTemp);
-        HeatPlot(neumannTemp, L1, L3, j2, filename);
+        // }
     }
 
     void PlotPressure(std::string filename, int j2) const
@@ -327,21 +317,17 @@ public:
         b = buoyancy;
     }
 
-    void SetBackground(const Neumann1D& velocity, const Neumann1D& buoyancy)
+    void SetBackground(const Neumann1D& velocity)
     {
         U_ = velocity;
-        B_ = buoyancy;
     }
 
-    void SetBackground(std::function<stratifloat(stratifloat)> velocity,
-                       std::function<stratifloat(stratifloat)> buoyancy)
+    void SetBackground(std::function<stratifloat(stratifloat)> velocity)
     {
         Neumann1D Ubar;
-        Neumann1D Bbar;
         Ubar.SetValue(velocity, L3);
-        Bbar.SetValue(buoyancy, L3);
 
-        SetBackground(Ubar, Bbar);
+        SetBackground(Ubar);
     }
 
     void SetBackground(const NeumannModal& velocity1, const NeumannModal& velocity2, const DirichletModal& velocity3, const NeumannModal& buoyancy)
@@ -458,7 +444,7 @@ public:
         nnTemp = U1 + U_;
         nnTemp.ToModal(u1_total);
 
-        nnTemp = B + B_;
+        nnTemp = B;
         nnTemp.ToModal(b_total);
 
         UpdateAdjointVariables(u1_total, u2, u3, b_total);
@@ -614,7 +600,7 @@ public:
     DirichletModal u3;
 
     // background flow
-    Neumann1D U_, B_;
+    Neumann1D U_;
 private:
 
 

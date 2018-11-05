@@ -1,7 +1,6 @@
 #pragma once
 
 #include "IMEXRK.h"
-#include "OrrSommerfeld.h"
 
 // This class contains a full state's information
 // its operations are not particularly efficient
@@ -382,7 +381,7 @@ public:
         Neumann1D B_;
 
         U_.SetValue(InitialU, L3);
-        B_.SetValue(InitialB, L3);
+        B_.SetValue([](stratifloat z){return z;}, L3);
 
 
 
@@ -405,7 +404,7 @@ public:
         Neumann1D B_;
 
         U_.SetValue(InitialU, L3);
-        B_.SetValue(InitialB, L3);
+        B_.SetValue([](stratifloat z){return z;}, L3);
 
 
 
@@ -437,14 +436,6 @@ public:
         HeatPlot(FractionalTemp, L1, L3, 0, directory+"/vorticity.png");
     }
 
-    stratifloat ToEigenMode(stratifloat energy, int mode=1)
-    {
-        stratifloat growth = EigenModes(2*pi*mode/L1, u1, u2, u3, b);
-        p.Zero();
-        Rescale(energy);
-
-        return growth;
-    }
 
     static void ResetForParams()
     {

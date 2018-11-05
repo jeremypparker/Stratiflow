@@ -34,15 +34,6 @@ int main(int argc, char *argv[])
             // guess.LoadAndInterpolate<256,1,384>(argv[2]);
             guess.LoadFromFile(argv[2]);
         }
-        else
-        {
-            std::cout << "Interpretting " << argv[2] << " as norm for eigenfunction" << std::endl;
-
-            stratifloat norm = std::stof(argv[2]);
-            stratifloat growth = guess.ToEigenMode(0.5*norm*norm);
-
-            std::cout << "Growth rate: " << growth << std::endl;
-        }
     }
     else
     {

@@ -70,7 +70,6 @@ add_library(StratiLib
     Integration.cpp
     OSUtils.cpp
     FFT.cpp
-    OrrSommerfeld.cpp
     Parameters.cpp
     StateVector.cpp
     IMEXRK.cpp)
@@ -79,9 +78,6 @@ if(TARGET Eigen3::Eigen)
 endif()
 
 add_subdirectory(tests)
-
-add_executable(OrrSommerfeld LargestGrowth.cpp)
-target_link_libraries(OrrSommerfeld StratiLib)
 
 add_executable(NewtonKrylov NewtonKrylov.cpp)
 target_link_libraries(NewtonKrylov StratiLib)

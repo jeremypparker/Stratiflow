@@ -101,9 +101,6 @@ void IMEXRK::CrankNicolson(int k, bool evolveBackground)
     {
         RU_ = U_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Neumann, U_);
         CNSolve1D(RU_, U_, k);
-
-        RB_ = B_ + (0.5f*h[k]/Pe)*MatMul1D(dim3Derivative2Neumann, B_);
-        CNSolveBuoyancy1D(RB_, B_, k);
     }
 }
 
@@ -145,12 +142,15 @@ void IMEXRK::BuildRHS()
     RemoveHorizontalAverage(neumannTemp);
     r3 += Ri*ReinterpolateFull(neumannTemp); // buoyancy force
 
+    // background stratification term
+    dirichletTemp = u3;
+    rB -= ReinterpolateDirichlet(dirichletTemp);
+
     //////// NONLINEAR TERMS ////////
     // calculate products at nodes in physical space
 
     // take into account background shear for nonlinear terms
     U1_tot = U1 + U_;
-    B_tot = B + B_;
 
     InterpolateProduct(U1_tot, U1_tot, neumannTemp);
     r1 -= ddx(neumannTemp);
@@ -179,16 +179,16 @@ void IMEXRK::BuildRHS()
     }
 
     // buoyancy nonlinear terms
-    DifferentiateProductBar(B_tot, U3, neumannTemp);
+    DifferentiateProductBar(B, U3, neumannTemp);
     rB -= neumannTemp;
 
     if(ThreeDimensional)
     {
-        InterpolateProduct(U2, B_tot, neumannTemp);
+        InterpolateProduct(U2, B, neumannTemp);
         rB -= ddy(neumannTemp);
     }
 
-    InterpolateProduct(U1_tot, B_tot, neumannTemp);
+    InterpolateProduct(U1_tot, B, neumannTemp);
     rB -= ddx(neumannTemp);
 }
 
@@ -201,12 +201,15 @@ void IMEXRK::BuildRHSLinear()
     RemoveHorizontalAverage(neumannTemp);
     r3 += Ri*ReinterpolateFull(neumannTemp); // buoyancy force
 
+    // background stratification term
+    dirichletTemp = u3;
+    rB -= ReinterpolateDirichlet(dirichletTemp);
+
     //////// NONLINEAR TERMS ////////
     // calculate products at nodes in physical space
 
     // take into account background shear for nonlinear terms
     nnTemp = U1_tot + U_;
-    nnTemp2 = B_tot + B_;
 
     InterpolateProduct(U1, nnTemp, neumannTemp);
     r1 -= 2.0*ddx(neumannTemp);
@@ -235,16 +238,16 @@ void IMEXRK::BuildRHSLinear()
     }
 
     // buoyancy nonlinear terms
-    DifferentiateProductBar(B, nnTemp2, U3_tot, U3, neumannTemp);
+    DifferentiateProductBar(B, B_tot, U3_tot, U3, neumannTemp);
     rB -= neumannTemp;
 
     if(ThreeDimensional)
     {
-        InterpolateProduct(B, nnTemp2, U2_tot, U2, neumannTemp);
+        InterpolateProduct(B, B_tot, U2_tot, U2, neumannTemp);
         rB -= ddy(neumannTemp);
     }
 
-    InterpolateProduct(B, nnTemp2, nnTemp, U1, neumannTemp);
+    InterpolateProduct(B, B_tot, nnTemp, U1, neumannTemp);
     rB -= ddx(neumannTemp);
 }
 

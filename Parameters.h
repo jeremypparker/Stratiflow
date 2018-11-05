@@ -18,18 +18,7 @@ extern bool EnforceSymmetry;
 // These must be defined at compile time
 
 // SOLVER PARAMETERS //
-// constexpr int N1 = 512; // Number of streamwise gridpoints
-// constexpr int N2 = 64;   // Number of spanwise gridpoints
-// constexpr int N3 = 768; // Number of vertical gridpoints
-
-// constexpr bool ThreeDimensional = true; // whether to resolve spanwise direction
-// constexpr bool EvolveBackground = false;
-
-// constexpr int N1 = 64; // Number of streamwise gridpoints
-// constexpr int N2 = 1;   // Number of spanwise gridpoints
-// constexpr int N3 = 512; // Number of vertical gridpoints
-
-constexpr int N1 = 256; // Number of streamwise gridpoints
+constexpr int N1 = 128; // Number of streamwise gridpoints
 constexpr int N2 = 1;   // Number of spanwise gridpoints
 constexpr int N3 = 384; // Number of vertical gridpoints
 
@@ -40,12 +29,6 @@ constexpr bool EvolveBackground = false;
 inline stratifloat InitialU(stratifloat z)
 {
     return tanh(z);
-}
-
-// background stratification
-inline stratifloat InitialB(stratifloat z)
-{
-    return tanh(R*z);
 }
 
 void DumpParameters();
