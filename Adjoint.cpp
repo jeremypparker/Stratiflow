@@ -1,104 +1,48 @@
 #include "StateVector.h"
-#include <algorithm>
-
-struct Snapshot
-{
-    int step;
-    stratifloat time;
-    std::string filename;
-};
 
 int main(int argc, char* argv[])
 {
-    std::vector<Snapshot> snapshots;
+    // backwards integrates the adjoint equation between two given direct snapshots
 
-    auto dir = opendir(argv[1]);
-    struct dirent* file = nullptr;
-    while((file=readdir(dir)))
-    {
-        std::string filename(file->d_name);
-        int extension = filename.find(".fields");
-        int hyphen = filename.find("-");
+    // Load state at tmax of interval
+    std::string filenameabove(argv[1]);
+    int extension = filenameabove.find(".fields");
+    int hyphen = filenameabove.find_last_of("-");
+    int slash = filenameabove.find_last_of("/");
 
-        if (extension!=-1 && hyphen!=-1)
-        {
-            Snapshot snapshot;
-            snapshot.step = std::stoi(filename.substr(0, hyphen));
-            snapshot.time = std::stof(filename.substr(hyphen+1, extension-hyphen-1));
-            snapshot.filename = argv[1]+std::string("/")+filename;
+    int stepabove = std::stoi(filenameabove.substr(slash+1, hyphen-slash-1));
+    stratifloat timeabove = std::stof(filenameabove.substr(hyphen+1, extension-hyphen-1));
 
-            snapshots.push_back(snapshot);
-        }
-    }
-    closedir(dir);
+    // Load state at tmin
+    std::string filenamebelow(argv[2]);
+    extension = filenamebelow.find(".fields");
+    hyphen = filenamebelow.find_last_of("-");
+    slash = filenamebelow.find_last_of("/");
 
-    std::sort(snapshots.begin(), snapshots.end(), [](Snapshot& a, Snapshot& b){return a.step<b.step;});
+    int stepbelow = std::stoi(filenamebelow.substr(slash+1, hyphen-slash-1));
+    stratifloat timebelow = std::stof(filenamebelow.substr(hyphen+1, extension-hyphen-1));
+
+
+    std::cout << "Between " << timebelow << " and " << timeabove << std::endl;
+    stratifloat steps = stepabove - stepbelow;
+    stratifloat deltaT = (timeabove - timebelow)/steps;
+
+    std::cout << "Timestep " << deltaT << std::endl;
+
+    // Fill in the gaps by doing extra forward integration
+    StateVector directState;
+    directState.LoadFromFile(filenamebelow);
 
     std::vector<StateVector> intermediateStates;
-    StateVector directState;
+    directState.FixedEvolve(deltaT, steps, intermediateStates);
+
+    directState.LoadFromFile(filenameabove);
+    intermediateStates.push_back(directState);
+
+    // Now do adjoint integration
     StateVector adjointState;
-
-    for (auto snapshot = snapshots.end(); std::prev(snapshot)!=snapshots.begin(); snapshot--)
-    {
-        const Snapshot& shotabove = *std::prev(snapshot);
-        const Snapshot& shotbelow = *std::prev(std::prev(snapshot));
-
-        std::cout << "Between " << shotbelow.time << " and " << shotabove.time << std::endl;
-        stratifloat steps = shotabove.step - shotbelow.step;
-        stratifloat deltaT = (shotabove.time - shotbelow.time)/steps;
-
-        std::cout << "Timestep " << deltaT << std::endl;
-
-        // Fill in the gaps by doing extra forward integration
-        directState.LoadFromFile(shotbelow.filename);
-        directState.FixedEvolve(deltaT, steps, intermediateStates);
-
-        directState.LoadFromFile(shotabove.filename);
-        intermediateStates.push_back(directState);
-
-        // Now do adjoint integration
-        adjointState.PlotAll(std::to_string(shotabove.time));
-        adjointState.AdjointEvolve(deltaT, steps, intermediateStates, adjointState);
-    }
-
-    directState.LoadFromFile(snapshots[0].filename);
-
-    // now in directState and adjointState we should have both at t=0
-
-    // perform optimisation
-    stratifloat epsilon = std::stof(argv[2]);
-
-    // scale for more uniform updating
-    adjointState.b *= 1/Ri;
-
-    stratifloat udotu = directState.Dot(directState);
-    stratifloat udotv = directState.Dot(adjointState);
-    stratifloat vdotv = adjointState.Dot(adjointState);
-
-    stratifloat lambda = 0;
-    while(lambda==0)
-    {
-        lambda = SolveQuadratic(epsilon*udotu,
-                                2*epsilon*udotv - 2*udotu,
-                                epsilon*vdotv - 2*udotv);
-        if (lambda==0)
-        {
-            std::cout << "Reducing step size" << std::endl;
-            epsilon /= 2;
-        }
-    }
-
-    StateVector deriv = adjointState + lambda*directState;
-    StateVector result = directState - epsilon*deriv;
-
-    stratifloat residual = deriv.Norm2();
-
-    SaveValueToFile(residual, "residual");
-
-    result.Rescale(directState.Energy());
-
-    result.SaveToFile("final");
-
-    std::cout << "Current epsilon " << epsilon << std::endl;
-    std::cout << "Bound epsilon " << -2*udotu/udotv << std::endl;
+    adjointState.LoadFromFile("adjointstate.fields");
+    adjointState.AdjointEvolve(deltaT, steps, intermediateStates, adjointState);
+    adjointState.SaveToFile("adjointstate.fields");
+    adjointState.PlotAll(std::to_string(timebelow));
 }
