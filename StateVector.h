@@ -199,15 +199,21 @@ public:
 
     void LoadFromFile(const std::string& filename)
     {
-        if (EndsWith(filename, ".fields"))
+        std::string file = filename;
+        if (!EndsWith(filename, ".fields"))
         {
-            solver.LoadFlow(filename);
+            file += ".fields";
+        }
+
+        if (FileExists(file))
+        {
+            solver.LoadFlow(file);
+            CopyFromSolver();
         }
         else
         {
-            solver.LoadFlow(filename+".fields");
+            std::cout << "Warning: attempted to load non existent file " << file << std::endl;
         }
-        CopyFromSolver();
     }
 
     void SaveToFile(const std::string& filename) const
