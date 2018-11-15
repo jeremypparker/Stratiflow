@@ -83,8 +83,7 @@ public:
     void TimeStep();
     void TimeStepLinear();
 
-    void TimeStepAdjoint(stratifloat time,
-                         const NeumannModal& u1Below,
+    void TimeStepAdjoint(const NeumannModal& u1Below,
                          const NeumannModal& u2Below,
                          const DirichletModal& u3Below,
                          const NeumannModal& bBelow,
@@ -97,10 +96,10 @@ public:
         for (int k=0; k<s; k++)
         {
             // interpolate the direct state at the RK substep
-            u1_tot = (1-interpFrac)*u1Below + interpFrac*u1Above;
-            u2_tot = (1-interpFrac)*u2Below + interpFrac*u2Above;
-            u3_tot = (1-interpFrac)*u3Below + interpFrac*u3Above;
-            b_tot = (1-interpFrac)*bBelow + interpFrac*bAbove;
+            u1_tot = (1-interpFrac)*u1Above + interpFrac*u1Below;
+            u2_tot = (1-interpFrac)*u2Above + interpFrac*u2Below;
+            u3_tot = (1-interpFrac)*u3Above + interpFrac*u3Below;
+            b_tot = (1-interpFrac)*bAbove + interpFrac*bBelow;
 
             // todo: add on background in modal?
             u1_tot.ToNodal(U1_tot);
@@ -125,7 +124,6 @@ public:
 
             PopulateNodalVariables();
 
-            time -= h[k];
             interpFrac += h[k]/deltaT;
         }
     }
