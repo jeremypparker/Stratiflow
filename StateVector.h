@@ -465,9 +465,12 @@ private:
         {
             solver.u2 = u2;
         }
+        else
+        {
+            solver.u2.Zero();
+        }
         solver.u3 = u3;
         solver.b = b;
-        solver.u2.Zero();
         solver.p = p;
     }
 
