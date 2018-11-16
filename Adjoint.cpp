@@ -22,12 +22,10 @@ int main(int argc, char* argv[])
     int stepbelow = std::stoi(filenamebelow.substr(slash+1, hyphen-slash-1));
     stratifloat timebelow = std::stof(filenamebelow.substr(hyphen+1, extension-hyphen-1));
 
-
     std::cout << "Between " << timebelow << " and " << timeabove << std::endl;
     stratifloat steps = stepabove - stepbelow;
     stratifloat deltaT = (timeabove - timebelow)/steps;
-
-    std::cout << "Timestep " << deltaT << std::endl;
+    std::cout << steps << " steps, deltaT=" << deltaT << std::endl;
 
     // Fill in the gaps by doing extra forward integration
     StateVector directState;
@@ -41,8 +39,9 @@ int main(int argc, char* argv[])
 
     // Now do adjoint integration
     StateVector adjointState;
-    adjointState.LoadFromFile("adjointstate.fields");
+    adjointState.LoadFromFile("adjoint-"+std::to_string(stepabove)+".fields");
+    adjointState.PlotAll(std::to_string(timeabove));
     adjointState.AdjointEvolve(deltaT, steps, intermediateStates, adjointState);
-    adjointState.SaveToFile("adjointstate.fields");
+    adjointState.SaveToFile("adjoint-"+std::to_string(stepbelow)+".fields");
     adjointState.PlotAll(std::to_string(timebelow));
 }
