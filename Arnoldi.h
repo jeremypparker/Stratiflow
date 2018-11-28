@@ -101,21 +101,6 @@ public:
                                 + complexEigenvalues.imag()*complexEigenvalues.imag());
 
 
-        // transform phase shift into arnoldi space
-        VectorX phaseShiftTransformed = VectorX::Zero(K-1);
-        for (int j=0; j<K-1; j++)
-        {
-            phaseShiftTransformed[j] = phaseShift.Dot(q[j]);
-        }
-
-        // remove any phase shift component
-        for (int j=0; j<K-1; j++)
-        {
-                ces.eigenvectors().col(j) -= (ces.eigenvectors().col(j).dot(phaseShiftTransformed)/phaseShiftTransformed.norm()/phaseShiftTransformed.norm())*phaseShiftTransformed;
-        }
-
-
-
         int maxIndex;
         stratifloat maxCoeff = eigenvalues.maxCoeff(&maxIndex);
 
@@ -131,6 +116,23 @@ public:
         VectorXc eigenvector2 = ces.eigenvectors().col(maxIndex2);
         VectorXc eigenvector3 = ces.eigenvectors().col(maxIndex3);
 
+
+        // transform phase shift into arnoldi space
+        VectorX phaseShiftTransformed = VectorX::Zero(K-1);
+        for (int j=0; j<K-1; j++)
+        {
+            phaseShiftTransformed[j] = phaseShift.Dot(q[j]);
+        }
+
+        // remove any phase shift component
+        eigenvector -= (eigenvector.dot(phaseShiftTransformed)/phaseShiftTransformed.squaredNorm())*phaseShiftTransformed;
+        eigenvector2 -= (eigenvector2.dot(phaseShiftTransformed)/phaseShiftTransformed.squaredNorm())*phaseShiftTransformed;
+        eigenvector3 -= (eigenvector3.dot(phaseShiftTransformed)/phaseShiftTransformed.squaredNorm())*phaseShiftTransformed;
+        eigenvector.normalize();
+        eigenvector2.normalize();
+        eigenvector3.normalize();
+
+        // convert back into full state space
         VectorType result2;
         VectorType result3;
 
@@ -153,7 +155,7 @@ public:
         result.PlotAll("eigReal");
         result2.PlotAll("eig2Real");
         result3.PlotAll("eig3Real");
-        
+
         phaseShiftBack.PlotAll("phaseShift");
 
         result.SaveToFile("eigReal");
@@ -191,12 +193,12 @@ protected:
     virtual VectorType EvalFunction(const VectorType& at) = 0;
     virtual VectorType EvalLinearised(const VectorType& at) = 0;
 
-    stratifloat T = 3; // time interval for integration
+    stratifloat T = 11; // time interval for integration
 
     VectorType linearAboutStart;
 
 public:
-    int K = 3072; // max iterations
+    int K = 768; // max iterations
     std::vector<VectorType> q;
     MatrixX H; // upper Hessenberg matrix
 };
