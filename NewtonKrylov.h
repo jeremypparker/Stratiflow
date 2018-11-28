@@ -66,7 +66,7 @@ public:
                 worsefor++;
             }
 
-            if (false/*worsefor > 3*/)
+            if (worsefor > 0)
             {
                 // not good enough, reduce trust region size and retry
                 Delta /= 2;
@@ -79,11 +79,11 @@ public:
                 linearAboutEnd = linEndPrevious;
                 rhs = rhsPrevious;
 
-                if (worsefor == 4)
-                {
-                    vectorsToReuse = 0;
-                    H.setZero();
-                }
+                // if (worsefor == 1)
+                // {
+                //     vectorsToReuse = 0;
+                //     H.setZero();
+                // }
             }
             else
             {
