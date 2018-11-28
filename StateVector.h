@@ -432,8 +432,9 @@ public:
         HeatPlot(b, L1, L3, 0, directory+"/b.png");
 
         DirichletModal FractionalTemp;
-        FractionalTemp = ddz(u1)+-1.0*ddx(u3);
+        FractionalTemp = -1.0*ddz(u1)+ddx(u3);
         HeatPlot(FractionalTemp, L1, L3, 0, directory+"/vorticity.png");
+        HeatPlot(FractionalTemp, L1, L3, 0, directory+"/vorticity.eps");
     }
 
 

@@ -257,7 +257,7 @@ public:
         nnTemp = U1 + U_;
         nnTemp.ToModal(neumannTemp);
 
-        dirichletTemp = ddz(neumannTemp)+-1.0*ddx(u3);
+        dirichletTemp = -1.0*ddz(neumannTemp)+ddx(u3);
         HeatPlot(dirichletTemp, L1, L3, j2, filename);
     }
 

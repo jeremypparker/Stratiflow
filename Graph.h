@@ -91,10 +91,10 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
             stratifloat weight_above = (z-z_below)/(z_above-z_below);
             stratifloat weight_below = (z_above-z)/(z_above-z_below);
 
-            imdata[j3*N1 + j1] = weight_left*weight_below*U(k1_left,j2,k3_below)
-                            + weight_left*weight_above*U(k1_left,j2,k3_above)
-                            + weight_right*weight_below*U(k1_right,j2,k3_below)
-                            + weight_right*weight_above*U(k1_right,j2,k3_above);
+            imdata[(N3-1-j3)*N1 + j1] = weight_left*weight_below*U(k1_left,j2,k3_below)
+                                      + weight_left*weight_above*U(k1_left,j2,k3_above)
+                                      + weight_right*weight_below*U(k1_right,j2,k3_below)
+                                      + weight_right*weight_above*U(k1_right,j2,k3_above);
         }
     }
 
