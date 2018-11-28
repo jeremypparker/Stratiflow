@@ -21,7 +21,7 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
         }
     }
 
-    matplotlibcpp::imshow(imdata, N3, N1);
+    matplotlibcpp::imshow(imdata, N3, N1, 0, N1, 0, N3);
 
     matplotlibcpp::save(filename);
     matplotlibcpp::close();
@@ -32,10 +32,12 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
 template<int K1, int K2, int K3>
 inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloat L3, int j2, std::string filename)
 {
-    const int N1 = L1*100;
-    const int N3 = 2*L3*100;
+    const stratifloat zcutoff = 3;
 
-    matplotlibcpp::figure();
+    const int N1 = L1*100;
+    const int N3 = 2*zcutoff*100;
+
+    matplotlibcpp::figure(0.5*L1, zcutoff);
 
     ArrayX oldNeumannPoints = VerticalPointsFractional(L3, K3);
     ArrayX oldDirichletPoints = VerticalPoints(L3, K3);
@@ -61,7 +63,7 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
         for (int j3=0; j3<N3; j3++)
         {
 
-            stratifloat z = j3*2*L3/N3 - L3;
+            stratifloat z = j3*2*zcutoff/N3 - zcutoff;
 
 
             int k3_below;
@@ -96,7 +98,7 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
         }
     }
 
-    matplotlibcpp::imshow(imdata, N3, N1);
+    matplotlibcpp::imshow(imdata, N3, N1, 0, L1, -zcutoff, zcutoff);
 
     matplotlibcpp::save(filename);
     matplotlibcpp::close();

@@ -28,7 +28,7 @@ namespace
 namespace matplotlibcpp {
 
 	namespace detail {
-		static std::string s_backend = "Agg";
+		static std::string s_backend = "ps";
 
 		struct _interpreter {
 			PyObject *s_python_function_show;
@@ -335,7 +335,7 @@ namespace matplotlibcpp {
 	}
 
 	template<typename T>
-	bool imshow(const std::vector<T> &x, int N1, int N2)
+	bool imshow(const std::vector<T> &x, int N1, int N2, double xmin, double xmax, double ymin, double ymax)
 	{
 		assert(x.size() == N1*N2);
 
@@ -380,6 +380,15 @@ namespace matplotlibcpp {
 
 		PyDict_SetItemString(kwargs, "cmap", custom_cmap);
 		PyDict_SetItemString(kwargs, "interpolation", PyString_FromString("nearest"));
+		PyDict_SetItemString(kwargs, "vmin", PyFloat_FromDouble(-1.5));
+		PyDict_SetItemString(kwargs, "vmax", PyFloat_FromDouble(1.5));
+
+		PyObject* extent = PyTuple_New(4);
+		PyTuple_SetItem(extent, 0, PyFloat_FromDouble(xmin));
+		PyTuple_SetItem(extent, 1, PyFloat_FromDouble(xmax));
+		PyTuple_SetItem(extent, 2, PyFloat_FromDouble(ymin));
+		PyTuple_SetItem(extent, 3, PyFloat_FromDouble(ymax));
+		PyDict_SetItemString(kwargs, "extent", extent);
 
 		PyObject* res = PyObject_Call(detail::_interpreter::get().s_python_function_imshow, args, kwargs);
 
@@ -396,7 +405,7 @@ namespace matplotlibcpp {
 		Py_DECREF(args2);
 		if(res) Py_DECREF(res);
 
-		axis("off");
+		//axis("off");
 
 		return res;
 	}
