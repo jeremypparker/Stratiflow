@@ -15,7 +15,8 @@ int main(int argc, char* argv[])
     StateVector perturbation;
     perturbation.ExciteLowWavenumbers(0.0001);
 
-    //state += perturbation;
+    if (argc == 1)
+        state += perturbation;
 
     // things for Poincare section
     bool aboveSection = true;
@@ -27,7 +28,7 @@ int main(int argc, char* argv[])
     bool haveSectionNormal = false;
 
     stratifloat timestep = 10;
-    for (int n=0; n<3000; n++)
+    for (int n=0; n<8000; n++)
     {
         //state.PlotAll(std::to_string(n));
 

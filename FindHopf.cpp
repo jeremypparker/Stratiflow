@@ -88,6 +88,11 @@ int main(int argc, char *argv[])
 
     FindHopf solver;
 
+    // make sure eigenvectors are a sensible size
+    stratifloat rescale = guess.v1.Norm();
+    guess.v1 *= 1/rescale;
+    guess.v2 *= 1/rescale;
+
     solver.A = guess.v1;
     solver.EnforceConstraints(guess);
 
