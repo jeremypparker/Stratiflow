@@ -57,7 +57,7 @@ stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool sna
 
         if (calcmixing)
         {
-            mixing += solver.JoverK() * solver.deltaT;
+            mixing += solver.ChiIntegral() * solver.deltaT;
         }
 
         t += solver.deltaT;

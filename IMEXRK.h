@@ -448,20 +448,23 @@ public:
         B.ToModal(b);
     }
 
-    stratifloat JoverK()
+    stratifloat ChiIntegral()
     {
-        static NeumannModal u1_total;
-        static NeumannModal b_total;
+        static NeumannModal bprime;
 
-        nnTemp = U1 + U_;
-        nnTemp.ToModal(u1_total);
+        bprime = b;
+        RemoveHorizontalAverage(bprime);
 
-        nnTemp = B + B_;
-        nnTemp.ToModal(b_total);
+        dirichletTemp = ddz(bprime);
+        stratifloat chi = InnerProd(dirichletTemp,dirichletTemp,L3);
 
-        UpdateAdjointVariables(u1_total, u2, u3, b_total);
+        neumannTemp = ddx(bprime);
+        chi += InnerProd(neumannTemp,neumannTemp,L3);
 
-        return J/K;
+        neumannTemp = ddy(bprime);
+        chi += InnerProd(neumannTemp,neumannTemp,L3);
+
+        return 2*chi/Pe;
     }
 
     void UpdateAdjointVariables(const NeumannModal& u1_total,
@@ -475,34 +478,18 @@ public:
         u3_total.ToNodal(U3_tot);
         b_total.ToNodal(B_tot);
 
-        // work out variation of buoyancy from average
-        static Neumann1D bAve;
-        HorizontalAverage(b_total, bAve);
-
-        static Dirichlet1D wAve;
-        HorizontalAverage(u3_total, wAve);
-
-        nnTemp = B_tot + -1*bAve;
-
-        // (<b>-b)*w
-        ndTemp = -1*nnTemp*U3_tot;
-        ndTemp.ToModal(dirichletTemp);
-
-        // construct integrand for J
-        static Dirichlet1D Jintegrand;
-        HorizontalAverage(dirichletTemp, Jintegrand);
-        J = IntegrateVertically(Jintegrand, L3);
-
-        K = 2;
-
-        // forcing term for u3
-        u3Forcing = (1/K)*(B_tot+(-1)*bAve);
 
         // forcing term for b
-        bForcing = (1/K)*(U3_tot+(-1)*wAve);
+        neumannTemp = b_total;
+        RemoveHorizontalAverage(neumannTemp);
+        dirichletTemp = (4.0f/Pe)*(MatMulDim1(dim1Derivative2, neumannTemp)
+                             +MatMulDim2(dim2Derivative2, neumannTemp)
+                             +MatMulDim3(dim3Derivative2Neumann, neumannTemp));
+        dirichletTemp.ToNodal(bForcing);
 
         u1Forcing.Zero();
         u2Forcing.Zero();
+        u3Forcing.Zero();
     }
 
     void UpdateForTimestep()
@@ -626,7 +613,7 @@ private:
 
 
     // extra variables required for adjoint forcing
-    stratifloat J, K;
+    stratifloat Chi;
 
     NeumannNodal u1Forcing, u2Forcing;
     DirichletNodal u3Forcing, bForcing;
