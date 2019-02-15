@@ -101,15 +101,15 @@ public:
             u3_tot = (1-interpFrac)*u3Above + interpFrac*u3Below;
             b_tot = (1-interpFrac)*bAbove + interpFrac*bBelow;
 
-            // todo: add on background in modal?
-            u1_tot.ToNodal(U1_tot);
-            b_tot.ToNodal(B_tot);
+            // // todo: add on background in modal?
+            // u1_tot.ToNodal(U1_tot);
+            // b_tot.ToNodal(B_tot);
 
-            U1_tot += U_;
-            B_tot += B_;
+            // U1_tot += U_;
+            // B_tot += B_;
 
-            U1_tot.ToModal(u1_tot);
-            B_tot.ToModal(b_tot);
+            // U1_tot.ToModal(u1_tot);
+            // B_tot.ToModal(b_tot);
 
             UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
 
@@ -423,14 +423,28 @@ public:
 
     void RemoveDivergence(stratifloat pressureMultiplier=1.0);
 
-    void SaveFlow(const std::string& filename) const
+    void SaveFlow(const std::string& filename, bool includebg = false) const
     {
         std::ofstream filestream(filename, std::ios::out | std::ios::binary);
 
-        U1.Save(filestream);
-        U2.Save(filestream);
-        U3.Save(filestream);
-        B.Save(filestream);
+        if (includebg)
+        {
+            nnTemp = U1 + U_;
+            nnTemp.Save(filestream);
+
+            U2.Save(filestream);
+            U3.Save(filestream);
+
+            nnTemp = B + B_;
+            nnTemp.Save(filestream);
+        }
+        else
+        {
+            U1.Save(filestream);
+            U2.Save(filestream);
+            U3.Save(filestream);
+            B.Save(filestream);
+        }
     }
 
     void LoadFlow(const std::string& filename)

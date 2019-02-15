@@ -4,6 +4,7 @@ int main(int argc, char* argv[])
 {
     StateVector directState;
     directState.LoadFromFile(argv[1]);
+    directState.RemoveBackground();
 
     StateVector adjointState;
     adjointState.LoadFromFile(argv[2]);
@@ -24,8 +25,9 @@ int main(int argc, char* argv[])
     while(lambda==0)
     {
         lambda = SolveQuadratic(epsilon*udotu,
-                                2*epsilon*udotv - 2*udotu,
-                                epsilon*vdotv - 2*udotv);
+                                -2*epsilon*udotv + 2*udotu,
+                                epsilon*vdotv - 2*udotv,
+                                true);
         if (lambda==0)
         {
             std::cout << "Reducing step size" << std::endl;
@@ -33,8 +35,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    StateVector deriv = adjointState + lambda*directState;
-    StateVector result = directState - epsilon*deriv;
+    StateVector deriv = lambda*directState-adjointState;
+    StateVector result = directState + epsilon*deriv;
 
     stratifloat residual = deriv.Norm2();
 

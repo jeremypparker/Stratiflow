@@ -474,12 +474,12 @@ private:
         solver.p = p;
     }
 
-    void CopyFromSolver()
+    void CopyFromSolver(bool includeBackground = false)
     {
-        CopyFromSolver(*this);
+        CopyFromSolver(*this, includeBackground);
     }
 
-    void CopyFromSolver(StateVector& into) const
+    void CopyFromSolver(StateVector& into, bool includeBackground = false) const
     {
         into.u1 = solver.u1;
         if (ThreeDimensional)
@@ -489,6 +489,19 @@ private:
         into.u3 = solver.u3;
         into.b = solver.b;
         into.p = solver.p;
+
+        if (includeBackground)
+        {
+            NeumannNodal temp;
+            into.u1.ToNodal(temp);
+            temp += solver.U_;
+            temp.ToModal(into.u1);
+
+            into.b.ToNodal(temp);
+            temp += solver.B_;
+            temp.ToModal(into.b);
+        }
+
         into.EnforceBCs();
     }
 

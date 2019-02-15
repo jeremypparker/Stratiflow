@@ -49,7 +49,7 @@ stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool sna
 
             if (snapshot)
             {
-                solver.SaveFlow("snapshots/"+std::to_string(step)+"-"+std::to_string(t)+".fields");
+                solver.SaveFlow("snapshots/"+std::to_string(step)+"-"+std::to_string(t)+".fields", true);
             }
         }
 
@@ -72,7 +72,7 @@ stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool sna
 
             if (snapshot)
             {
-                solver.SaveFlow("snapshots/"+std::to_string(step)+"-"+std::to_string(t)+".fields");
+                solver.SaveFlow("snapshots/"+std::to_string(step)+"-"+std::to_string(t)+".fields", true);
             }
         }
     }
@@ -88,6 +88,8 @@ void StateVector::FixedEvolve(stratifloat deltaT, int steps, std::vector<StateVe
 
     CopyToSolver();
 
+    solver.SetBackground(InitialU, InitialB);
+
     solver.FilterAll();
     solver.PopulateNodalVariables();
     solver.RemoveDivergence(0.0f);
@@ -99,7 +101,7 @@ void StateVector::FixedEvolve(stratifloat deltaT, int steps, std::vector<StateVe
 
     for (int step=0; step<steps; step++)
     {
-        CopyFromSolver(result[step]);
+        CopyFromSolver(result[step], true);
         solver.TimeStep();
     }
 }

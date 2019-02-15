@@ -30,6 +30,7 @@ int main(int argc, char* argv[])
     // Fill in the gaps by doing extra forward integration
     StateVector directState;
     directState.LoadFromFile(filenamebelow);
+    directState.RemoveBackground();
 
     std::vector<StateVector> intermediateStates;
     directState.FixedEvolve(deltaT, steps, intermediateStates);
