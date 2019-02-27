@@ -35,7 +35,7 @@ stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool sna
             // finish exactly for last step
             stratifloat remaining = T-t;
             int remainingSteps = (remaining / solver.deltaT)+1;
-            if (remainingSteps < stepinterval)
+            if (remainingSteps <= stepinterval)
             {
                 // make timestep slightly shorter
                 solver.deltaT = remaining/remainingSteps;
@@ -141,7 +141,7 @@ void StateVector::LinearEvolve(stratifloat T, const StateVector& about, StateVec
             // finish exactly for last step
             stratifloat remaining = T-t;
             int remainingSteps = (remaining / solver.deltaT)+1;
-            if (remainingSteps < stepinterval)
+            if (remainingSteps <= stepinterval)
             {
                 // make timestep slightly shorter
                 solver.deltaT = remaining/remainingSteps;
