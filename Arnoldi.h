@@ -198,7 +198,7 @@ protected:
     VectorType linearAboutStart;
 
 public:
-    int K = 768; // max iterations
+    int K = 1536; // max iterations
     std::vector<VectorType> q;
     MatrixX H; // upper Hessenberg matrix
 };

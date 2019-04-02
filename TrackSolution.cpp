@@ -12,10 +12,25 @@ int main(int argc, char* argv[])
         state.LoadFromFile(argv[2]);
     }
 
+    if (argc>3)
+    {
+        StateVector state2;
+        state2.LoadFromFile(argv[3]);
+
+        stratifloat mult=1;
+
+        if (argc>4)
+        {
+            mult = std::stod(argv[4]);
+        }
+
+        state = state2 + mult*(state2-state);
+    }
+
     StateVector perturbation;
     perturbation.ExciteLowWavenumbers(0.0001);
 
-    if (argc == 1)
+    if (argc == 2)
         state += perturbation;
 
     // things for Poincare section
@@ -28,7 +43,7 @@ int main(int argc, char* argv[])
     bool haveSectionNormal = false;
 
     stratifloat timestep = 10;
-    for (int n=0; n<8000; n++)
+    for (int n=0; n<3000; n++)
     {
         //state.PlotAll(std::to_string(n));
 

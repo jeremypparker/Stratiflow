@@ -1,4 +1,5 @@
 #include "ExtendedStateVector.h"
+#include <iomanip>
 
 int main(int argc, char* argv[])
 {
@@ -23,7 +24,7 @@ int main(int argc, char* argv[])
 
     Ri = field.p;
 
-
+    std::cout << std::setprecision(20);
     std::cout << "STATIONARY POINT "
               << field.p << " "
               << field.x.Norm() << " "

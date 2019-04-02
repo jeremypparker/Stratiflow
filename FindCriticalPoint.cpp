@@ -169,6 +169,20 @@ int main(int argc, char *argv[])
         x1.LoadFromFile(argv[2]);
         x2.LoadFromFile(argv[3]);
 
+        stratifloat shift = x1.x.RemovePhaseShift();
+        RemoveAverage(x1.x.u1, L3);
+        RemoveAverage(x1.x.b, L3);
+        x1.v.RemovePhaseShift(shift);
+        RemoveAverage(x1.v.u1, L3);
+        RemoveAverage(x1.v.b, L3);
+
+        shift = x2.x.RemovePhaseShift();
+        RemoveAverage(x2.x.u1, L3);
+        RemoveAverage(x2.x.b, L3);
+        x2.v.RemovePhaseShift(shift);
+        RemoveAverage(x2.v.u1, L3);
+        RemoveAverage(x2.v.b, L3);
+
         stratifloat Re1 = std::stof(argv[4]);
         stratifloat Re2 = std::stof(argv[5]);
 
@@ -176,13 +190,13 @@ int main(int argc, char *argv[])
         gradient -= x1;
         gradient *= 1/(Re2-Re1);
 
-        guess = x2;
-        guess.MulAdd(Re-Re2, gradient);
+        guess = x1;
+        guess.MulAdd(Re-Re1, gradient);
     }
     else
     {
         guess.LoadFromFile(argv[2]);
-        // guess.LoadAndInterpolate<256,1,384>(argv[2]);
+        // guess.LoadAndInterpolate<128,1,384>(argv[2]);
     }
 
 

@@ -26,7 +26,7 @@ public:
         VectorType linEndPrevious;
         VectorType rhsPrevious;
 
-        stratifloat Delta = 1;
+        stratifloat Delta = 100;
         int step = 0;
         stratifloat targetResidual = 1e-8;
         int worsefor = 0;
@@ -45,8 +45,8 @@ public:
 
             std::cout << "NEWTON STEP " << step << ", RESIDUAL: " << residual << std::endl;
 
-            if (residual < bestResidual || step == 1)
-            {
+            //if (residual < bestResidual || step == 1)
+            //{
                 if (residual < targetResidual)
                 {
                     return;
@@ -60,11 +60,11 @@ public:
                 rhsPrevious = rhs;
 
                 worsefor = 0;
-            }
-            else
-            {
-                worsefor++;
-            }
+            //}
+            //else
+            //{
+            //    worsefor++;
+            //}
 
             if (worsefor > 0)
             {
@@ -234,7 +234,7 @@ private:
         }
     }
 
-    int K = 1024; // max iterations
+    int K = 2048; // max iterations
     int vectorsToReuse = 0;
     std::vector<VectorType> q;
     MatrixX H; // upper Hessenberg matrix
