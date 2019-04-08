@@ -683,6 +683,16 @@ public:
             this->Get()(N3-1)=-this->Get()(N3-2);
         }
     }
+
+    stratifloat Max() const
+    {
+        return this->Get().maxCoeff();
+    }
+
+    stratifloat Min() const
+    {
+        return this->Get().minCoeff();
+    }
 };
 
 

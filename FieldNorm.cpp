@@ -29,7 +29,8 @@ int main(int argc, char* argv[])
               << field.p << " "
               << field.x.Norm() << " "
               << field.x.Energy() << " "
-              << field.x.Enstrophy() << std::endl;
+              << field.x.Enstrophy() << " "
+              << field.x.MinimumRi() << std::endl;
 
     field.x.AddBackground();
     field.PlotAll("plots");

@@ -156,6 +156,33 @@ public:
         return InnerProd(FractionalTemp, FractionalTemp, L3);
     }
 
+    stratifloat MinimumRi() const
+    {
+        solver.SetBackground(InitialU);
+
+        Neumann1D u_ave;
+        Neumann1D b_ave;
+
+        HorizontalAverage(u1, u_ave);
+        HorizontalAverage(b, b_ave);
+
+        u_ave = u_ave + solver.U_;
+
+        Neumann1D dbdz;
+        dbdz = ddz(b_ave);
+        Neumann1D dudz;
+        dudz = ddz(u_ave);
+
+        Neumann1D Ri_g;
+
+        for(int k=0; k<N3; k++)
+        {
+            Ri_g.Get()[k] = Ri*(dbdz.Get()[k]+1)/(dudz.Get()[k]*dudz.Get()[k]);
+        }
+
+        return Ri_g.Min();
+    }
+
     void Zero()
     {
         u1.Zero();

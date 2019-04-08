@@ -195,8 +195,8 @@ int main(int argc, char *argv[])
     }
     else
     {
-        guess.LoadFromFile(argv[2]);
-        // guess.LoadAndInterpolate<128,1,384>(argv[2]);
+        // guess.LoadFromFile(argv[2]);
+        guess.LoadAndInterpolate<128,1,384>(argv[2]);
     }
 
 
