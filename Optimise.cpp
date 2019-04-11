@@ -49,4 +49,13 @@ int main(int argc, char* argv[])
     std::cout << "Current epsilon " << epsilon << std::endl;
     std::cout << "Bound epsilon " << -2*udotu/udotv << std::endl;
 
+    stratifloat delta = (directState-result).Norm();
+    std::cout << "Magnitude of change " << delta << std::endl;
+
+    if (delta < 0.00001)
+    {
+        return 5;
+    }
+
+    return 0;
 }
