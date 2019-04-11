@@ -3,26 +3,26 @@
 
 int main(int argc, char* argv[])
 {
-    Ri = std::stod(argv[1]);
+    stratifloat E = std::stod(argv[1]);
+    stratifloat T = std::stod(argv[2]);
     DumpParameters();
 
     StateVector state;
-    if (argc>2)
+    if (argc>3)
     {
-        state.LoadFromFile(argv[2]);
+        state.LoadFromFile(argv[3]);
     }
     else
     {
-        state.ExciteLowWavenumbers(0.001);
+         BasicArnoldi solver;
+
+        StateVector zero;
+        solver.Run(zero, state);
     }
 
-    for (int n=0; n<3000; n++)
-    {
-        //state.PlotAll(std::to_string(n));
+    state.Rescale(E);
 
-        std::cout << "Step " << n << " " << state.Energy() << " " << state.Enstrophy() << std::endl;
-
-        state.FullEvolve(20, state, false, false);
-    }
-    state.SaveToFile("trackingresult");
+    std::cout << "Energy " << state.Energy() << std::endl;
+    stratifloat mixing = state.FullEvolve(T, state, false, true, true);
+    std::cout << "Mixing " << mixing << std::endl;
 }

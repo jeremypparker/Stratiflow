@@ -30,7 +30,7 @@ stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool sna
         if(step%stepinterval==0)
         {
             stratifloat cfl = solver.CFL();
-            std::cout << step << " " << t << " " << (solver.KE() + solver.PE()) << std::endl;
+            std::cout << step << " " << t << " " << (solver.KE() + solver.PE()) << " " << solver.ChiIntegral() << std::endl;
 
             // finish exactly for last step
             stratifloat remaining = T-t;
