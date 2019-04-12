@@ -14,6 +14,7 @@ extern stratifloat R;
 extern stratifloat Pr;
 extern stratifloat Pe;
 extern bool EnforceSymmetry;
+extern ObjectiveFunction OptimiseFor;
 
 // These must be defined at compile time
 
@@ -34,7 +35,7 @@ constexpr int N2 = 1;   // Number of spanwise gridpoints
 constexpr int N3 = 384; // Number of vertical gridpoints
 
 constexpr bool ThreeDimensional = false; // whether to resolve spanwise direction
-constexpr bool EvolveBackground = false;
+constexpr bool EvolveBackground = true;
 
 // background shear
 inline stratifloat InitialU(stratifloat z)

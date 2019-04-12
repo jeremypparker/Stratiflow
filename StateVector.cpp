@@ -79,7 +79,14 @@ stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool sna
 
     CopyFromSolver(result);
 
-    return mixing;
+    if (OptimiseFor == ObjectiveFunction::IntegratedChi)
+    {
+        return mixing;
+    }
+    else if (OptimiseFor == ObjectiveFunction::Gain)
+    {
+        return result.Energy();
+    }
 }
 
 void StateVector::FixedEvolve(stratifloat deltaT, int steps, std::vector<StateVector>& result) const

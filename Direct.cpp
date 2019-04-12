@@ -25,4 +25,6 @@ int main(int argc, char* argv[])
 
     stratifloat mixing = state.FullEvolve(T, state, true, true, true);
     SaveValueToFile(mixing, "mixing");
+
+    state.SaveToFile("finalnobg.fields");
 }

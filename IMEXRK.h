@@ -492,14 +492,20 @@ public:
         u3_total.ToNodal(U3_tot);
         b_total.ToNodal(B_tot);
 
-
-        // forcing term for b
-        neumannTemp = b_total;
-        RemoveHorizontalAverage(neumannTemp);
-        dirichletTemp = (4.0f/Pe)*(MatMulDim1(dim1Derivative2, neumannTemp)
-                             +MatMulDim2(dim2Derivative2, neumannTemp)
-                             +MatMulDim3(dim3Derivative2Neumann, neumannTemp));
-        dirichletTemp.ToNodal(bForcing);
+        if (OptimiseFor == ObjectiveFunction::IntegratedChi)
+        {
+            // forcing term for b
+            neumannTemp = b_total;
+            RemoveHorizontalAverage(neumannTemp);
+            dirichletTemp = (4.0f/Pe)*(MatMulDim1(dim1Derivative2, neumannTemp)
+                                +MatMulDim2(dim2Derivative2, neumannTemp)
+                                +MatMulDim3(dim3Derivative2Neumann, neumannTemp));
+            dirichletTemp.ToNodal(bForcing);
+        }
+        else if (OptimiseFor == ObjectiveFunction::Gain)
+        {
+            bForcing.Zero();
+        }
 
         u1Forcing.Zero();
         u2Forcing.Zero();

@@ -40,7 +40,30 @@ int main(int argc, char* argv[])
 
     // Now do adjoint integration
     StateVector adjointState;
-    adjointState.LoadFromFile("adjoint-"+std::to_string(stepabove)+".fields");
+    std::string adjointFile = "adjoint-"+std::to_string(stepabove)+".fields";
+
+    if (FileExists(adjointFile))
+    {
+        adjointState.LoadFromFile(adjointFile);
+    }
+    else
+    {
+        StateVector directFinal;
+
+        directFinal.LoadFromFile(argv[3]);
+
+        // adjoint equation ICs
+        if (OptimiseFor == ObjectiveFunction::IntegratedChi)
+        {
+            adjointState.Zero();
+        } else if (OptimiseFor == ObjectiveFunction::Gain)
+        {
+            adjointState.u1 = -directFinal.u1;
+            adjointState.u2 = -directFinal.u2;
+            adjointState.u3 = -directFinal.u3;
+            adjointState.b = -Ri*directFinal.b;
+        }
+    }
     adjointState.PlotAll(std::to_string(timeabove));
     adjointState.AdjointEvolve(deltaT, steps, intermediateStates, adjointState);
     adjointState.SaveToFile("adjoint-"+std::to_string(stepbelow)+".fields");

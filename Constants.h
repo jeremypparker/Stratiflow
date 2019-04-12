@@ -96,3 +96,9 @@ int sgn(T val)
 {
     return (T(0) < val) - (val < T(0));
 }
+
+enum class ObjectiveFunction
+{
+    Gain,
+    IntegratedChi
+};

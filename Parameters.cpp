@@ -8,15 +8,15 @@
 stratifloat L1 = 12.56636;// size of domain streamwise
 stratifloat L2 = 1.570795;  // size of domain spanwise
 stratifloat L3 = 10; // half-size of domain vertically
-// stratifloat Re = 4000;
-// stratifloat Re = 500;
-stratifloat Re = 1000;
+stratifloat Re = 500;
 stratifloat Ri = 0.16;
 stratifloat R = 1;
 
 stratifloat Pr = R*R;
 stratifloat Pe = Re*Pr;
 bool EnforceSymmetry = false;
+
+ObjectiveFunction OptimiseFor = ObjectiveFunction::Gain;
 
 #define PrintParam(parameter) paramFile << #parameter << " " << parameter << std::endl
 
