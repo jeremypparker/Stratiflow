@@ -32,6 +32,7 @@ int main(int argc, char* argv[])
               << field.x.Enstrophy() << " "
               << field.x.MinimumRi() << std::endl;
 
-    field.x.AddBackground();
+    //field.x.AddBackground();
+    field.x.RemovePhaseShift();
     field.PlotAll("plots");
 }

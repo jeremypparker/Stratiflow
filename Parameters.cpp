@@ -12,7 +12,7 @@ stratifloat Re = 4000;
 stratifloat Ri = 0.16;
 stratifloat R = 1;
 
-stratifloat Pr = R*R;
+stratifloat Pr = 3;
 stratifloat Pe = Re*Pr;
 bool EnforceSymmetry = false;
 
@@ -81,6 +81,7 @@ void DumpParameters()
     PrintParam(Re);
     PrintParam(Ri);
     PrintParam(R);
+    PrintParam(Pr);
 }
 
 void LoadParameters(const std::string& file)
@@ -118,4 +119,5 @@ void PrintParameters()
     PrintParam(Re);
     PrintParam(Ri);
     PrintParam(R);
+    PrintParam(Pr);
 }

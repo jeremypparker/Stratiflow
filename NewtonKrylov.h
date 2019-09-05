@@ -28,7 +28,7 @@ public:
 
         stratifloat Delta = 100;
         int step = 0;
-        stratifloat targetResidual = 1e-8;
+        stratifloat targetResidual = 1e-7;
         int worsefor = 0;
         while(true)
         {
@@ -93,7 +93,7 @@ public:
             }
 
             // solve matrix system
-            GMRES(rhs, dx, 0.01, Delta);
+            GMRES(rhs, dx, 0.1, Delta);
 
             // update
             x += dx;

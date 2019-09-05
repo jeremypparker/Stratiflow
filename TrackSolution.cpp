@@ -50,28 +50,31 @@ int main(int argc, char* argv[])
         std::cout << "Step " << n << " " << state.Energy() << " " << state.Enstrophy() << std::endl;
 
         state.FullEvolve(timestep, state, false, false);
-
-        if (!haveSectionNormal)
-        {
-            sectionNormal = state-sectionOrigin;
-            sectionNormal *= 1/sectionNormal.Norm();
-            haveSectionNormal = true;
-        }
-
-        // check if intersection Poincare section
-        bool nowAboveSection = (state-sectionOrigin).Dot(sectionNormal) > 0;
-
-        if (!aboveSection && nowAboveSection)
-        {
-            std::cout << "POINCARE INTERSECTION. Time since last="
-                      << (n*timestep - timeLastIntersection) << ", distance="
-                      << (state - lastIntersection).Norm() << std::endl;
-
-            lastIntersection = state;
-            timeLastIntersection = n*timestep;
-        }
-
-        aboveSection = nowAboveSection;
+       
+        state.AddBackground(); 
+        state.PlotAll(std::to_string(n));
+        state.RemoveBackground();
+//        if (!haveSectionNormal)
+//        {
+//            sectionNormal = state-sectionOrigin;
+//            sectionNormal *= 1/sectionNormal.Norm();
+//            haveSectionNormal = true;
+//        }
+//
+//        // check if intersection Poincare section
+//        bool nowAboveSection = (state-sectionOrigin).Dot(sectionNormal) > 0;
+//
+//       if (!aboveSection && nowAboveSection)
+//        {
+//            std::cout << "POINCARE INTERSECTION. Time since last="
+//                      << (n*timestep - timeLastIntersection) << ", distance="
+//                      << (state - lastIntersection).Norm() << std::endl;
+//
+//            lastIntersection = state;
+//            timeLastIntersection = n*timestep;
+//        }
+//
+//        aboveSection = nowAboveSection;
+        state.SaveToFile("trackingresult");
     }
-    state.SaveToFile("trackingresult");
 }

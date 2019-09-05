@@ -154,7 +154,8 @@ private:
 
 int main(int argc, char *argv[])
 {
-    Re = std::stof(argv[1]);
+    Re = 4000;
+    Pr = std::stof(argv[1]);
     Pe = Re*Pr;
     DumpParameters();
     StateVector::ResetForParams();
@@ -183,20 +184,20 @@ int main(int argc, char *argv[])
         RemoveAverage(x2.v.u1, L3);
         RemoveAverage(x2.v.b, L3);
 
-        stratifloat Re1 = std::stof(argv[4]);
-        stratifloat Re2 = std::stof(argv[5]);
+        stratifloat Pr1 = std::stof(argv[4]);
+        stratifloat Pr2 = std::stof(argv[5]);
 
         CriticalPoint gradient = x2;
         gradient -= x1;
-        gradient *= 1/(Re2-Re1);
+        gradient *= 1/(Pr2-Pr1);
 
         guess = x1;
-        guess.MulAdd(Re-Re1, gradient);
+        guess.MulAdd(Pr-Pr1, gradient);
     }
     else
     {
-        // guess.LoadFromFile(argv[2]);
-        guess.LoadAndInterpolate<128,1,384>(argv[2]);
+        guess.LoadFromFile(argv[2]);
+        //guess.LoadAndInterpolate<128,1,768>(argv[2]);
     }
 
 

@@ -8,7 +8,8 @@ int main(int argc, char *argv[])
 
     if(argc>3)
     {
-        Re = std::stod(argv[3]);
+        Re = 4000;
+        Pr = std::stof(argv[3]);
         Pe = Re*Pr;
         StateVector::ResetForParams();
     }
