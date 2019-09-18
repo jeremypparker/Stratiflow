@@ -380,8 +380,8 @@ namespace matplotlibcpp {
 
 		PyDict_SetItemString(kwargs, "cmap", custom_cmap);
 		PyDict_SetItemString(kwargs, "interpolation", PyString_FromString("nearest"));
-		PyDict_SetItemString(kwargs, "vmin", PyFloat_FromDouble(-0.8));
-		PyDict_SetItemString(kwargs, "vmax", PyFloat_FromDouble(0.8));
+		//PyDict_SetItemString(kwargs, "vmin", PyFloat_FromDouble(-0.8));
+		//PyDict_SetItemString(kwargs, "vmax", PyFloat_FromDouble(0.8));
 
 		PyObject* extent = PyTuple_New(4);
 		PyTuple_SetItem(extent, 0, PyFloat_FromDouble(xmin));
