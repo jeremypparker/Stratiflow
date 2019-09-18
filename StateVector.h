@@ -288,8 +288,8 @@ public:
         BLoaded.ToModal(bLoaded);
 
         // Vertical points to interpolate to/from
-        ArrayX oldNeumannPoints = VerticalPointsFractional(10, K3);
-        ArrayX oldDirichletPoints = VerticalPoints(10, K3);
+        ArrayX oldNeumannPoints = VerticalPointsFractionalOld(10, K3);
+        ArrayX oldDirichletPoints = VerticalPointsOld(10, K3);
 
         ArrayX newNeumannPoints = VerticalPointsFractional(L3, N3);
         ArrayX newDirichletPoints = VerticalPoints(L3, N3);

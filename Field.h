@@ -17,6 +17,8 @@
 
 ArrayX VerticalPoints(stratifloat L, int N);
 ArrayX VerticalPointsFractional(stratifloat L, int N);
+ArrayX VerticalPointsOld(stratifloat L, int N);
+ArrayX VerticalPointsFractionalOld(stratifloat L, int N);
 ArrayX dz(stratifloat L, int N);
 ArrayX dzFractional(stratifloat L, int N);
 ArrayX FourierPoints(stratifloat L, int N);
