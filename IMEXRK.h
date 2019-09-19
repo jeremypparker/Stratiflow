@@ -222,16 +222,19 @@ public:
 
     void PlotBuoyancy(std::string filename, int j2, bool includeBackground = true) const
     {
-        // if (includeBackground)
-        // {
-        //     nnTemp = B_ + B;
-        //     nnTemp.ToModal(neumannTemp);
-        //     HeatPlot(neumannTemp, L1, L3, j2, filename);
-        // }
-        // else
-        // {
+        if (includeBackground)
+        {
+            Neumann1D B_;
+            B_.SetValue([](stratifloat z){return z;}, L3);
+
+            nnTemp = B_ + B;
+            nnTemp.ToModal(neumannTemp);
+            HeatPlot(neumannTemp, L1, L3, j2, filename);
+        }
+        else
+        {
             HeatPlot(b, L1, L3, j2, filename);
-        // }
+        }
     }
 
     void PlotPressure(std::string filename, int j2) const
