@@ -1082,6 +1082,17 @@ public:
         }
     }
 
+    void MakeMode2()
+    {
+        for (int j2=0; j2<N2; j2++)
+        {
+            for (int j1=1; j1<actualN1; j1+=2)
+            {
+                this->stack(j1,j2).setZero();
+            }
+        }
+    }
+
     virtual void ParallelPerStack(std::function<void(int j1, int j2)> f) const override
     {
         int maxN1 = N1/3;

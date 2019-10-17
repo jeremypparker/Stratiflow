@@ -453,6 +453,14 @@ public:
 
     }
 
+    void MakeMode2()
+    {
+        u1.MakeMode2();
+        u2.MakeMode2();
+        u3.MakeMode2();
+        b.MakeMode2();
+    }
+
     void PlotAll(std::string directory) const
     {
         MakeCleanDir(directory);
