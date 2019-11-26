@@ -8,11 +8,11 @@
 stratifloat L1 = 8.885765876;// size of domain streamwise
 stratifloat L2 = 1.570795;  // size of domain spanwise
 stratifloat L3 = 10; // half-size of domain vertically
-stratifloat Re = 4000;
+stratifloat Re = 1000;
 stratifloat Ri = 0.16;
 stratifloat R = 1;
 
-stratifloat Pr = 3;
+stratifloat Pr = 0.7;
 stratifloat Pe = Re*Pr;
 bool EnforceSymmetry = false;
 

@@ -7,7 +7,8 @@ int main(int argc, char *argv[])
 
     if (argc==5)
     {
-        L3 = std::stof(argv[4]);
+        Pr = std::stod(argv[4]);
+        Pe = Re*Pr;
         StateVector::ResetForParams();
     }
 

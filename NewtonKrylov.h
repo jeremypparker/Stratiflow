@@ -93,7 +93,7 @@ public:
             }
 
             // solve matrix system
-            GMRES(rhs, dx, 0.1, Delta);
+            GMRES(rhs, dx, 0.01, Delta);
 
             // update
             x += dx;
