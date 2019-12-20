@@ -47,6 +47,10 @@
         "utility": "cpp",
         "string": "cpp",
         "cstdarg": "cpp",
-        "hash_map": "cpp"
+        "hash_map": "cpp",
+        "algorithm": "cpp",
+        "bitset": "cpp",
+        "list": "cpp",
+        "cfenv": "cpp"
     }
 }

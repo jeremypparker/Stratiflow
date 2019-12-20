@@ -2,7 +2,7 @@
 
 #include "StateVector.h"
 
-// A vector in the extended state space including one real parameter (Ri)
+// A vector in the extended state space including one real parameter (flowParams.Ri)
 class ExtendedStateVector
 {
 public:
@@ -80,13 +80,13 @@ public:
                     bool snapshot = false,
                     bool screenshot = true) const
     {
-        stratifloat RiOld = Ri;
-        Ri = p;
+        stratifloat RiOld = flowParams.Ri;
+        flowParams.Ri = p;
 
         x.FullEvolve(T, result.x, snapshot, screenshot);
         result.p = p;
 
-        Ri = RiOld;
+        flowParams.Ri = RiOld;
     }
 
     void SaveToFile(const std::string& filename) const

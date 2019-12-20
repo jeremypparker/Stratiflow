@@ -3,9 +3,8 @@
 
 int main(int argc, char* argv[])
 {
-    Ri = std::stod(argv[1]);
-    Pr = std::stod(argv[2]);
-    Pe = Re*Pr;
+    flowParams.Ri = std::stod(argv[1]);
+    flowParams.Pr = std::stod(argv[2]);
     StateVector::ResetForParams();
     DumpParameters();
 

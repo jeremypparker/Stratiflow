@@ -22,11 +22,11 @@
 #include <string>
 
 // will become unnecessary with C++17
-#define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
-#define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
-#define MatMulDim3 Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, N2, N3>
-#define MatMulDim3Nodal Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, N1, N2, N3>
-#define MatMul1D Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, N1, N2, N3>
+#define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, gridParams.N2, gridParams.N3>
+#define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, gridParams.N2, gridParams.N3>
+#define MatMulDim3 Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, gridParams.N2, gridParams.N3>
+#define MatMulDim3Nodal Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, gridParams.N1, gridParams.N2, gridParams.N3>
+#define MatMul1D Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, gridParams.N1, gridParams.N2, gridParams.N3>
 
 class IMEXRK
 {
@@ -35,32 +35,32 @@ public:
 
 public:
     IMEXRK()
-    : solveLaplacian(M1*N2)
-    , implicitSolveVelocityNeumann{std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2)}
-    , implicitSolveVelocityDirichlet{std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2)}
-    , implicitSolveBuoyancyNeumann{std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2), std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>>(M1*N2)}
+    : solveLaplacian(M1*gridParams.N2)
+    , implicitSolveVelocityNeumann{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
+    , implicitSolveVelocityDirichlet{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
+    , implicitSolveBuoyancyNeumann{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
     {
-        assert(ThreeDimensional || N2 == 1);
+        assert(gridParams.ThreeDimensional || gridParams.N2 == 1);
 
         std::cout << "Evaluating derivative matrices..." << std::endl;
 
-        dim1Derivative2 = FourierSecondDerivativeMatrix(L1, N1, 1);
-        dim2Derivative2 = FourierSecondDerivativeMatrix(L2, N2, 2);
-        dim3Derivative2Neumann = VerticalSecondDerivativeMatrix(L3, N3, BoundaryCondition::Neumann);
-        dim3Derivative2Dirichlet = VerticalSecondDerivativeMatrix(L3, N3, BoundaryCondition::Dirichlet);
+        dim1Derivative2 = FourierSecondDerivativeMatrix(flowParams.L1, gridParams.N1, 1);
+        dim2Derivative2 = FourierSecondDerivativeMatrix(flowParams.L2, gridParams.N2, 2);
+        dim3Derivative2Neumann = VerticalSecondDerivativeMatrix(flowParams.L3, gridParams.N3, BoundaryCondition::Neumann);
+        dim3Derivative2Dirichlet = VerticalSecondDerivativeMatrix(flowParams.L3, gridParams.N3, BoundaryCondition::Dirichlet);
 
         MatrixX laplacian;
 
-        // we solve each vetical line separately, so N1*N2 total solves
+        // we solve each vetical line separately, so N1*gridParams.N2 total solves
         for (int j1=0; j1<M1; j1++)
         {
-            for (int j2=0; j2<N2; j2++)
+            for (int j2=0; j2<gridParams.N2; j2++)
             {
                 laplacian = dim3Derivative2Neumann;
 
                 // add terms for horizontal derivatives
-                laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
-                laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
+                laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(gridParams.N3, gridParams.N3);
+                laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(gridParams.N3, gridParams.N3);
 
                 Neumannify(laplacian);
 
@@ -73,7 +73,7 @@ public:
                     laplacian(1,1) = 1;
                 }
 
-                solveLaplacian[j1*N2+j2].compute(laplacian);
+                solveLaplacian[j1*gridParams.N2+j2].compute(laplacian);
             }
         }
 
@@ -131,7 +131,7 @@ public:
     {
         // To prevent anything dodgy accumulating in the unused coefficients
         u1.Filter();
-        if(ThreeDimensional)
+        if(gridParams.ThreeDimensional)
         {
             u2.Filter();
         }
@@ -143,7 +143,7 @@ public:
     void PopulateNodalVariables()
     {
         u1.ToNodal(U1);
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             u2.ToNodal(U2);
         }
@@ -151,7 +151,7 @@ public:
         b.ToNodal(B);
 
         // U1.Antisymmetrise();
-        // if (ThreeDimensional)
+        // if (gridParams.ThreeDimensional)
         // {
         //     U2.Antisymmetrise();
         // }
@@ -225,33 +225,33 @@ public:
         if (includeBackground)
         {
             Neumann1D B_;
-            B_.SetValue([](stratifloat z){return z;}, L3);
+            B_.SetValue([](stratifloat z){return z;}, flowParams.L3);
 
             nnTemp = B_ + B;
             nnTemp.ToModal(neumannTemp);
-            HeatPlot(neumannTemp, L1, L3, j2, filename);
+            HeatPlot(neumannTemp, flowParams.L1, flowParams.L3, j2, filename);
         }
         else
         {
-            HeatPlot(b, L1, L3, j2, filename);
+            HeatPlot(b, flowParams.L1, flowParams.L3, j2, filename);
         }
     }
 
     void PlotPressure(std::string filename, int j2) const
     {
-        HeatPlot(p, L1, L3, j2, filename);
+        HeatPlot(p, flowParams.L1, flowParams.L3, j2, filename);
     }
 
     void PlotVerticalVelocity(std::string filename, int j2) const
     {
-        HeatPlot(u3, L1, L3, j2, filename);
+        HeatPlot(u3, flowParams.L1, flowParams.L3, j2, filename);
     }
 
     void PlotSpanwiseVelocity(std::string filename, int j2) const
     {
-        if(ThreeDimensional)
+        if(gridParams.ThreeDimensional)
         {
-            HeatPlot(u2, L1, L3, j2, filename);
+            HeatPlot(u2, flowParams.L1, flowParams.L3, j2, filename);
         }
     }
 
@@ -261,13 +261,13 @@ public:
         nnTemp.ToModal(neumannTemp);
 
         dirichletTemp = -1.0*ddz(neumannTemp)+ddx(u3);
-        HeatPlot(dirichletTemp, L1, L3, j2, filename);
+        HeatPlot(dirichletTemp, flowParams.L1, flowParams.L3, j2, filename);
     }
 
     void PlotPerturbationVorticity(std::string filename, int j2) const
     {
         dirichletTemp = ddz(u1)+-1.0*ddx(u3);
-        HeatPlot(dirichletTemp, L1, L3, j2, filename);
+        HeatPlot(dirichletTemp, flowParams.L1, flowParams.L3, j2, filename);
     }
 
     void PlotStreamwiseVelocity(std::string filename, int j2, bool includeBackground = true) const
@@ -276,31 +276,31 @@ public:
         {
             nnTemp = U1 + U_;
             nnTemp.ToModal(neumannTemp);
-            HeatPlot(neumannTemp, L1, L3, j2, filename);
+            HeatPlot(neumannTemp, flowParams.L1, flowParams.L3, j2, filename);
         }
         else
         {
-            HeatPlot(u1, L1, L3, j2, filename);
+            HeatPlot(u1, flowParams.L1, flowParams.L3, j2, filename);
         }
     }
 
     void PlotAll(std::string filename, bool includeBackground) const
     {
-        PlotPressure(imageDirectory+"/pressure/"+filename, N2/2);
-        PlotBuoyancy(imageDirectory+"/buoyancy/"+filename, N2/2, includeBackground);
-        PlotVerticalVelocity(imageDirectory+"/u3/"+filename, N2/2);
-        PlotSpanwiseVelocity(imageDirectory+"/u2/"+filename, N2/2);
-        PlotStreamwiseVelocity(imageDirectory+"/u1/"+filename, N2/2, includeBackground);
-        PlotPerturbationVorticity(imageDirectory+"/perturbvorticity/"+filename, N2/2);
+        PlotPressure(imageDirectory+"/pressure/"+filename, gridParams.N2/2);
+        PlotBuoyancy(imageDirectory+"/buoyancy/"+filename, gridParams.N2/2, includeBackground);
+        PlotVerticalVelocity(imageDirectory+"/u3/"+filename, gridParams.N2/2);
+        PlotSpanwiseVelocity(imageDirectory+"/u2/"+filename, gridParams.N2/2);
+        PlotStreamwiseVelocity(imageDirectory+"/u1/"+filename, gridParams.N2/2, includeBackground);
+        PlotPerturbationVorticity(imageDirectory+"/perturbvorticity/"+filename, gridParams.N2/2);
 
         if (includeBackground)
         {
-            PlotSpanwiseVorticity(imageDirectory+"/vorticity/"+filename, N2/2);
+            PlotSpanwiseVorticity(imageDirectory+"/vorticity/"+filename, gridParams.N2/2);
         }
         else
         {
-            //PlotPerturbationVorticity(imageDirectory+"/perturbvorticity/"+filename, N2/2);
-            //PlotBuoyancyBG(imageDirectory+"/buoyancyBG/"+filename, N2/2);
+            //PlotPerturbationVorticity(imageDirectory+"/perturbvorticity/"+filename, gridParams.N2/2);
+            //PlotBuoyancyBG(imageDirectory+"/buoyancyBG/"+filename, gridParams.N2/2);
         }
     }
 
@@ -328,7 +328,7 @@ public:
     void SetBackground(std::function<stratifloat(stratifloat)> velocity)
     {
         Neumann1D Ubar;
-        Ubar.SetValue(velocity, L3);
+        Ubar.SetValue(velocity, flowParams.L3);
 
         SetBackground(Ubar);
     }
@@ -336,7 +336,7 @@ public:
     void SetBackground(const NeumannModal& velocity1, const NeumannModal& velocity2, const DirichletModal& velocity3, const NeumannModal& buoyancy)
     {
         u1_tot = velocity1;
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             u2_tot = velocity2;
         }
@@ -345,7 +345,7 @@ public:
 
         u1_tot.ToNodal(U1_tot);
 
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             u2_tot.ToNodal(U2_tot);
         }
@@ -356,13 +356,13 @@ public:
     // gives an upper bound on cfl number - also updates timestep
     stratifloat CFL()
     {
-        static ArrayX z = VerticalPoints(L3, N3);
+        static ArrayX z = VerticalPoints(flowParams.L3, gridParams.N3);
 
         U1_tot = U1 + U_;
 
-        stratifloat delta1 = L1/N1;
-        stratifloat delta2 = L2/N2;
-        stratifloat delta3 = z(N3/2+1) - z(N3/2); // smallest gap in middle
+        stratifloat delta1 = flowParams.L1/gridParams.N1;
+        stratifloat delta2 = flowParams.L2/gridParams.N2;
+        stratifloat delta3 = z(gridParams.N3/2+1) - z(gridParams.N3/2); // smallest gap in middle
 
         stratifloat cfl = U1_tot.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
@@ -377,11 +377,11 @@ public:
 
     stratifloat CFLlinear()
     {
-        static ArrayX z = VerticalPoints(L3, N3);
+        static ArrayX z = VerticalPoints(flowParams.L3, gridParams.N3);
 
-        stratifloat delta1 = L1/N1;
-        stratifloat delta2 = L2/N2;
-        stratifloat delta3 = z(N3/2+1) - z(N3/2); // smallest gap in middle
+        stratifloat delta1 = flowParams.L1/gridParams.N1;
+        stratifloat delta2 = flowParams.L2/gridParams.N2;
+        stratifloat delta3 = z(gridParams.N3/2+1) - z(gridParams.N3/2); // smallest gap in middle
 
         stratifloat cfl = (1+U1_tot.Max())/delta1 + U2_tot.Max()/delta2 + U3_tot.Max()/delta3;
         cfl *= deltaT;
@@ -396,11 +396,11 @@ public:
 
     stratifloat KE() const
     {
-        stratifloat energy = 0.5f*(InnerProd(u1, u1, L3) + InnerProd(u3, u3, L3));
+        stratifloat energy = 0.5f*(InnerProd(u1, u1, flowParams.L3) + InnerProd(u3, u3, flowParams.L3));
 
-        if(ThreeDimensional)
+        if(gridParams.ThreeDimensional)
         {
-            energy += 0.5f*InnerProd(u2, u2, L3);
+            energy += 0.5f*InnerProd(u2, u2, flowParams.L3);
         }
 
         return energy;
@@ -409,7 +409,7 @@ public:
 
     stratifloat PE() const
     {
-        return Ri*0.5f*InnerProd(b, b, L3);
+        return flowParams.Ri*0.5f*InnerProd(b, b, flowParams.L3);
     }
 
     void RemoveDivergence(stratifloat pressureMultiplier=1.0);
@@ -482,7 +482,7 @@ public:
         // construct integrand for J
         static Dirichlet1D Jintegrand;
         HorizontalAverage(dirichletTemp, Jintegrand);
-        J = IntegrateVertically(Jintegrand, L3);
+        J = IntegrateVertically(Jintegrand, flowParams.L3);
 
         K = 2;
 
@@ -511,30 +511,30 @@ public:
             MatrixX laplacian;
             MatrixX solve;
 
-            for (int j2=0; j2<N2; j2++)
+            for (int j2=0; j2<gridParams.N2; j2++)
             {
                 for (int k=0; k<s; k++)
                 {
                     laplacian = dim3Derivative2Neumann;
-                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
-                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(gridParams.N3, gridParams.N3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(gridParams.N3, gridParams.N3);
 
-                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
+                    solve = (MatrixX::Identity(gridParams.N3, gridParams.N3)-0.5*h[k]*laplacian/flowParams.Re);
                     Neumannify(solve);
-                    implicitSolveVelocityNeumann[k][j1*N2+j2].compute(solve);
+                    implicitSolveVelocityNeumann[k][j1*gridParams.N2+j2].compute(solve);
 
-                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Pe);
+                    solve = (MatrixX::Identity(gridParams.N3, gridParams.N3)-0.5*h[k]*laplacian/flowParams.Re/flowParams.Pr);
                     Neumannify(solve);
-                    implicitSolveBuoyancyNeumann[k][j1*N2+j2].compute(solve);
+                    implicitSolveBuoyancyNeumann[k][j1*gridParams.N2+j2].compute(solve);
 
 
                     laplacian = dim3Derivative2Dirichlet;
-                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(N3, N3);
-                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(N3, N3);
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(gridParams.N3, gridParams.N3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(gridParams.N3, gridParams.N3);
 
-                    solve = (MatrixX::Identity(N3, N3)-0.5*h[k]*laplacian/Re);
+                    solve = (MatrixX::Identity(gridParams.N3, gridParams.N3)-0.5*h[k]*laplacian/flowParams.Re);
                     Dirichlify(solve);
-                    implicitSolveVelocityDirichlet[k][j1*N2+j2].compute(solve);
+                    implicitSolveVelocityDirichlet[k][j1*gridParams.N2+j2].compute(solve);
                 }
 
             }
@@ -658,10 +658,10 @@ private:
     MatrixX dim3Derivative2Neumann;
     MatrixX dim3Derivative2Dirichlet;
 
-    std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>> implicitSolveVelocityNeumann[3];
-    std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>> implicitSolveVelocityDirichlet[3];
-    std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>> implicitSolveBuoyancyNeumann[3];
-    std::vector<Tridiagonal<stratifloat, N3>, aligned_allocator<Tridiagonal<stratifloat, N3>>> solveLaplacian;
+    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> implicitSolveVelocityNeumann[3];
+    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> implicitSolveVelocityDirichlet[3];
+    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> implicitSolveBuoyancyNeumann[3];
+    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> solveLaplacian;
 
     std::string imageDirectory;
 };

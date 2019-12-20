@@ -4,15 +4,14 @@ int main(int argc, char *argv[])
 {
     std::cout << "STRATIFLOW Newton-GMRES" << std::endl;
 
-    Ri = std::stod(argv[1]);
+    flowParams.Ri = std::stod(argv[1]);
 
     StateVector guess;
 
     if (argc == 7)
     {
-        Re = 1000;
-        Pr = std::stof(argv[2]);
-        Pe = Re*Pr;
+        flowParams.Re = 1000;
+        flowParams.Pr = std::stof(argv[2]);
         StateVector::ResetForParams();
 
         StateVector x1;
@@ -28,15 +27,14 @@ int main(int argc, char *argv[])
         gradient *= 1/(p2-p1);
 
         guess = x2;
-        guess.MulAdd(Pr-p2, gradient);
+        guess.MulAdd(flowParams.Pr-p2, gradient);
     }
     else
     {
         if(argc>3)
         {
-            Re = 1000;
-            Pr = std::stof(argv[3]);
-            Pe = Re*Pr;
+            flowParams.Re = 1000;
+            flowParams.Pr = std::stof(argv[3]);
             StateVector::ResetForParams();
         }
 
@@ -48,8 +46,8 @@ int main(int argc, char *argv[])
     DumpParameters();
 
 
-    RemoveAverage(guess.u1, L3);
-    RemoveAverage(guess.b, L3);
+    RemoveAverage(guess.u1, flowParams.L3);
+    RemoveAverage(guess.b, flowParams.L3);
 
     BasicNewtonKrylov solver;
 

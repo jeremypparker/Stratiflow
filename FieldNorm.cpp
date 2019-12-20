@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
         field.LoadFromFile(argv[1]);
     }
 
-    Ri = field.p;
+    flowParams.Ri = field.p;
 
     std::cout << std::setprecision(20);
     std::cout << "STATIONARY POINT "

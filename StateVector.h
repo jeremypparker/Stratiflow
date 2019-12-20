@@ -40,7 +40,7 @@ public:
     const StateVector& operator+=(const StateVector& other)
     {
         u1 += other.u1;
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             u2 += other.u2;
         }
@@ -54,7 +54,7 @@ public:
     const StateVector& operator-=(const StateVector& other)
     {
         u1 -= other.u1;
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             u2 -= other.u2;
         }
@@ -67,7 +67,7 @@ public:
     const StateVector& MulAdd(stratifloat a, const StateVector& B)
     {
         u1 += a*B.u1;
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             u2 += a*B.u2;
         }
@@ -80,7 +80,7 @@ public:
     const StateVector& operator*=(stratifloat other)
     {
         u1 *= other;
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             u2 *= other;
         }
@@ -102,14 +102,14 @@ public:
 
     stratifloat RemovePhaseShift()
     {
-        stratifloat shift = -std::arg(u1(1,0,N3/2))+pi/2;
+        stratifloat shift = -std::arg(u1(1,0,gridParams.N3/2))+pi/2;
         return RemovePhaseShift(shift);
     }
 
     stratifloat RemovePhaseShift(stratifloat shift)
     {
         u1.PhaseShift(shift);
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             u2.PhaseShift(shift);
         }
@@ -121,13 +121,13 @@ public:
 
     stratifloat Dot(const StateVector& other) const
     {
-        stratifloat prod = InnerProd(u1, other.u1, L3)
-                         + InnerProd(u3, other.u3, L3)
-                         + Ri*InnerProd(b, other.b, L3); // TODO: is this correct PE?
+        stratifloat prod = InnerProd(u1, other.u1, flowParams.L3)
+                         + InnerProd(u3, other.u3, flowParams.L3)
+                         + flowParams.Ri*InnerProd(b, other.b, flowParams.L3); // TODO: is this correct PE?
 
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
-            prod += InnerProd(u2, other.u2, L3);
+            prod += InnerProd(u2, other.u2, flowParams.L3);
         }
 
         return prod;
@@ -153,7 +153,7 @@ public:
         DirichletModal FractionalTemp;
         FractionalTemp = ddz(u1)+-1.0*ddx(u3);
 
-        return InnerProd(FractionalTemp, FractionalTemp, L3);
+        return InnerProd(FractionalTemp, FractionalTemp, flowParams.L3);
     }
 
     stratifloat MinimumRi() const
@@ -175,9 +175,9 @@ public:
 
         Neumann1D Ri_g;
 
-        for(int k=0; k<N3; k++)
+        for(int k=0; k<gridParams.N3; k++)
         {
-            Ri_g.Get()[k] = Ri*(dbdz.Get()[k]+1)/(dudz.Get()[k]*dudz.Get()[k]);
+            Ri_g.Get()[k] = flowParams.Ri*(dbdz.Get()[k]+1)/(dudz.Get()[k]*dudz.Get()[k]);
         }
 
         return Ri_g.Min();
@@ -186,7 +186,7 @@ public:
     void Zero()
     {
         u1.Zero();
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             u2.Zero();
         }
@@ -202,7 +202,7 @@ public:
     void Randomise(stratifloat energy, bool restrictToMiddle = false)
     {
         u1.RandomizeCoefficients(0.3);
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             u2.RandomizeCoefficients(0.3);
         }
@@ -211,19 +211,19 @@ public:
 
         if (restrictToMiddle)
         {
-            for (int j=0; j<N3/4; j++)
+            for (int j=0; j<gridParams.N3/4; j++)
             {
                 u1.slice(j).setZero();
-                u1.slice(N3-j-1).setZero();
+                u1.slice(gridParams.N3-j-1).setZero();
 
                 u2.slice(j).setZero();
-                u2.slice(N3-j-1).setZero();
+                u2.slice(gridParams.N3-j-1).setZero();
 
                 u3.slice(j).setZero();
-                u3.slice(N3-j-1).setZero();
+                u3.slice(gridParams.N3-j-1).setZero();
 
                 b.slice(j).setZero();
-                b.slice(N3-j-1).setZero();
+                b.slice(gridParams.N3-j-1).setZero();
             }
         }
 
@@ -291,18 +291,18 @@ public:
         ArrayX oldNeumannPoints = VerticalPointsFractionalOld(10, K3);
         ArrayX oldDirichletPoints = VerticalPointsOld(10, K3);
 
-        ArrayX newNeumannPoints = VerticalPointsFractional(L3, N3);
-        ArrayX newDirichletPoints = VerticalPoints(L3, N3);
+        ArrayX newNeumannPoints = VerticalPointsFractional(flowParams.L3, gridParams.N3);
+        ArrayX newDirichletPoints = VerticalPoints(flowParams.L3, gridParams.N3);
 
         // just 2D for simplicity for now
         assert(K2==1);
-        assert(N2==1);
-        assert(!ThreeDimensional);
+        assert(gridParams.N2==1);
+        assert(!gridParams.ThreeDimensional);
 
-        for (int j1=0; j1<std::min(K1/2+1,N1/2+1); j1++)
+        for (int j1=0; j1<std::min(K1/2+1,gridParams.N1/2+1); j1++)
         {
             // Neumann fields u1, u2 and b
-            for (int j3=0; j3<N3; j3++)
+            for (int j3=0; j3<gridParams.N3; j3++)
             {
                 stratifloat z = newNeumannPoints(j3);
 
@@ -352,12 +352,12 @@ public:
             u2(j1,0,0) = u2(j1,0,1);
             b(j1,0,0)   = b(j1,0,1);
 
-            u1(j1,0,N3-1)=u1(j1,0,N3-2);
-            u2(j1,0,N3-1)=u2(j1,0,N3-2);
-            b(j1,0,N3-1) = b(j1,0,N3-2);
+            u1(j1,0,gridParams.N3-1)=u1(j1,0,gridParams.N3-2);
+            u2(j1,0,gridParams.N3-1)=u2(j1,0,gridParams.N3-2);
+            b(j1,0,gridParams.N3-1) = b(j1,0,gridParams.N3-2);
 
             // same for dirichlet field u3
-            for (int j3=1; j3<N3; j3++)
+            for (int j3=1; j3<gridParams.N3; j3++)
             {
                 stratifloat z = newDirichletPoints(j3);
 
@@ -414,8 +414,8 @@ public:
         Neumann1D U_;
         Neumann1D B_;
 
-        U_.SetValue(InitialU, L3);
-        B_.SetValue([](stratifloat z){return z;}, L3);
+        U_.SetValue(InitialU, flowParams.L3);
+        B_.SetValue([](stratifloat z){return z;}, flowParams.L3);
 
 
 
@@ -437,8 +437,8 @@ public:
         Neumann1D U_;
         Neumann1D B_;
 
-        U_.SetValue(InitialU, L3);
-        B_.SetValue([](stratifloat z){return z;}, L3);
+        U_.SetValue(InitialU, flowParams.L3);
+        B_.SetValue([](stratifloat z){return z;}, flowParams.L3);
 
 
 
@@ -465,18 +465,18 @@ public:
     {
         MakeCleanDir(directory);
 
-        HeatPlot(u1, L1, L3, 0, directory+"/u1.png");
-        if (ThreeDimensional)
+        HeatPlot(u1, flowParams.L1, flowParams.L3, 0, directory+"/u1.png");
+        if (gridParams.ThreeDimensional)
         {
-            HeatPlot(u2, L1, L3, 0, directory+"/u2.png");
+            HeatPlot(u2, flowParams.L1, flowParams.L3, 0, directory+"/u2.png");
         }
-        HeatPlot(u3, L1, L3, 0, directory+"/u3.png");
-        HeatPlot(b, L1, L3, 0, directory+"/b.png");
+        HeatPlot(u3, flowParams.L1, flowParams.L3, 0, directory+"/u3.png");
+        HeatPlot(b, flowParams.L1, flowParams.L3, 0, directory+"/b.png");
 
         DirichletModal FractionalTemp;
         FractionalTemp = -1.0*ddz(u1)+ddx(u3);
-        HeatPlot(FractionalTemp, L1, L3, 0, directory+"/vorticity.png");
-        HeatPlot(FractionalTemp, L1, L3, 0, directory+"/vorticity.eps");
+        HeatPlot(FractionalTemp, flowParams.L1, flowParams.L3, 0, directory+"/vorticity.png");
+        HeatPlot(FractionalTemp, flowParams.L1, flowParams.L3, 0, directory+"/vorticity.eps");
     }
 
 
@@ -489,7 +489,7 @@ private:
     void CopyToSolver() const
     {
         solver.u1 = u1;
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             solver.u2 = u2;
         }
@@ -510,7 +510,7 @@ private:
     void CopyFromSolver(StateVector& into) const
     {
         into.u1 = solver.u1;
-        if (ThreeDimensional)
+        if (gridParams.ThreeDimensional)
         {
             into.u2 = solver.u2;
         }

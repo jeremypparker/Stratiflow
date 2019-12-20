@@ -10,11 +10,11 @@ void IMEXRK::TimeStep()
     // see Numerical Renaissance
     for (int k=0; k<s; k++)
     {
-        ExplicitRK(k, EvolveBackground);
+        ExplicitRK(k, flowParams.EvolveBackground);
         BuildRHS();
         FinishRHS(k);
 
-        CrankNicolson(k, EvolveBackground);
+        CrankNicolson(k, flowParams.EvolveBackground);
 
         RemoveDivergence(1/h[k]);
 
@@ -43,7 +43,7 @@ void IMEXRK::TimeStepLinear()
 void IMEXRK::RemoveDivergence(stratifloat pressureMultiplier)
 {
     // construct the diverence of u
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         divergence = ddx(u1) + ddy(u2) + ddz(u3);
     }
@@ -60,7 +60,7 @@ void IMEXRK::RemoveDivergence(stratifloat pressureMultiplier)
 
     // subtract the gradient of this from the velocity
     u1 -= ddx(q);
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         u2 -= ddy(q);
     }
@@ -74,32 +74,32 @@ void IMEXRK::RemoveDivergence(stratifloat pressureMultiplier)
 
 void IMEXRK::CrankNicolson(int k, bool evolveBackground)
 {
-    R1 += (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u1)
+    R1 += (0.5f*h[k]/flowParams.Re)*(MatMulDim1(dim1Derivative2, u1)
                          +MatMulDim2(dim2Derivative2, u1)
                          +MatMulDim3(dim3Derivative2Neumann, u1));
     CNSolve(R1, u1, k);
 
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
-        R2 += (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u2)
+        R2 += (0.5f*h[k]/flowParams.Re)*(MatMulDim1(dim1Derivative2, u2)
                              +MatMulDim2(dim2Derivative2, u2)
                              +MatMulDim3(dim3Derivative2Neumann, u2));
         CNSolve(R2, u2, k);
     }
 
-    R3 += (0.5f*h[k]/Re)*(MatMulDim1(dim1Derivative2, u3)
+    R3 += (0.5f*h[k]/flowParams.Re)*(MatMulDim1(dim1Derivative2, u3)
                          +MatMulDim2(dim2Derivative2, u3)
                          +MatMulDim3(dim3Derivative2Dirichlet, u3));
     CNSolve(R3, u3, k);
 
-    RB += (0.5f*h[k]/Pe)*(MatMulDim1(dim1Derivative2, b)
+    RB += (0.5f*h[k]/flowParams.Re/flowParams.Pr)*(MatMulDim1(dim1Derivative2, b)
                          +MatMulDim2(dim2Derivative2, b)
                          +MatMulDim3(dim3Derivative2Neumann, b));
     CNSolveBuoyancy(RB, b, k);
 
-    if (EvolveBackground)
+    if (flowParams.EvolveBackground)
     {
-        RU_ = U_ + (0.5f*h[k]/Re)*MatMul1D(dim3Derivative2Neumann, U_);
+        RU_ = U_ + (0.5f*h[k]/flowParams.Re)*MatMul1D(dim3Derivative2Neumann, U_);
         CNSolve1D(RU_, U_, k);
     }
 }
@@ -108,7 +108,7 @@ void IMEXRK::FinishRHS(int k)
 {
     // now add on explicit terms to RHS
     R1 += (h[k]*beta[k])*r1;
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         R2 += (h[k]*beta[k])*r2;
     }
@@ -120,7 +120,7 @@ void IMEXRK::ExplicitRK(int k, bool evolveBackground)
 {
     //   old      last rk step         pressure
     R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) ;
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
     R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) ;
     }
@@ -140,7 +140,7 @@ void IMEXRK::BuildRHS()
     // buoyancy force without hydrostatic part
     neumannTemp = b;
     RemoveHorizontalAverage(neumannTemp);
-    r3 += Ri*ReinterpolateFull(neumannTemp); // buoyancy force
+    r3 += flowParams.Ri*ReinterpolateFull(neumannTemp); // buoyancy force
 
     // background stratification term
     dirichletTemp = u3;
@@ -162,7 +162,7 @@ void IMEXRK::BuildRHS()
     InterpolateProduct(U3, U3, neumannTemp);
     r3 -= ddx(dirichletTemp)+ddz(neumannTemp);
 
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         InterpolateProduct(U2, U2, neumannTemp);
         r2 -= ddy(neumannTemp);
@@ -182,7 +182,7 @@ void IMEXRK::BuildRHS()
     DifferentiateProductBar(B, U3, neumannTemp);
     rB -= neumannTemp;
 
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         InterpolateProduct(U2, B, neumannTemp);
         rB -= ddy(neumannTemp);
@@ -199,7 +199,7 @@ void IMEXRK::BuildRHSLinear()
     // buoyancy force without hydrostatic part
     neumannTemp = b;
     RemoveHorizontalAverage(neumannTemp);
-    r3 += Ri*ReinterpolateFull(neumannTemp); // buoyancy force
+    r3 += flowParams.Ri*ReinterpolateFull(neumannTemp); // buoyancy force
 
     // background stratification term
     dirichletTemp = u3;
@@ -221,7 +221,7 @@ void IMEXRK::BuildRHSLinear()
     InterpolateProduct(U3, U3_tot, neumannTemp);
     r3 -= ddx(dirichletTemp)+2.0*ddz(neumannTemp);
 
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         InterpolateProduct(U2, U2_tot, neumannTemp);
         r2 -= 2.0*ddy(neumannTemp);
@@ -241,7 +241,7 @@ void IMEXRK::BuildRHSLinear()
     DifferentiateProductBar(B, B_tot, U3_tot, U3, neumannTemp);
     rB -= neumannTemp;
 
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         InterpolateProduct(B, B_tot, U2_tot, U2, neumannTemp);
         rB -= ddy(neumannTemp);
@@ -256,7 +256,7 @@ void IMEXRK::BuildRHSAdjoint()
     // build up right hand sides for the implicit solve in R
 
     // adjoint buoyancy
-    bForcing += Ri*ReinterpolateDirichlet(U3);
+    bForcing += flowParams.Ri*ReinterpolateDirichlet(U3);
 
     //////// NONLINEAR TERMS ////////
     // advection of adjoint quantities by the direct flow
@@ -270,7 +270,7 @@ void IMEXRK::BuildRHSAdjoint()
     InterpolateProduct(U3, U3_tot, neumannTemp);
     r3 += ddx(dirichletTemp)+ddz(neumannTemp);
 
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         InterpolateProduct(U2, U2_tot, neumannTemp);
         r2 += ddy(neumannTemp);
@@ -292,7 +292,7 @@ void IMEXRK::BuildRHSAdjoint()
     DifferentiateProductBar(B, U3_tot, neumannTemp);
     rB += neumannTemp;
 
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         InterpolateProduct(B, U2_tot, neumannTemp);
         rB += ddy(neumannTemp);
@@ -306,7 +306,7 @@ void IMEXRK::BuildRHSAdjoint()
     neumannTemp = ddx(u1_tot);
     neumannTemp.ToNodal(nnTemp);
     nnTemp2 = nnTemp*U1;
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         neumannTemp = ddx(u2_tot);
         neumannTemp.ToNodal(nnTemp);
@@ -316,7 +316,7 @@ void IMEXRK::BuildRHSAdjoint()
     dirichletTemp.ToNodal(ndTemp);
     u1Forcing -= nnTemp2 + ReinterpolateDirichlet(ndTemp*U3);
 
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         neumannTemp = ddy(u1_tot);
         neumannTemp.ToNodal(nnTemp);
@@ -332,7 +332,7 @@ void IMEXRK::BuildRHSAdjoint()
     dirichletTemp = ddz(u1_tot);
     dirichletTemp.ToNodal(ndTemp);
     ndTemp2 = ndTemp*ReinterpolateFull(U1);
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         dirichletTemp = ddz(u2_tot);
         dirichletTemp.ToNodal(ndTemp);
@@ -347,7 +347,7 @@ void IMEXRK::BuildRHSAdjoint()
     neumannTemp.ToNodal(nnTemp);
     u1Forcing -= nnTemp*B;
 
-    if(ThreeDimensional)
+    if(gridParams.ThreeDimensional)
     {
         neumannTemp = ddy(b_tot);
         neumannTemp.ToNodal(nnTemp);
@@ -361,7 +361,7 @@ void IMEXRK::BuildRHSAdjoint()
     // Now include all the forcing terms
     u1Forcing.ToModal(neumannTemp);
     r1 += neumannTemp;
-    if (ThreeDimensional)
+    if (gridParams.ThreeDimensional)
     {
         u2Forcing.ToModal(neumannTemp);
         r2 += neumannTemp;

@@ -128,21 +128,11 @@ void Setup()
 
     f3_plan_with_nthreads(omp_get_max_threads());
 
-    if (f3_import_wisdom_from_filename("~/fftw_wisdom") == 0)
-    {
-        fprintf(stderr, "Importing fftw wisdom failed. Non-fatal.\n");
-    }
-
     printf("Using %d threads\n", omp_get_max_threads());
 }
 
 void Cleanup()
 {
-    if (f3_export_wisdom_to_filename("~/fftw_wisdom") == 0)
-    {
-        fprintf(stderr, "Exporting fftw wisdom failed.\n");
-    }
-
     f3_cleanup_threads();
 }
 

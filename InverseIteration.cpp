@@ -5,7 +5,7 @@ int main(int argc, const char* argv[])
     ExtendedStateVector background;
     background.LoadFromFile(argv[1]);
 
-    Ri = background.p;
+    flowParams.Ri = background.p;
 
     StateVector b;
     //b.Randomise(0.1);

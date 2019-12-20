@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
     stratifloat epsilon = std::stof(argv[2]);
 
     // scale for more uniform updating
-    adjointState.b *= 1/Ri;
+    adjointState.b *= 1/flowParams.Ri;
 
     stratifloat udotu = directState.Dot(directState);
     stratifloat udotv = directState.Dot(adjointState);

@@ -3,23 +3,23 @@
 #include "Parameters.h"
 #include "Differentiation.h"
 
-constexpr int M1 = N1/2 + 1;
+constexpr int M1 = gridParams.N1/2 + 1;
 
-class NeumannNodal : public NodalField<N1,N2,N3>
+class NeumannNodal : public NodalField<gridParams.N1,gridParams.N2,gridParams.N3>
 {
 public:
     NeumannNodal() : NodalField(BoundaryCondition::Neumann) {}
     using NodalField::operator=;
 };
 
-class NeumannModal : public ModalField<N1,N2,N3>
+class NeumannModal : public ModalField<gridParams.N1,gridParams.N2,gridParams.N3>
 {
 public:
     NeumannModal() : ModalField(BoundaryCondition::Neumann) {}
     using ModalField::operator=;
 };
 
-class DirichletNodal : public NodalField<N1,N2,N3>
+class DirichletNodal : public NodalField<gridParams.N1,gridParams.N2,gridParams.N3>
 {
 public:
     DirichletNodal() : NodalField(BoundaryCondition::Dirichlet) {}
@@ -27,21 +27,21 @@ public:
 
 };
 
-class DirichletModal : public ModalField<N1,N2,N3>
+class DirichletModal : public ModalField<gridParams.N1,gridParams.N2,gridParams.N3>
 {
 public:
     DirichletModal() : ModalField(BoundaryCondition::Dirichlet) {}
     using ModalField::operator=;
 };
 
-class Neumann1D : public Nodal1D<N1,N2,N3>
+class Neumann1D : public Nodal1D<gridParams.N1,gridParams.N2,gridParams.N3>
 {
 public:
     Neumann1D() : Nodal1D(BoundaryCondition::Neumann) {}
     using Nodal1D::operator=;
 };
 
-class Dirichlet1D : public Nodal1D<N1,N2,N3>
+class Dirichlet1D : public Nodal1D<gridParams.N1,gridParams.N2,gridParams.N3>
 {
 public:
     Dirichlet1D() : Nodal1D(BoundaryCondition::Dirichlet) {}
@@ -49,19 +49,19 @@ public:
 };
 
 template<typename T>
-Dim1MatMul<T, complex, complex, M1, N2, N3> ddx(const StackContainer<T, complex, M1, N2, N3>& f)
+Dim1MatMul<T, complex, complex, M1, gridParams.N2, gridParams.N3> ddx(const StackContainer<T, complex, M1, gridParams.N2, gridParams.N3>& f)
 {
-    static DiagonalMatrix<complex, -1> dim1Derivative = FourierDerivativeMatrix(L1, N1, 1);
+    static DiagonalMatrix<complex, -1> dim1Derivative = FourierDerivativeMatrix(flowParams.L1, gridParams.N1, 1);
 
-    return Dim1MatMul<T, complex, complex, M1, N2, N3>(dim1Derivative, f);
+    return Dim1MatMul<T, complex, complex, M1, gridParams.N2, gridParams.N3>(dim1Derivative, f);
 }
 
 template<typename T>
-Dim2MatMul<T, complex, complex, M1, N2, N3> ddy(const StackContainer<T, complex, M1, N2, N3>& f)
+Dim2MatMul<T, complex, complex, M1, gridParams.N2, gridParams.N3> ddy(const StackContainer<T, complex, M1, gridParams.N2, gridParams.N3>& f)
 {
-    static DiagonalMatrix<complex, -1> dim2Derivative = FourierDerivativeMatrix(L2, N2, 2);
+    static DiagonalMatrix<complex, -1> dim2Derivative = FourierDerivativeMatrix(flowParams.L2, gridParams.N2, 2);
 
-    return Dim2MatMul<T, complex, complex, M1, N2, N3>(dim2Derivative, f);
+    return Dim2MatMul<T, complex, complex, M1, gridParams.N2, gridParams.N3>(dim2Derivative, f);
 }
 
 template<typename A, typename T, int K1, int K2, int K3>
@@ -69,12 +69,12 @@ Dim3MatMul<A, stratifloat, T, K1, K2, K3> ddz(const StackContainer<A, T, K1, K2,
 {
     if (f.BC() == BoundaryCondition::Neumann)
     {
-        static MatrixX dim3Derivative = VerticalDerivativeMatrix(L3, N3, f.BC());
+        static MatrixX dim3Derivative = VerticalDerivativeMatrix(flowParams.L3, gridParams.N3, f.BC());
         return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(dim3Derivative, f, BoundaryCondition::Dirichlet);
     }
     else
     {
-        static MatrixX dim3Derivative = VerticalDerivativeMatrix(L3, N3, f.BC());
+        static MatrixX dim3Derivative = VerticalDerivativeMatrix(flowParams.L3, gridParams.N3, f.BC());
         return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(dim3Derivative, f, BoundaryCondition::Neumann);
     }
 }
@@ -82,28 +82,28 @@ Dim3MatMul<A, stratifloat, T, K1, K2, K3> ddz(const StackContainer<A, T, K1, K2,
 template<typename A, typename T, int K1, int K2, int K3>
 Dim3MatMul<A, stratifloat, T, K1, K2, K3> ReinterpolateDirichlet(const StackContainer<A, T, K1, K2, K3>& f)
 {
-    static MatrixX reint = DirichletReinterpolation(L3, N3);
+    static MatrixX reint = DirichletReinterpolation(flowParams.L3, gridParams.N3);
     return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(reint, f, BoundaryCondition::Neumann);
 }
 
 template<typename A, typename T, int K1, int K2, int K3>
 Dim3MatMul<A, stratifloat, T, K1, K2, K3> ReinterpolateBar(const StackContainer<A, T, K1, K2, K3>& f)
 {
-    static MatrixX reint = NeumannReinterpolationBar(L3, N3);
+    static MatrixX reint = NeumannReinterpolationBar(flowParams.L3, gridParams.N3);
     return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(reint, f, BoundaryCondition::Dirichlet);
 }
 
 template<typename A, typename T, int K1, int K2, int K3>
 Dim3MatMul<A, stratifloat, T, K1, K2, K3> ReinterpolateTilde(const StackContainer<A, T, K1, K2, K3>& f)
 {
-    static MatrixX reint = NeumannReinterpolationTilde(L3, N3);
+    static MatrixX reint = NeumannReinterpolationTilde(flowParams.L3, gridParams.N3);
     return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(reint, f, BoundaryCondition::Dirichlet);
 }
 
 template<typename A, typename T, int K1, int K2, int K3>
 Dim3MatMul<A, stratifloat, T, K1, K2, K3> ReinterpolateFull(const StackContainer<A, T, K1, K2, K3>& f)
 {
-    static MatrixX reint = NeumannReinterpolationFull(L3, N3);
+    static MatrixX reint = NeumannReinterpolationFull(flowParams.L3, gridParams.N3);
     return Dim3MatMul<A, stratifloat, T, K1, K2, K3>(reint, f, BoundaryCondition::Dirichlet);
 }
 

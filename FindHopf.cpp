@@ -8,7 +8,7 @@ public:
 
     virtual void EnforceConstraints(HopfBifurcation& at)
     {
-        Ri = at.p;
+        flowParams.Ri = at.p;
 
         stratifloat theta = atan2(-at.v2.Dot(A),at.v1.Dot(A));
         stratifloat r = 1/(cos(theta)*at.v1.Dot(A) - sin(theta)*at.v2.Dot(A));
@@ -22,7 +22,7 @@ private:
     {
         HopfBifurcation result;
 
-        Ri = at.p;
+        flowParams.Ri = at.p;
         at.x.FullEvolve(T, result.x, false, false);
         at.v1.LinearEvolve(T, at.x, result.v1);
         at.v2.LinearEvolve(T, at.x, result.v2);
@@ -53,8 +53,7 @@ private:
 
 int main(int argc, char *argv[])
 {
-    Re = std::stof(argv[1]);
-    Pe = Re*Pr;
+    flowParams.Re = std::stof(argv[1]);
     DumpParameters();
     StateVector::ResetForParams();
 
@@ -76,7 +75,7 @@ int main(int argc, char *argv[])
         gradient *= 1/(Re2-Re1);
 
         guess = x2;
-        guess.MulAdd(Re-Re2, gradient);
+        guess.MulAdd(flowParams.Re-Re2, gradient);
     }
     else
     {
@@ -84,7 +83,7 @@ int main(int argc, char *argv[])
     }
 
 
-    Ri = guess.p;
+    flowParams.Ri = guess.p;
 
     FindHopf solver;
 

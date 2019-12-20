@@ -110,7 +110,7 @@ public:
 
     virtual void EnforceConstraints(CriticalPoint& at)
     {
-        Ri = at.p;
+        flowParams.Ri = at.p;
 
         // make the eigenvectors orthogonal to the symmetry
         StateVector phaseShift;
@@ -126,8 +126,8 @@ public:
         }
 
         // Remove any average in eigenvector (another symmetry)
-        RemoveAverage(at.v.u1, L3);
-        RemoveAverage(at.v.b, L3);
+        RemoveAverage(at.v.u1, flowParams.L3);
+        RemoveAverage(at.v.b, flowParams.L3);
 
         at.v.Rescale(weight);
     }
@@ -136,7 +136,7 @@ private:
     {
         CriticalPoint result;
 
-        Ri = at.p;
+        flowParams.Ri = at.p;
         at.x.FullEvolve(T, result.x, false, false);
         at.v.LinearEvolve(T, at.x, result.v);
 
@@ -154,9 +154,8 @@ private:
 
 int main(int argc, char *argv[])
 {
-    Re = 4000;
-    Pr = std::stof(argv[1]);
-    Pe = Re*Pr;
+    flowParams.Re = 4000;
+    flowParams.Pr = std::stof(argv[1]);
     DumpParameters();
     StateVector::ResetForParams();
 
@@ -171,18 +170,18 @@ int main(int argc, char *argv[])
         x2.LoadFromFile(argv[3]);
 
         stratifloat shift = x1.x.RemovePhaseShift();
-        RemoveAverage(x1.x.u1, L3);
-        RemoveAverage(x1.x.b, L3);
+        RemoveAverage(x1.x.u1, flowParams.L3);
+        RemoveAverage(x1.x.b, flowParams.L3);
         x1.v.RemovePhaseShift(shift);
-        RemoveAverage(x1.v.u1, L3);
-        RemoveAverage(x1.v.b, L3);
+        RemoveAverage(x1.v.u1, flowParams.L3);
+        RemoveAverage(x1.v.b, flowParams.L3);
 
         shift = x2.x.RemovePhaseShift();
-        RemoveAverage(x2.x.u1, L3);
-        RemoveAverage(x2.x.b, L3);
+        RemoveAverage(x2.x.u1, flowParams.L3);
+        RemoveAverage(x2.x.b, flowParams.L3);
         x2.v.RemovePhaseShift(shift);
-        RemoveAverage(x2.v.u1, L3);
-        RemoveAverage(x2.v.b, L3);
+        RemoveAverage(x2.v.u1, flowParams.L3);
+        RemoveAverage(x2.v.b, flowParams.L3);
 
         stratifloat Pr1 = std::stof(argv[4]);
         stratifloat Pr2 = std::stof(argv[5]);
@@ -192,7 +191,7 @@ int main(int argc, char *argv[])
         gradient *= 1/(Pr2-Pr1);
 
         guess = x1;
-        guess.MulAdd(Pr-Pr1, gradient);
+        guess.MulAdd(flowParams.Pr-Pr1, gradient);
     }
     else
     {
@@ -201,7 +200,7 @@ int main(int argc, char *argv[])
     }
 
 
-    Ri = guess.p;
+    flowParams.Ri = guess.p;
 
     FindCriticalPoint solver;
 

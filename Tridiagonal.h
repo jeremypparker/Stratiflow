@@ -27,7 +27,7 @@ public:
     }
 
     template<typename R>
-    Matrix<R, N, 1> solve(const Matrix<R, N3, 1>& d) const
+    Matrix<R, N, 1> solve(const Matrix<R, N, 1>& d) const
     {
         Matrix<R, N, 1> x;
 

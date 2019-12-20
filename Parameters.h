@@ -2,28 +2,26 @@
 #include "Constants.h"
 #include <string>
 
-// These are the used-modifiable parameters for Stratiflow
-
-// These are runtime parameters - values in Parameters.cpp
-extern stratifloat L1;
-extern stratifloat L2;
-extern stratifloat L3;
-extern stratifloat Re;
-extern stratifloat Ri;
-extern stratifloat R;
-extern stratifloat Pr;
-extern stratifloat Pe;
-extern bool EnforceSymmetry;
-
 // These must be defined at compile time
+struct GridParams
+{
+    int N1; // Number of streamwise gridpoints
+    int N2; // Number of spanwise gridpoints
+    int N3; // Number of vertical gridpoints
+    bool ThreeDimensional; // whether to resolve spanwise direction
+};
 
-// SOLVER PARAMETERS //
-constexpr int N1 = 256; // Number of streamwise gridpoints
-constexpr int N2 = 1;   // Number of spanwise gridpoints
-constexpr int N3 = 768; // Number of vertical gridpoints
-
-constexpr bool ThreeDimensional = false; // whether to resolve spanwise direction
-constexpr bool EvolveBackground = false;
+// In principle these can be changed mid-run
+struct FlowParams
+{
+    stratifloat L1; // streamwise (periodic) domain size
+    stratifloat L2; // spanwise (periodic domain size)
+    stratifloat L3; // vertical domain half-height
+    stratifloat Re; // Reynolds number
+    stratifloat Ri; // bulk Richardson number
+    stratifloat Pr; // Prandtl number
+    bool EvolveBackground;
+};
 
 // background shear
 inline stratifloat InitialU(stratifloat z)
@@ -34,3 +32,8 @@ inline stratifloat InitialU(stratifloat z)
 void DumpParameters();
 void PrintParameters();
 void LoadParameters(const std::string& file);
+
+constexpr GridParams gridParams
+    = {256, 1, 768, false};
+
+extern FlowParams flowParams;

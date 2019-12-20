@@ -3,18 +3,8 @@
 #include <iostream>
 #include <iomanip>
 
-// These are runtime parameters - could load from a file in future
-
-stratifloat L1 = 8.885765876;// size of domain streamwise
-stratifloat L2 = 1.570795;  // size of domain spanwise
-stratifloat L3 = 10; // half-size of domain vertically
-stratifloat Re = 1000;
-stratifloat Ri = 0.16;
-stratifloat R = 1;
-
-stratifloat Pr = 0.7;
-stratifloat Pe = Re*Pr;
-bool EnforceSymmetry = false;
+FlowParams flowParams
+    = {8.885765876, 1.570795, 10, 1000, 0.16, 0.7, false};
 
 #define PrintParam(parameter) paramFile << #parameter << " " << parameter << std::endl
 
@@ -69,19 +59,18 @@ void DumpParameters()
 
     paramFile << std::setprecision(30);
 
-    PrintParam(N1);
-    PrintParam(N2);
-    PrintParam(N3);
-    PrintParam(ThreeDimensional);
-    PrintParam(EvolveBackground);
+    PrintParam(gridParams.N1);
+    PrintParam(gridParams.N2);
+    PrintParam(gridParams.N3);
+    PrintParam(gridParams.ThreeDimensional);
 
-    PrintParam(L1);
-    PrintParam(L2);
-    PrintParam(L3);
-    PrintParam(Re);
-    PrintParam(Ri);
-    PrintParam(R);
-    PrintParam(Pr);
+    PrintParam(flowParams.L1);
+    PrintParam(flowParams.L2);
+    PrintParam(flowParams.L3);
+    PrintParam(flowParams.Re);
+    PrintParam(flowParams.Ri);
+    PrintParam(flowParams.Pr);
+    PrintParam(flowParams.EvolveBackground);
 }
 
 void LoadParameters(const std::string& file)
@@ -89,35 +78,33 @@ void LoadParameters(const std::string& file)
     std::ifstream paramFile;
     paramFile.open(file, std::fstream::in);
 
-    CheckParam(N1);
-    CheckParam(N2);
-    CheckParam(N3);
-    CheckParam(ThreeDimensional);
-    CheckParam(EvolveBackground);
+    CheckParam(gridParams.N1);
+    CheckParam(gridParams.N2);
+    CheckParam(gridParams.N3);
+    CheckParam(gridParams.ThreeDimensional);
 
-    // LoadParam(L1);
-    // LoadParam(L2);
-    LoadParam(L3);
-    // LoadParam(Re);
-    // LoadParam(Ri);
-    // LoadParam(R);
+    // LoadParam(flowParams.L1);
+    // LoadParam(flowParams.L2);
+    LoadParam(flowParams.L3);
+    // LoadParam(flowParams.Re);
+    // LoadParam(flowParams.Ri);
+    CheckParam(flowParams.EvolveBackground);
 }
 
 void PrintParameters()
 {
     auto& paramFile = std::cout;
 
-    PrintParam(N1);
-    PrintParam(N2);
-    PrintParam(N3);
-    PrintParam(ThreeDimensional);
-    PrintParam(EvolveBackground);
+    PrintParam(gridParams.N1);
+    PrintParam(gridParams.N2);
+    PrintParam(gridParams.N3);
+    PrintParam(gridParams.ThreeDimensional);
 
-    PrintParam(L1);
-    PrintParam(L2);
-    PrintParam(L3);
-    PrintParam(Re);
-    PrintParam(Ri);
-    PrintParam(R);
-    PrintParam(Pr);
+    PrintParam(flowParams.L1);
+    PrintParam(flowParams.L2);
+    PrintParam(flowParams.L3);
+    PrintParam(flowParams.Re);
+    PrintParam(flowParams.Ri);
+    PrintParam(flowParams.Pr);
+    PrintParam(flowParams.EvolveBackground);
 }

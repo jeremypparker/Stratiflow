@@ -8,7 +8,7 @@ int main(int argc, char* argv[])
     ExtendedStateVector testState;
     testState.LoadFromFile(argv[1]);
 
-    Ri = testState.p;
+    flowParams.Ri = testState.p;
 
     BasicArnoldi solver;
 
@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 
 // stratifloat growth(stratifloat p)
 // {
-//     Ri = p;
+//     flowParams.Ri = p;
 //     StateVector background;
 //     StateVector result;
 
@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
 
 //         stratifloat GrowthMiddle = growth(RiMiddle);
 
-//         std::cout << "Ri: " << RiLower << " " << RiMiddle << " " << RiHigher << std::endl;
+//         std::cout << "flowParams.Ri: " << RiLower << " " << RiMiddle << " " << RiHigher << std::endl;
 //         std::cout << "Growth: " << GrowthLower << " " << GrowthMiddle << " " << GrowthHigher << std::endl;
 
 //         if (GrowthMiddle > 1)

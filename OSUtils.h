@@ -16,7 +16,7 @@ void LoadVariable(const std::string& filename, T& into, int index)
 {
     std::ifstream filestream(filename, std::ios::in | std::ios::binary);
 
-    filestream.seekg(N1*N2*N3*index*sizeof(stratifloat));
+    filestream.seekg(gridParams.N1*gridParams.N2*gridParams.N3*index*sizeof(stratifloat));
     into.Load(filestream);
 }
 

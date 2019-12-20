@@ -30,8 +30,6 @@
     #define f3_plan_dft_c2r_3d      fftw_plan_dft_c2r_3d
     #define f3_complex              fftw_complex
     #define f3_plan                 fftw_plan
-    #define f3_export_wisdom_to_filename fftw_export_wisdom_to_filename
-    #define f3_import_wisdom_from_filename fftw_import_wisdom_from_filename
 #else
     #define stratifloat float
     #define notstratifloat double
@@ -60,8 +58,6 @@
     #define f3_plan_dft_c2r_3d      fftwf_plan_dft_c2r_3d
     #define f3_complex              fftwf_complex
     #define f3_plan                 fftwf_plan
-    #define f3_export_wisdom_to_filename fftwf_export_wisdom_to_filename
-    #define f3_import_wisdom_from_filename fftwf_import_wisdom_from_filename
 #endif
 
 constexpr stratifloat pi = 3.141592653589793238462;

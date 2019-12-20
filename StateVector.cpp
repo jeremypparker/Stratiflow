@@ -211,7 +211,7 @@ void StateVector::Rescale(stratifloat energy)
     }
 
     u1 *= scale;
-    if (ThreeDimensional)
+    if (gridParams.ThreeDimensional)
     {
         u2 *= scale;
     }
@@ -227,10 +227,10 @@ void StateVector::Rescale(stratifloat energy)
 
 void StateVector::ExciteLowWavenumbers(stratifloat energy)
 {
-    u1.ExciteLowWavenumbers(L3);
-    u2.ExciteLowWavenumbers(L3);
-    u3.ExciteLowWavenumbers(L3);
-    b.ExciteLowWavenumbers(L3);
+    u1.ExciteLowWavenumbers(flowParams.L3);
+    u2.ExciteLowWavenumbers(flowParams.L3);
+    u3.ExciteLowWavenumbers(flowParams.L3);
+    b.ExciteLowWavenumbers(flowParams.L3);
 
     Rescale(energy);
 }

@@ -30,7 +30,7 @@ private:
 
 int main(int argc, char *argv[])
 {
-    Ri = std::stof(argv[1]);
+    flowParams.Ri = std::stof(argv[1]);
     DumpParameters();
     StateVector::ResetForParams();
 
