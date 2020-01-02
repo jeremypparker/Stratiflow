@@ -48,7 +48,7 @@ TEST_CASE("Dim 1 fourier derivatives")
     f1.ToModal(f2, false);
 
     ModalField<N1,N2,N3> f3;
-    f3 = Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>,complex,complex,N1/2+1,N2,N3>(FourierDerivativeMatrix(L, N1, 1), f2);
+    f3 = Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>,complex,complex,N1,N2,N3/2+1>(FourierDerivativeMatrix(L, N1, 1), f2);
 
     NodalField<N1,N2,N3> f4;
     f3.ToNodal(f4);
@@ -60,7 +60,7 @@ TEST_CASE("Dim 1 fourier derivatives")
     REQUIRE(f4 == expected);
 
     ModalField<N1,N2,N3> f5;
-    f5 = Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>,stratifloat,complex,N1/2+1,N2,N3>(FourierSecondDerivativeMatrix(L, N1, 1), f2);
+    f5 = Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>,stratifloat,complex,N1,N2,N3/2+1>(FourierSecondDerivativeMatrix(L, N1, 1), f2);
 
     NodalField<N1,N2,N3> f6;
     f5.ToNodal(f6);
@@ -86,7 +86,7 @@ TEST_CASE("Dim 2 fourier derivatives")
     f1.ToModal(f2, false);
 
     ModalField<N1,N2,N3> f3;
-    f3 = Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>,complex,complex,N1/2+1,N2,N3>(FourierDerivativeMatrix(L, N2, 2), f2);
+    f3 = Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>,complex,complex,N1,N2,N3/2+1>(FourierDerivativeMatrix(L, N2, 2), f2);
 
     NodalField<N1,N2,N3> f4;
     f3.ToNodal(f4);
@@ -97,7 +97,7 @@ TEST_CASE("Dim 2 fourier derivatives")
     REQUIRE(f4 == expected);
 
     ModalField<N1,N2,N3> f5;
-    f5 = Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>,stratifloat,complex,N1/2+1,N2,N3>(FourierSecondDerivativeMatrix(L, N2, 2), f2);
+    f5 = Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>,stratifloat,complex,N1,N2,N3/2+1>(FourierSecondDerivativeMatrix(L, N2, 2), f2);
 
     NodalField<N1,N2,N3> f6;
     f5.ToNodal(f6);
@@ -124,7 +124,7 @@ TEST_CASE("Dim 2 fourier derivatives")
 //     std::vector<ColPivHouseholderQR<MatrixXc>> solveLaplacian((N1/2 + 1)*N2);
 
 //     // we solve each vetical line separately, so N1*N2 total solves
-//     for (int j1=0; j1<N1/2 + 1; j1++)
+//     for (int j1=0; j1<N1/2 + 1; j1++)BROKEN
 //     {
 //         for (int j2=0; j2<N2; j2++)
 //         {

@@ -3,7 +3,7 @@
 #include "Parameters.h"
 #include "Differentiation.h"
 
-constexpr int M1 = gridParams.N1/2 + 1;
+constexpr int M3 = gridParams.N3/2 + 1;
 
 class Modal : public ModalField<gridParams.N1,gridParams.N2,gridParams.N3>
 {
@@ -22,19 +22,19 @@ public:
 
 
 template<typename T>
-Dim1MatMul<T, complex, complex, M1, gridParams.N2, gridParams.N3> ddx(const StackContainer<T, complex, M1, gridParams.N2, gridParams.N3>& f)
+Dim1MatMul<T, complex, complex, gridParams.N1, gridParams.N2, M3> ddx(const StackContainer<T, complex, gridParams.N1, gridParams.N2, M3>& f)
 {
     static DiagonalMatrix<complex, -1> dim1Derivative = FourierDerivativeMatrix(flowParams.L1, gridParams.N1, 1);
 
-    return Dim1MatMul<T, complex, complex, M1, gridParams.N2, gridParams.N3>(dim1Derivative, f);
+    return Dim1MatMul<T, complex, complex, gridParams.N1, gridParams.N2, M3>(dim1Derivative, f);
 }
 
 template<typename T>
-Dim2MatMul<T, complex, complex, M1, gridParams.N2, gridParams.N3> ddy(const StackContainer<T, complex, M1, gridParams.N2, gridParams.N3>& f)
+Dim2MatMul<T, complex, complex, gridParams.N1, gridParams.N2, M3> ddy(const StackContainer<T, complex, gridParams.N1, gridParams.N2, M3>& f)
 {
     static DiagonalMatrix<complex, -1> dim2Derivative = FourierDerivativeMatrix(flowParams.L2, gridParams.N2, 2);
 
-    return Dim2MatMul<T, complex, complex, M1, gridParams.N2, gridParams.N3>(dim2Derivative, f);
+    return Dim2MatMul<T, complex, complex, gridParams.N1, gridParams.N2, M3>(dim2Derivative, f);
 }
 
 template<typename T, int K1, int K2, int K3>

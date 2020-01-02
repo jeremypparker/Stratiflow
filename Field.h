@@ -440,22 +440,22 @@ public:
     NodalField()
     : Field<stratifloat, N1, N2, N3>()
     {
-        int dims[] = {N2, N1};
-        int odims[] = {N2, N1/2+1};
+        int dims[] = {N2, N1, N3};
+        int odims[] = {N2, N1, N3/2+1};
 
         std::vector<stratifloat, aligned_allocator<stratifloat>> inputData(N1*N2*N3);
-        std::vector<complex, aligned_allocator<complex>> outputData((N1/2+1)*N2*N3);
+        std::vector<complex, aligned_allocator<complex>> outputData(N1*N2*(N3/2+1));
 
-        auto plan = f3_plan_many_dft_r2c(2,
+        auto plan = f3_plan_many_dft_r2c(3,
                                         dims,
-                                        N3,
+                                        1,
                                         inputData.data(),
                                         dims,
-                                        N3,
+                                        1,
                                         1,
                                         reinterpret_cast<f3_complex*>(outputData.data()),
                                         odims,
-                                        N3,
+                                        1,
                                         1,
                                         FFTW_PATIENT);
 
@@ -466,18 +466,18 @@ public:
 
         // do FFT in 1st and 2nd dimensions
 
-        int dims[] = {N2, N1};
-        int odims[] = {N2, N1/2+1};
-        auto plan = f3_plan_many_dft_r2c(2,
+        int dims[] = {N2, N1, N3};
+        int odims[] = {N2, N1, N3/2+1};
+        auto plan = f3_plan_many_dft_r2c(3,
                                         dims,
-                                        N3,
+                                        1,
                                         const_cast<stratifloat*>(this->Raw()),
                                         dims,
-                                        N3,
+                                        1,
                                         1,
                                         reinterpret_cast<f3_complex*>(other.Raw()),
                                         odims,
-                                        N3,
+                                        1,
                                         1,
                                         FFTW_PATIENT);
         f3_execute(plan);
@@ -490,7 +490,7 @@ public:
         }
         else
         {
-            for (int j=0; j<N3*N2*(N1/2+1); j++)
+            for (int j=0; j<N1*N2*(N3/2+1); j++)
             {
                 other.Raw()[j] *= 1/static_cast<stratifloat>(N1*N2);
             }
@@ -545,37 +545,37 @@ public:
 };
 
 template<int N1, int N2, int N3>
-class ModalField : public Field<complex, N1/2+1, N2, N3>
+class ModalField : public Field<complex, N1, N2, N3/2+1>
 {
-    static constexpr int actualN1 = N1/2 + 1;
+    static constexpr int actualN3 = N3/2 + 1;
 public:
     template<typename A>
-    const ModalField<N1, N2, N3>& operator=(const StackContainer<A,complex, N1/2+1, N2, N3>& other)
+    const ModalField<N1, N2, N3>& operator=(const StackContainer<A,complex, N1, N2, N3/2+1>& other)
     {
-        Field<complex, N1/2+1, N2, N3>::operator=(other);
+        Field<complex, N1, N2, N3/2+1>::operator=(other);
         return *this;
     }
 
     ModalField()
-    : Field<complex, N1/2+1, N2, N3>()
+    : Field<complex, N1, N2, N3/2+1>()
     {
-        inputData.resize(actualN1*N2*N3);
+        inputData.resize(N1*N2*actualN3);
 
         std::vector<stratifloat, aligned_allocator<stratifloat>> outputData(N1*N2*N3);
 
-        int dims[] = {N2, N1};
-        int idims[] = {N2, actualN1};
+        int dims[] = {N2, N1, N3};
+        int idims[] = {N2, N1, actualN3};
 
-        auto plan = f3_plan_many_dft_c2r(2,
+        auto plan = f3_plan_many_dft_c2r(3,
                                 dims,
-                                N3,
+                                1,
                                 reinterpret_cast<f3_complex*>(inputData.data()),
                                 idims,
-                                N3,
+                                1,
                                 1,
                                 outputData.data(),
                                 dims,
-                                N3,
+                                1,
                                 1,
                                 FFTW_PATIENT);
 
@@ -588,23 +588,23 @@ public:
 
         // make a copy of the input data as it is modified by the transform
         #pragma omp parallel for
-        for (unsigned int j=0; j<actualN1*N2*N3; j++)
+        for (unsigned int j=0; j<actualN3*N2*N1; j++)
         {
             inputData[j] = this->Raw()[j];
         }
 
-        int dims[] = {N2, N1};
-        int idims[] = {N2, actualN1};
-        auto plan = f3_plan_many_dft_c2r(2,
+        int dims[] = {N2, N1, N3};
+        int idims[] = {N2, N1, actualN3};
+        auto plan = f3_plan_many_dft_c2r(3,
                                         dims,
-                                        N3,
+                                        1,
                                         reinterpret_cast<f3_complex*>(inputData.data()),
                                         idims,
-                                        N3,
+                                        1,
                                         1,
                                         other.Raw(),
                                         dims,
-                                        N3,
+                                        1,
                                         1,
                                         FFTW_PATIENT);
         f3_execute(plan);
@@ -618,7 +618,7 @@ public:
             #pragma omp parallel for collapse(2)
             for (int j2=0; j2<N2; j2++)
             {
-                for (int j1=N1/3; j1<actualN1; j1++)
+                for (int j1=N1/3; j1<N1-(N1/3); j1++)
                 {
                     this->stack(j1, j2).setZero();
                 }
@@ -630,10 +630,19 @@ public:
             #pragma omp parallel for collapse(2)
             for (int j2=(N2/3); j2<=N2-(N2/3); j2++)
             {
-                for (int j1=0; j1<actualN1; j1++)
+                for (int j1=0; j1<N1; j1++)
                 {
                     this->stack(j1, j2).setZero();
                 }
+            }
+        }
+
+        if (N3>2)
+        {
+            #pragma omp parallel for
+            for (int j3=(N3/3); j3<actualN3; j3++)
+            {
+                this->slice(j3).setZero();
             }
         }
     }
@@ -656,7 +665,7 @@ public:
 
         for (int j1=0; j1<0.5*cutoff*N1; j1++)
         {
-            for (int j3=j3min; j3<j3max; j3++)
+            for (int j3=j3min; j3<actualN3; j3++)
             {
                 for (int j2=0; j2<0.5*cutoff*N2; j2++)
                 {
@@ -672,14 +681,33 @@ public:
 
     void ExciteLowWavenumbers(stratifloat L)
     {
-        assert(false);
+        std::random_device rd;
+        std::mt19937 generator(rd());
+        std::uniform_real_distribution<stratifloat> rng(-1.0,1.0);
+
+        for (int j1=-N2/6; j1<N1/6; j1++)
+        {
+            for (int j2=-N2/6; j2<=N2/6; j2++)
+            {
+                for (int j3=0; j3<=N3/6; j3++)
+                {
+                    int actualj1 = j1;
+                    if (actualj1<0) actualj1 += N1;
+
+                    int actualj2 = j2;
+                    if (actualj2<0) actualj2 += N2;
+
+                    this->operator()(actualj1,actualj2,j3) = pow(j1*j1+j2*j2+j3*j3+1,-5.0/3.0)*(rng(generator) + i*rng(generator));
+                }
+            }
+        }
     }
 
     void MakeMode2()
     {
         for (int j2=0; j2<N2; j2++)
         {
-            for (int j1=1; j1<actualN1; j1+=2)
+            for (int j1=1; j1<N1; j1+=2)
             {
                 this->stack(j1,j2).setZero();
             }
@@ -736,7 +764,7 @@ private:
 };
 
 template<int N1, int N2, int N3>
-constexpr int ModalField<N1,N2,N3>::actualN1;
+constexpr int ModalField<N1,N2,N3>::actualN3;
 
 template<int N1, int N2, int N3>
 std::vector<complex, aligned_allocator<complex>> ModalField<N1,N2,N3>::inputData;

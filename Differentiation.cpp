@@ -29,7 +29,7 @@ ArrayXc KVector(stratifloat L, int N, int dimension)
 {
     ArrayXc ret = i*(k(N)*(2*pi)/L);
 
-    if(dimension == 1)
+    if(dimension == 3)
     {
         return ret.head(N/2 +1);
     }

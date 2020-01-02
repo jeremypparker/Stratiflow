@@ -22,11 +22,10 @@
 #include <string>
 
 // will become unnecessary with C++17
-#define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, gridParams.N2, gridParams.N3>
-#define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, gridParams.N2, gridParams.N3>
-#define MatMulDim3 Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, M1, gridParams.N2, gridParams.N3>
+#define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, gridParams.N1, gridParams.N2, M3>
+#define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, gridParams.N1, gridParams.N2, M3>
+#define MatMulDim3 Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, gridParams.N1, gridParams.N2, M3>
 #define MatMulDim3Nodal Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, gridParams.N1, gridParams.N2, gridParams.N3>
-#define MatMul1D Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, gridParams.N1, gridParams.N2, gridParams.N3>
 
 class IMEXRK
 {
@@ -35,9 +34,9 @@ public:
 
 public:
     IMEXRK()
-    : solveLaplacian(M1*gridParams.N2)
-    , implicitSolveVelocity{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
-    , implicitSolveBuoyancy{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
+    : solveLaplacian(gridParams.N1*gridParams.N2)
+    , implicitSolveVelocity{std::vector<Tridiagonal<stratifloat, M3>, aligned_allocator<Tridiagonal<stratifloat, M3>>>(gridParams.N1*gridParams.N2), std::vector<Tridiagonal<stratifloat, M3>, aligned_allocator<Tridiagonal<stratifloat, M3>>>(gridParams.N1*gridParams.N2), std::vector<Tridiagonal<stratifloat, M3>, aligned_allocator<Tridiagonal<stratifloat, M3>>>(gridParams.N1*gridParams.N2)}
+    , implicitSolveBuoyancy{std::vector<Tridiagonal<stratifloat, M3>, aligned_allocator<Tridiagonal<stratifloat, M3>>>(gridParams.N1*gridParams.N2), std::vector<Tridiagonal<stratifloat, M3>, aligned_allocator<Tridiagonal<stratifloat, M3>>>(gridParams.N1*gridParams.N2), std::vector<Tridiagonal<stratifloat, M3>, aligned_allocator<Tridiagonal<stratifloat, M3>>>(gridParams.N1*gridParams.N2)}
     {
         assert(gridParams.ThreeDimensional || gridParams.N2 == 1);
 
@@ -50,24 +49,24 @@ public:
         MatrixX laplacian;
 
         // we solve each vetical line separately, so N1*gridParams.N2 total solves
-        for (int j1=0; j1<M1; j1++)
+        for (int j1=0; j1<gridParams.N1; j1++)
         {
             for (int j2=0; j2<gridParams.N2; j2++)
             {
                 laplacian = dim3Derivative2;
 
                 // add terms for horizontal derivatives
-                laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(gridParams.N3, gridParams.N3);
-                laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(gridParams.N3, gridParams.N3);
+                laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(M3, M3);
+                laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(M3, M3);
 
-                // correct for singularity
-                if (j1==0 && j2==0)
-                {
-                    laplacian.row(0).setZero();
-                    laplacian(0,0) = 1;
-                    laplacian.row(1).setZero();
-                    laplacian(1,1) = 1;
-                }
+                // // correct for singularity
+                // if (j1==0 && j2==0)
+                // {
+                //     laplacian.row(0).setZero();
+                //     laplacian(0,0) = 1;
+                //     laplacian.row(1).setZero();
+                //     laplacian(1,1) = 1;
+                // }
 
                 solveLaplacian[j1*gridParams.N2+j2].compute(laplacian);
             }
@@ -470,7 +469,7 @@ public:
 
 
         #pragma omp parallel for
-        for (int j1=0; j1<M1; j1++)
+        for (int j1=0; j1<gridParams.N1; j1++)
         {
             MatrixX laplacian;
             MatrixX solve;
@@ -480,13 +479,13 @@ public:
                 for (int k=0; k<s; k++)
                 {
                     laplacian = dim3Derivative2;
-                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(gridParams.N3, gridParams.N3);
-                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(gridParams.N3, gridParams.N3);
+                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(M3, M3);
+                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(M3, M3);
 
-                    solve = (MatrixX::Identity(gridParams.N3, gridParams.N3)-0.5*h[k]*laplacian/flowParams.Re);
+                    solve = (MatrixX::Identity(M3, M3)-0.5*h[k]*laplacian/flowParams.Re);
                     implicitSolveVelocity[k][j1*gridParams.N2+j2].compute(solve);
 
-                    solve = (MatrixX::Identity(gridParams.N3, gridParams.N3)-0.5*h[k]*laplacian/flowParams.Re/flowParams.Pr);
+                    solve = (MatrixX::Identity(M3, M3)-0.5*h[k]*laplacian/flowParams.Re/flowParams.Pr);
                     implicitSolveBuoyancy[k][j1*gridParams.N2+j2].compute(solve);
 
                 }
@@ -504,16 +503,6 @@ private:
     void CNSolveBuoyancy(Modal& solve, Modal& into, int k)
     {
         solve.Solve(implicitSolveBuoyancy[k], into);
-    }
-
-    void CNSolve(Nodal& solve, Nodal& into, int k)
-    {
-        solve.Solve(implicitSolveVelocity[k][0], into);
-    }
-
-    void CNSolveBuoyancy(Nodal& solve, Nodal& into, int k)
-    {
-        solve.Solve(implicitSolveBuoyancy[k][0], into);
     }
 
     void CrankNicolson(int k);
@@ -575,9 +564,9 @@ private:
     DiagonalMatrix<stratifloat, -1> dim2Derivative2;
     DiagonalMatrix<stratifloat, -1> dim3Derivative2;
 
-    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> implicitSolveVelocity[3];
-    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> implicitSolveBuoyancy[3];
-    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> solveLaplacian;
+    std::vector<Tridiagonal<stratifloat, M3>, aligned_allocator<Tridiagonal<stratifloat, M3>>> implicitSolveVelocity[3];
+    std::vector<Tridiagonal<stratifloat, M3>, aligned_allocator<Tridiagonal<stratifloat, M3>>> implicitSolveBuoyancy[3];
+    std::vector<Tridiagonal<stratifloat, M3>, aligned_allocator<Tridiagonal<stratifloat, M3>>> solveLaplacian;
 
     std::string imageDirectory;
 };

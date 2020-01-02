@@ -69,7 +69,16 @@ stratifloat InnerProd(const NodalField<N1,N2,N3>& A, const NodalField<N1,N2,N3>&
 template<int N1, int N2, int N3>
 stratifloat InnerProd(const ModalField<N1,N2,N3>& a, const ModalField<N1,N2,N3>& b, stratifloat L3)
 {
-   assert(false);
+    static NodalField<N1,N2,N3> A;
+    static NodalField<N1,N2,N3> B;
+
+    A.Reset();
+    B.Reset();
+
+    a.ToNodal(A);
+    b.ToNodal(B);
+
+    return InnerProd(A,B,L3);
 }
 
 stratifloat SolveQuadratic(stratifloat a, stratifloat b, stratifloat c, bool positiveSign=false);

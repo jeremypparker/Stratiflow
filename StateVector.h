@@ -259,7 +259,7 @@ public:
         assert(gridParams.N2==1);
         assert(!gridParams.ThreeDimensional);
 
-        for (int j1=0; j1<std::min(K1/2+1,gridParams.N1/2+1); j1++)
+        for (int j1=0; j1<std::min(K1/2+1,gridParams.N1/2+1); j1++)BROKEN
         {
             // Neumann fields u1, u2 and b
             for (int j3=0; j3<gridParams.N3; j3++)

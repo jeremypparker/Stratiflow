@@ -35,23 +35,6 @@ int main(int argc, char* argv[])
     if (argc == 3)
         state += perturbation;
 
+    state.FullEvolve(100, state, true, true);
 
-    // state.MakeMode2();
-
-    stratifloat timestep = 10;
-    for (int n=0; n<3000; n++)
-    {
-        //state.PlotAll(std::to_string(n));
-
-        std::cout << "Step " << n << " " << state.Energy() << " " << state.Enstrophy() << std::endl;
-
-        state.FullEvolve(timestep, state, false, false);
-
-        if(n%10 == 0)
-        {
-            state.PlotAll("state");
-
-            state.SaveToFile("trackingresult");
-        }
-    }
 }
