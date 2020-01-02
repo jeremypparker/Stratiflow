@@ -46,7 +46,6 @@ int main(int argc, const char* argv[])
         VectorX y; // result in new basis
 
         q[0] = b;
-        q[0].EnforceBCs();
 
         stratifloat beta = q[0].Norm();
         std::cout << beta << std::endl;
@@ -73,9 +72,6 @@ int main(int argc, const char* argv[])
             // normalise
             H(k,k-1) = q[k].Norm();
             q[k] *= 1/H(k,k-1);
-
-            // enforce BCs
-            q[k].EnforceBCs();
 
             // Construct least squares problem in this basis
             VectorX Beta(k+1);

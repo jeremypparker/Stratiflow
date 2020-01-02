@@ -102,13 +102,6 @@ public:
         paramFile >> theta;
     }
 
-    void EnforceBCs()
-    {
-        x.EnforceBCs();
-        v1.EnforceBCs();
-        v2.EnforceBCs();
-    }
-
     void PlotAll(std::string directory) const
     {
         MakeCleanDir(directory);

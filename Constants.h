@@ -81,12 +81,6 @@ for (int j1 = k1; j1 < std::min(n1, k1 + LoopBlockSize); j1++)
 
 using complex = std::complex<stratifloat>;
 
-enum class BoundaryCondition
-{
-    Dirichlet, // these are located on a grid past boundaries
-    Neumann    // these are located on a fractional grid that includes the boundaries
-};
-
 template <typename T>
 int sgn(T val)
 {

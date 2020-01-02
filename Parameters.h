@@ -15,25 +15,19 @@ struct GridParams
 struct FlowParams
 {
     stratifloat L1; // streamwise (periodic) domain size
-    stratifloat L2; // spanwise (periodic domain size)
-    stratifloat L3; // vertical domain half-height
+    stratifloat L2; // spanwise (periodic) domain size
+    stratifloat L3; // vertical (periodic) domain size
     stratifloat Re; // Reynolds number
     stratifloat Ri; // bulk Richardson number
     stratifloat Pr; // Prandtl number
-    bool EvolveBackground;
 };
 
-// background shear
-inline stratifloat InitialU(stratifloat z)
-{
-    return tanh(z);
-}
 
 void DumpParameters();
 void PrintParameters();
 void LoadParameters(const std::string& file);
 
 constexpr GridParams gridParams
-    = {256, 1, 768, false};
+    = {256, 1, 256, false};
 
 extern FlowParams flowParams;

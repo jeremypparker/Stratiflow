@@ -4,7 +4,7 @@
 #include <iomanip>
 
 FlowParams flowParams
-    = {8.885765876, 1.570795, 10, 1000, 0.16, 0.7, false};
+    = {8.885765876, 1.570795, 10, 1000, 0.16, 0.7};
 
 #define PrintParam(parameter) paramFile << #parameter << " " << parameter << std::endl
 
@@ -70,7 +70,6 @@ void DumpParameters()
     PrintParam(flowParams.Re);
     PrintParam(flowParams.Ri);
     PrintParam(flowParams.Pr);
-    PrintParam(flowParams.EvolveBackground);
 }
 
 void LoadParameters(const std::string& file)
@@ -88,7 +87,6 @@ void LoadParameters(const std::string& file)
     LoadParam(flowParams.L3);
     // LoadParam(flowParams.Re);
     // LoadParam(flowParams.Ri);
-    CheckParam(flowParams.EvolveBackground);
 }
 
 void PrintParameters()
@@ -106,5 +104,4 @@ void PrintParameters()
     PrintParam(flowParams.Re);
     PrintParam(flowParams.Ri);
     PrintParam(flowParams.Pr);
-    PrintParam(flowParams.EvolveBackground);
 }

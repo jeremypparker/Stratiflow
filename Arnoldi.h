@@ -24,8 +24,6 @@ public:
 
         q[0].Randomise(0.1, true);
 
-        q[0].EnforceBCs();
-
         q[0] *= 1/q[0].Norm();
 
         K = q.size();
@@ -48,9 +46,6 @@ public:
             // normalise
             H(k,k-1) = q[k].Norm();
             q[k] *= 1/H(k,k-1);
-
-            // enforce BCs
-            q[k].EnforceBCs();
 
             MatrixX subH = H.block(0,0,k,k);
 

@@ -49,9 +49,7 @@ int main(int argc, char* argv[])
 
         if(n%10 == 0)
         {
-            state.AddBackground();
             state.PlotAll("state");
-            state.RemoveBackground();
 
             state.SaveToFile("trackingresult");
         }

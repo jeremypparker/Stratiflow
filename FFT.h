@@ -26,9 +26,6 @@ FFTW_REDFT00
 #include <fftw3.h>
 #endif
 
-// this should not be a bottleneck, so we do it in a fairly inefficient way
-void Perform1DR2R(int size, const stratifloat* in, stratifloat* out, f3_r2r_kind kind);
-
 void Setup();
 void Cleanup();
 

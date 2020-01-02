@@ -4,14 +4,14 @@
 
 TEST_CASE("Basic Field")
 {
-    Field<stratifloat, 3, 4, 5> f1(BoundaryCondition::Dirichlet); // constructor
+    Field<stratifloat, 3, 4, 5> f1; // constructor
 
     f1.slice(1).setRandom();
 
     auto f2 = f1; // copy constructor
     REQUIRE(f2 == f1);
 
-    Field<stratifloat, 3, 4, 5> f3(BoundaryCondition::Dirichlet);
+    Field<stratifloat, 3, 4, 5> f3;
     f3.slice(2).setRandom();
 
     f2 = f3; // assignment operator
@@ -22,13 +22,13 @@ TEST_CASE("Basic Field")
 
 TEST_CASE("Zero")
 {
-    NodalField<2, 8, 4> f1(BoundaryCondition::Dirichlet);
+    NodalField<2, 8, 4> f1;
     for (int j=0; j<4; j++)
     {
         f1.slice(j).setRandom();
     }
 
-    NodalField<2, 8, 4> f2(BoundaryCondition::Dirichlet);
+    NodalField<2, 8, 4> f2;
 
     REQUIRE(f1 != f2);
     f1.Zero();
@@ -37,7 +37,7 @@ TEST_CASE("Zero")
 
 TEST_CASE("Slice and stack")
 {
-    Field<stratifloat, 2, 2, 2> f1(BoundaryCondition::Dirichlet);
+    Field<stratifloat, 2, 2, 2> f1;
     f1.slice(0) << 1, 2,
                    3, 4;
     f1.slice(1) << 2, 3,
@@ -59,8 +59,8 @@ TEST_CASE("Slice and stack")
 
 TEST_CASE("Stackwise Matmul")
 {
-    NodalField<5, 6, 8> f1(BoundaryCondition::Dirichlet);
-    NodalField<5, 6, 8> f2(BoundaryCondition::Dirichlet);
+    NodalField<5, 6, 8> f1;
+    NodalField<5, 6, 8> f2;
 
     DiagonalMatrix<stratifloat,-1> mat = VectorX::Constant(8, 5.0f).asDiagonal();
 
@@ -72,8 +72,8 @@ TEST_CASE("Stackwise Matmul")
 
 TEST_CASE("Multiply Add")
 {
-    ModalField<5,6,8> f1(BoundaryCondition::Dirichlet);
-    ModalField<5,6,8> f2(BoundaryCondition::Dirichlet);
+    ModalField<5,6,8> f1;
+    ModalField<5,6,8> f2;
     for (int j=0; j<8; j++)
     {
         f1.slice(j).setConstant(5);
@@ -89,7 +89,7 @@ TEST_CASE("Multiply Add")
 
 TEST_CASE("Modal/Nodal")
 {
-    NodalField<4, 8, 4> f1(BoundaryCondition::Dirichlet);
+    NodalField<4, 8, 4> f1;
     for (int j1=0; j1<4; j1++)
     {
         for (int j2=0; j2<8; j2++)
@@ -98,10 +98,10 @@ TEST_CASE("Modal/Nodal")
         }
     }
 
-    ModalField<4, 8, 4> f2(BoundaryCondition::Dirichlet);
+    ModalField<4, 8, 4> f2;
     f1.ToModal(f2, false);
 
-    NodalField<4, 8, 4> f3(BoundaryCondition::Dirichlet);
+    NodalField<4, 8, 4> f3;
     f2.ToNodal(f3);
 
     REQUIRE(f1 == f3);
@@ -109,7 +109,7 @@ TEST_CASE("Modal/Nodal")
 
 TEST_CASE("Max")
 {
-    NodalField<3,4,2> f1(BoundaryCondition::Dirichlet);
+    NodalField<3,4,2> f1;
 
     f1.slice(0) << 3, 5, -1, 8,
                    2, 4, 2, 0,

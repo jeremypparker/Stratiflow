@@ -89,12 +89,6 @@ public:
     }
 
 
-    void EnforceBCs()
-    {
-        x.EnforceBCs();
-        v.EnforceBCs();
-    }
-
     void PlotAll(std::string directory) const
     {
         MakeCleanDir(directory);

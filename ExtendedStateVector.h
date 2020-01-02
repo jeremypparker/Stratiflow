@@ -101,11 +101,6 @@ public:
         LoadValueFromFile(p, filename+".params");
     }
 
-    void EnforceBCs()
-    {
-        x.EnforceBCs();
-    }
-
     void PlotAll(std::string directory) const
     {
         x.PlotAll(directory);

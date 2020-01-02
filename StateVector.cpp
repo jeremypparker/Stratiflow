@@ -4,8 +4,6 @@ stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool sna
 {
     CopyToSolver();
 
-    solver.SetBackground(InitialU);
-
     solver.FilterAll();
     solver.PopulateNodalVariables();
     solver.RemoveDivergence(0.0f);
@@ -108,7 +106,6 @@ void StateVector::LinearEvolve(stratifloat T, const StateVector& about, StateVec
 {
     CopyToSolver();
 
-    solver.SetBackground(InitialU);
     solver.SetBackground(about.u1, about.u2, about.u3, about.b);
     solver.FilterAll();
     solver.PopulateNodalVariables();
@@ -158,7 +155,6 @@ void StateVector::LinearEvolve(stratifloat T, const StateVector& about, StateVec
 void StateVector::AdjointEvolve(stratifloat deltaT, int steps, const std::vector<StateVector>& intermediate, StateVector& result) const
 {
     CopyToSolver();
-    solver.SetBackground(InitialU);
 
     solver.FilterAll();
     solver.PopulateNodalVariables();

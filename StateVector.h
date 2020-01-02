@@ -19,14 +19,13 @@ public:
         u2 = other.u2;
         u3 = other.u3;
         b = other.b;
-        EnforceBCs();
     }
 
-    NeumannModal u1;
-    NeumannModal u2;
-    DirichletModal u3;
-    NeumannModal b;
-    NeumannModal p;
+    Modal u1;
+    Modal u2;
+    Modal u3;
+    Modal b;
+    Modal p;
 
     stratifloat FullEvolve(stratifloat T, StateVector& result, bool snapshot = false, bool screenshot = true, bool calcmixing = false) const;
 
@@ -46,7 +45,6 @@ public:
         }
         u3 += other.u3;
         b += other.b;
-        EnforceBCs();
 
         return *this;
     }
@@ -60,7 +58,6 @@ public:
         }
         u3 -= other.u3;
         b  -= other.b;
-        EnforceBCs();
         return *this;
     }
 
@@ -73,7 +70,6 @@ public:
         }
         u3 += a*B.u3;
         b  += a*B.b;
-        EnforceBCs();
         return *this;
     }
 
@@ -86,7 +82,6 @@ public:
         }
         u3 *= other;
         b  *= other;
-        EnforceBCs();
         return *this;
     }
 
@@ -96,7 +91,6 @@ public:
         u2 = other.u2;
         u3 = other.u3;
         b = other.b;
-        EnforceBCs();
         return *this;
     }
 
@@ -150,37 +144,10 @@ public:
 
     stratifloat Enstrophy() const
     {
-        DirichletModal FractionalTemp;
+        Modal FractionalTemp;
         FractionalTemp = ddz(u1)+-1.0*ddx(u3);
 
         return InnerProd(FractionalTemp, FractionalTemp, flowParams.L3);
-    }
-
-    stratifloat MinimumRi() const
-    {
-        solver.SetBackground(InitialU);
-
-        Neumann1D u_ave;
-        Neumann1D b_ave;
-
-        HorizontalAverage(u1, u_ave);
-        HorizontalAverage(b, b_ave);
-
-        u_ave = u_ave + solver.U_;
-
-        Neumann1D dbdz;
-        dbdz = ddz(b_ave);
-        Neumann1D dudz;
-        dudz = ddz(u_ave);
-
-        Neumann1D Ri_g;
-
-        for(int k=0; k<gridParams.N3; k++)
-        {
-            Ri_g.Get()[k] = flowParams.Ri*(dbdz.Get()[k]+1)/(dudz.Get()[k]*dudz.Get()[k]);
-        }
-
-        return Ri_g.Min();
     }
 
     void Zero()
@@ -260,15 +227,15 @@ public:
 
     template<int K1, int K2, int K3>
     void LoadAndInterpolate(const std::string& filename)
-    {
+    {/*
         // Set everything to zero. It interpolating to more modes, higher modes will not be overwritten
         Zero();
 
         // Load in to modal fields
-        NodalField<K1,K2,K3> U1Loaded(BoundaryCondition::Neumann);
-        NodalField<K1,K2,K3> U2Loaded(BoundaryCondition::Neumann);
-        NodalField<K1,K2,K3> U3Loaded(BoundaryCondition::Dirichlet);
-        NodalField<K1,K2,K3> BLoaded(BoundaryCondition::Neumann);
+        NodalField<K1,K2,K3> U1Loaded;
+        NodalField<K1,K2,K3> U2Loaded;
+        NodalField<K1,K2,K3> U3Loaded;
+        NodalField<K1,K2,K3> BLoaded;
 
         std::ifstream filestream(filename, std::ios::in | std::ios::binary);
 
@@ -277,22 +244,15 @@ public:
         U3Loaded.Load(filestream);
         BLoaded.Load(filestream);
 
-        ModalField<K1,K2,K3> u1Loaded(BoundaryCondition::Neumann);
-        ModalField<K1,K2,K3> u2Loaded(BoundaryCondition::Neumann);
-        ModalField<K1,K2,K3> u3Loaded(BoundaryCondition::Dirichlet);
-        ModalField<K1,K2,K3> bLoaded(BoundaryCondition::Neumann);
+        ModalField<K1,K2,K3> u1Loaded;
+        ModalField<K1,K2,K3> u2Loaded;
+        ModalField<K1,K2,K3> u3Loaded;
+        ModalField<K1,K2,K3> bLoaded;
 
         U1Loaded.ToModal(u1Loaded);
         U2Loaded.ToModal(u2Loaded);
         U3Loaded.ToModal(u3Loaded);
         BLoaded.ToModal(bLoaded);
-
-        // Vertical points to interpolate to/from
-        ArrayX oldNeumannPoints = VerticalPointsFractionalOld(10, K3);
-        ArrayX oldDirichletPoints = VerticalPointsOld(10, K3);
-
-        ArrayX newNeumannPoints = VerticalPointsFractional(flowParams.L3, gridParams.N3);
-        ArrayX newDirichletPoints = VerticalPoints(flowParams.L3, gridParams.N3);
 
         // just 2D for simplicity for now
         assert(K2==1);
@@ -395,63 +355,7 @@ public:
             }
         }
 
-        EnforceBCs();
-    }
-
-    void EnforceBCs()
-    {
-        u3.ZeroEnds();
-        u1.NeumannEnds();
-        u2.NeumannEnds();
-        b.NeumannEnds();
-    }
-
-    void AddBackground()
-    {
-        NeumannNodal U1;
-        NeumannNodal B;
-
-        Neumann1D U_;
-        Neumann1D B_;
-
-        U_.SetValue(InitialU, flowParams.L3);
-        B_.SetValue([](stratifloat z){return z;}, flowParams.L3);
-
-
-
-        u1.ToNodal(U1);
-        b.ToNodal(B);
-
-        U1 += U_;
-        B += B_;
-
-        U1.ToModal(u1);
-        B.ToModal(b);
-    }
-
-    void RemoveBackground()
-    {
-        NeumannNodal U1;
-        NeumannNodal B;
-
-        Neumann1D U_;
-        Neumann1D B_;
-
-        U_.SetValue(InitialU, flowParams.L3);
-        B_.SetValue([](stratifloat z){return z;}, flowParams.L3);
-
-
-
-        u1.ToNodal(U1);
-        b.ToNodal(B);
-
-        U1 -= U_;
-        B -= B_;
-
-        U1.ToModal(u1);
-        B.ToModal(b);
-
-    }
+*/assert(0);    }
 
     void MakeMode2()
     {
@@ -473,7 +377,7 @@ public:
         HeatPlot(u3, flowParams.L1, flowParams.L3, 0, directory+"/u3.png");
         HeatPlot(b, flowParams.L1, flowParams.L3, 0, directory+"/b.png");
 
-        DirichletModal FractionalTemp;
+        Modal FractionalTemp;
         FractionalTemp = -1.0*ddz(u1)+ddx(u3);
         HeatPlot(FractionalTemp, flowParams.L1, flowParams.L3, 0, directory+"/vorticity.png");
         HeatPlot(FractionalTemp, flowParams.L1, flowParams.L3, 0, directory+"/vorticity.eps");
@@ -517,7 +421,6 @@ private:
         into.u3 = solver.u3;
         into.b = solver.b;
         into.p = solver.p;
-        into.EnforceBCs();
     }
 
 public:

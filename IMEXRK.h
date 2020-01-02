@@ -36,9 +36,8 @@ public:
 public:
     IMEXRK()
     : solveLaplacian(M1*gridParams.N2)
-    , implicitSolveVelocityNeumann{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
-    , implicitSolveVelocityDirichlet{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
-    , implicitSolveBuoyancyNeumann{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
+    , implicitSolveVelocity{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
+    , implicitSolveBuoyancy{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
     {
         assert(gridParams.ThreeDimensional || gridParams.N2 == 1);
 
@@ -46,8 +45,7 @@ public:
 
         dim1Derivative2 = FourierSecondDerivativeMatrix(flowParams.L1, gridParams.N1, 1);
         dim2Derivative2 = FourierSecondDerivativeMatrix(flowParams.L2, gridParams.N2, 2);
-        dim3Derivative2Neumann = VerticalSecondDerivativeMatrix(flowParams.L3, gridParams.N3, BoundaryCondition::Neumann);
-        dim3Derivative2Dirichlet = VerticalSecondDerivativeMatrix(flowParams.L3, gridParams.N3, BoundaryCondition::Dirichlet);
+        dim3Derivative2 = FourierSecondDerivativeMatrix(flowParams.L3, gridParams.N3, 3);
 
         MatrixX laplacian;
 
@@ -56,13 +54,11 @@ public:
         {
             for (int j2=0; j2<gridParams.N2; j2++)
             {
-                laplacian = dim3Derivative2Neumann;
+                laplacian = dim3Derivative2;
 
                 // add terms for horizontal derivatives
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(gridParams.N3, gridParams.N3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(gridParams.N3, gridParams.N3);
-
-                Neumannify(laplacian);
 
                 // correct for singularity
                 if (j1==0 && j2==0)
@@ -84,14 +80,14 @@ public:
     void TimeStepLinear();
 
     void TimeStepAdjoint(stratifloat time,
-                         const NeumannModal& u1Below,
-                         const NeumannModal& u2Below,
-                         const DirichletModal& u3Below,
-                         const NeumannModal& bBelow,
-                         const NeumannModal& u1Above,
-                         const NeumannModal& u2Above,
-                         const DirichletModal& u3Above,
-                         const NeumannModal& bAbove)
+                         const Modal& u1Below,
+                         const Modal& u2Below,
+                         const Modal& u3Below,
+                         const Modal& bBelow,
+                         const Modal& u1Above,
+                         const Modal& u2Above,
+                         const Modal& u3Above,
+                         const Modal& bAbove)
     {
         stratifloat interpFrac = 0;
         for (int k=0; k<s; k++)
@@ -104,8 +100,6 @@ public:
 
             // todo: add on background in modal?
             u1_tot.ToNodal(U1_tot);
-
-            U1_tot += U_;
 
             U1_tot.ToModal(u1_tot);
 
@@ -222,19 +216,7 @@ public:
 
     void PlotBuoyancy(std::string filename, int j2, bool includeBackground = true) const
     {
-        if (includeBackground)
-        {
-            Neumann1D B_;
-            B_.SetValue([](stratifloat z){return z;}, flowParams.L3);
-
-            nnTemp = B_ + B;
-            nnTemp.ToModal(neumannTemp);
-            HeatPlot(neumannTemp, flowParams.L1, flowParams.L3, j2, filename);
-        }
-        else
-        {
-            HeatPlot(b, flowParams.L1, flowParams.L3, j2, filename);
-        }
+        HeatPlot(b, flowParams.L1, flowParams.L3, j2, filename);
     }
 
     void PlotPressure(std::string filename, int j2) const
@@ -257,7 +239,7 @@ public:
 
     void PlotSpanwiseVorticity(std::string filename, int j2) const
     {
-        nnTemp = U1 + U_;
+        nnTemp = U1;
         nnTemp.ToModal(neumannTemp);
 
         dirichletTemp = -1.0*ddz(neumannTemp)+ddx(u3);
@@ -274,7 +256,7 @@ public:
     {
         if (includeBackground)
         {
-            nnTemp = U1 + U_;
+            nnTemp = U1;
             nnTemp.ToModal(neumannTemp);
             HeatPlot(neumannTemp, flowParams.L1, flowParams.L3, j2, filename);
         }
@@ -304,7 +286,7 @@ public:
         }
     }
 
-    void SetInitial(const NeumannNodal& velocity1, const NeumannNodal& velocity2, const DirichletNodal& velocity3, const NeumannNodal& buoyancy)
+    void SetInitial(const Nodal& velocity1, const Nodal& velocity2, const Nodal& velocity3, const Nodal& buoyancy)
     {
         velocity1.ToModal(u1);
         velocity2.ToModal(u2);
@@ -312,7 +294,7 @@ public:
         buoyancy.ToModal(b);
     }
 
-    void SetInitial(const NeumannModal& velocity1, const NeumannModal& velocity2, const DirichletModal& velocity3, const NeumannModal& buoyancy)
+    void SetInitial(const Modal& velocity1, const Modal& velocity2, const Modal& velocity3, const Modal& buoyancy)
     {
         u1 = velocity1;
         u2 = velocity2;
@@ -320,20 +302,7 @@ public:
         b = buoyancy;
     }
 
-    void SetBackground(const Neumann1D& velocity)
-    {
-        U_ = velocity;
-    }
-
-    void SetBackground(std::function<stratifloat(stratifloat)> velocity)
-    {
-        Neumann1D Ubar;
-        Ubar.SetValue(velocity, flowParams.L3);
-
-        SetBackground(Ubar);
-    }
-
-    void SetBackground(const NeumannModal& velocity1, const NeumannModal& velocity2, const DirichletModal& velocity3, const NeumannModal& buoyancy)
+    void SetBackground(const Modal& velocity1, const Modal& velocity2, const Modal& velocity3, const Modal& buoyancy)
     {
         u1_tot = velocity1;
         if (gridParams.ThreeDimensional)
@@ -356,15 +325,11 @@ public:
     // gives an upper bound on cfl number - also updates timestep
     stratifloat CFL()
     {
-        static ArrayX z = VerticalPoints(flowParams.L3, gridParams.N3);
-
-        U1_tot = U1 + U_;
-
         stratifloat delta1 = flowParams.L1/gridParams.N1;
         stratifloat delta2 = flowParams.L2/gridParams.N2;
-        stratifloat delta3 = z(gridParams.N3/2+1) - z(gridParams.N3/2); // smallest gap in middle
+        stratifloat delta3 = flowParams.L3/gridParams.N3;
 
-        stratifloat cfl = U1_tot.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
+        stratifloat cfl = U1.Max()/delta1 + U2.Max()/delta2 + U3.Max()/delta3;
         cfl *= deltaT;
 
         // update timestep for target cfl
@@ -377,11 +342,9 @@ public:
 
     stratifloat CFLlinear()
     {
-        static ArrayX z = VerticalPoints(flowParams.L3, gridParams.N3);
-
         stratifloat delta1 = flowParams.L1/gridParams.N1;
         stratifloat delta2 = flowParams.L2/gridParams.N2;
-        stratifloat delta3 = z(gridParams.N3/2+1) - z(gridParams.N3/2); // smallest gap in middle
+        stratifloat delta3 = flowParams.L3/gridParams.N3;
 
         stratifloat cfl = (1+U1_tot.Max())/delta1 + U2_tot.Max()/delta2 + U3_tot.Max()/delta3;
         cfl *= deltaT;
@@ -441,10 +404,10 @@ public:
 
     stratifloat JoverK()
     {
-        static NeumannModal u1_total;
-        static NeumannModal b_total;
+        static Modal u1_total;
+        static Modal b_total;
 
-        nnTemp = U1 + U_;
+        nnTemp = U1;
         nnTemp.ToModal(u1_total);
 
         nnTemp = B;
@@ -455,17 +418,17 @@ public:
         return J/K;
     }
 
-    void UpdateAdjointVariables(const NeumannModal& u1_total,
-                                const NeumannModal& u2_total,
-                                const DirichletModal& u3_total,
-                                const NeumannModal& b_total)
+    void UpdateAdjointVariables(const Modal& u1_total,
+                                const Modal& u2_total,
+                                const Modal& u3_total,
+                                const Modal& b_total)
     {
         // todo: remove some of these
         u1_total.ToNodal(U1_tot);
         u2_total.ToNodal(U2_tot);
         u3_total.ToNodal(U3_tot);
         b_total.ToNodal(B_tot);
-
+/*
         // work out variation of buoyancy from average
         static Neumann1D bAve;
         HorizontalAverage(b_total, bAve);
@@ -493,7 +456,8 @@ public:
         bForcing = (1/K)*(U3_tot+(-1)*wAve);
 
         u1Forcing.Zero();
-        u2Forcing.Zero();
+        u2Forcing.Zero();*/
+	assert(0);
     }
 
     void UpdateForTimestep()
@@ -515,26 +479,16 @@ public:
             {
                 for (int k=0; k<s; k++)
                 {
-                    laplacian = dim3Derivative2Neumann;
+                    laplacian = dim3Derivative2;
                     laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(gridParams.N3, gridParams.N3);
                     laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(gridParams.N3, gridParams.N3);
 
                     solve = (MatrixX::Identity(gridParams.N3, gridParams.N3)-0.5*h[k]*laplacian/flowParams.Re);
-                    Neumannify(solve);
-                    implicitSolveVelocityNeumann[k][j1*gridParams.N2+j2].compute(solve);
+                    implicitSolveVelocity[k][j1*gridParams.N2+j2].compute(solve);
 
                     solve = (MatrixX::Identity(gridParams.N3, gridParams.N3)-0.5*h[k]*laplacian/flowParams.Re/flowParams.Pr);
-                    Neumannify(solve);
-                    implicitSolveBuoyancyNeumann[k][j1*gridParams.N2+j2].compute(solve);
+                    implicitSolveBuoyancy[k][j1*gridParams.N2+j2].compute(solve);
 
-
-                    laplacian = dim3Derivative2Dirichlet;
-                    laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(gridParams.N3, gridParams.N3);
-                    laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(gridParams.N3, gridParams.N3);
-
-                    solve = (MatrixX::Identity(gridParams.N3, gridParams.N3)-0.5*h[k]*laplacian/flowParams.Re);
-                    Dirichlify(solve);
-                    implicitSolveVelocityDirichlet[k][j1*gridParams.N2+j2].compute(solve);
                 }
 
             }
@@ -542,85 +496,54 @@ public:
     }
 
 private:
-    void CNSolve(NeumannModal& solve, NeumannModal& into, int k)
+    void CNSolve(Modal& solve, Modal& into, int k)
     {
-        solve.ZeroEnds();
-        solve.Solve(implicitSolveVelocityNeumann[k], into);
+        solve.Solve(implicitSolveVelocity[k], into);
     }
 
-    void CNSolve(DirichletModal& solve, DirichletModal& into, int k)
+    void CNSolveBuoyancy(Modal& solve, Modal& into, int k)
     {
-        solve.ZeroEnds();
-        solve.Solve(implicitSolveVelocityDirichlet[k], into);
+        solve.Solve(implicitSolveBuoyancy[k], into);
     }
 
-    void CNSolveBuoyancy(NeumannModal& solve, NeumannModal& into, int k)
+    void CNSolve(Nodal& solve, Nodal& into, int k)
     {
-        solve.ZeroEnds();
-        solve.Solve(implicitSolveBuoyancyNeumann[k], into);
+        solve.Solve(implicitSolveVelocity[k][0], into);
     }
 
-    void CNSolve(NeumannNodal& solve, NeumannNodal& into, int k)
+    void CNSolveBuoyancy(Nodal& solve, Nodal& into, int k)
     {
-        solve.ZeroEnds();
-        solve.Solve(implicitSolveVelocityNeumann[k][0], into);
+        solve.Solve(implicitSolveBuoyancy[k][0], into);
     }
 
-    void CNSolve(DirichletNodal& solve, DirichletNodal& into, int k)
-    {
-        solve.ZeroEnds();
-        solve.Solve(implicitSolveVelocityDirichlet[k][0], into);
-    }
-
-    void CNSolveBuoyancy(NeumannNodal& solve, NeumannNodal& into, int k)
-    {
-        solve.ZeroEnds();
-        solve.Solve(implicitSolveBuoyancyNeumann[k][0], into);
-    }
-
-    void CNSolve1D(Neumann1D& solve, Neumann1D& into, int k, bool buoyancy = false)
-    {
-        solve.ZeroEnds();
-        solve.Solve(implicitSolveVelocityNeumann[k][0], into);
-    }
-
-    void CNSolveBuoyancy1D(Neumann1D& solve, Neumann1D& into, int k, bool buoyancy = false)
-    {
-        solve.ZeroEnds();
-        solve.Solve(implicitSolveBuoyancyNeumann[k][0], into);
-    }
-
-    void CrankNicolson(int k, bool evolveBackground = false);
+    void CrankNicolson(int k);
     void FinishRHS(int k);
-    void ExplicitRK(int k, bool evolveBackground = false);
+    void ExplicitRK(int k);
     void BuildRHS();
     void BuildRHSLinear();
     void BuildRHSAdjoint();
 
 public:
     // these are the actual variables we care about
-    NeumannModal u1, u2, b, p;
-    DirichletModal u3;
-
-    // background flow
-    Neumann1D U_;
+    Modal u1, u2, b, p;
+    Modal u3;
 private:
 
 
     // direct flow (used for adjoint evolution)
-    NeumannModal u1_tot, u2_tot, b_tot;
-    DirichletModal u3_tot;
+    Modal u1_tot, u2_tot, b_tot;
+    Modal u3_tot;
 
     // Nodal versions of variables
-    mutable NeumannNodal U1, U2, B;
-    mutable DirichletNodal U3;
+    mutable Nodal U1, U2, B;
+    mutable Nodal U3;
 
 
     // extra variables required for adjoint forcing
     stratifloat J, K;
 
-    NeumannNodal u1Forcing, u2Forcing;
-    DirichletNodal u3Forcing, bForcing;
+    Nodal u1Forcing, u2Forcing;
+    Nodal u3Forcing, bForcing;
 
     // parameters for the scheme
     static constexpr int s = 3;
@@ -629,38 +552,31 @@ private:
     static constexpr stratifloat zeta[3] = {0, -17.0/8.0, -5.0/4.0};
 
     // these are intermediate variables used in the computation, preallocated for efficiency
-    NeumannModal R1, R2, RB;
-    DirichletModal R3;
+    Modal R1, R2, RB;
+    Modal R3;
 
-    Neumann1D RU_, RB_;
+    Modal r1, r2, rB;
+    Modal r3;
 
-    NeumannModal r1, r2, rB;
-    DirichletModal r3;
+    mutable Nodal U1_tot, U2_tot, B_tot;
+    mutable Nodal U3_tot;
 
-    mutable NeumannNodal U1_tot, U2_tot, B_tot;
-    mutable DirichletNodal U3_tot;
+    mutable Nodal nnTemp, nnTemp2;
+    mutable Nodal ndTemp, ndTemp2;
 
-    mutable NeumannNodal nnTemp, nnTemp2;
-    mutable DirichletNodal ndTemp, ndTemp2;
+    mutable Modal neumannTemp;
+    mutable Modal dirichletTemp;
 
-    mutable NeumannModal neumannTemp;
-    mutable DirichletModal dirichletTemp;
-
-    mutable Dirichlet1D ndTemp1D;
-    mutable Neumann1D nnTemp1D;
-
-    NeumannModal divergence;
-    NeumannModal q;
+    Modal divergence;
+    Modal q;
 
     // these are precomputed matrices for performing and solving derivatives
     DiagonalMatrix<stratifloat, -1> dim1Derivative2;
     DiagonalMatrix<stratifloat, -1> dim2Derivative2;
-    MatrixX dim3Derivative2Neumann;
-    MatrixX dim3Derivative2Dirichlet;
+    DiagonalMatrix<stratifloat, -1> dim3Derivative2;
 
-    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> implicitSolveVelocityNeumann[3];
-    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> implicitSolveVelocityDirichlet[3];
-    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> implicitSolveBuoyancyNeumann[3];
+    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> implicitSolveVelocity[3];
+    std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> implicitSolveBuoyancy[3];
     std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>> solveLaplacian;
 
     std::string imageDirectory;

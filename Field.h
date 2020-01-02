@@ -15,33 +15,13 @@
 #include <random>
 
 
-ArrayX VerticalPoints(stratifloat L, int N);
-ArrayX VerticalPointsFractional(stratifloat L, int N);
-ArrayX VerticalPointsOld(stratifloat L, int N);
-ArrayX VerticalPointsFractionalOld(stratifloat L, int N);
-ArrayX dz(stratifloat L, int N);
-ArrayX dzFractional(stratifloat L, int N);
 ArrayX FourierPoints(stratifloat L, int N);
-
-stratifloat Hermite(unsigned int n, stratifloat x);
 
 template<typename A, typename T, int N1, int N2, int N3>
 class StackContainer
 {
 public:
     virtual A stack(int n1, int n2) const = 0;
-    virtual BoundaryCondition BC() const = 0;
-    BoundaryCondition OtherBC() const
-    {
-        if (BC() == BoundaryCondition::Neumann)
-        {
-            return BoundaryCondition::Dirichlet;
-        }
-        else
-        {
-            return BoundaryCondition::Neumann;
-        }
-    }
 };
 
 template<typename A, typename T, int N1, int N2, int N3>
@@ -59,10 +39,6 @@ public:
         return -field->stack(n1, n2);
     }
 
-    virtual BoundaryCondition BC() const override
-    {
-        return field->BC();
-    }
 private:
     const StackContainer<A, T, N1, N2, N3>* field;
 };
@@ -83,10 +59,6 @@ public:
         return scalar*rhs->stack(n1, n2);
     }
 
-    virtual BoundaryCondition BC() const override
-    {
-        return rhs->BC();
-    }
 private:
     const StackContainer<A, T, N1, N2, N3>* rhs;
     T scalar;
@@ -100,7 +72,6 @@ public:
     : lhs(lhs)
     , rhs(rhs)
     {
-        assert(lhs->BC() == rhs->BC());
     }
     virtual
         CwiseBinaryOp<internal::scalar_sum_op<T, T>, const A, const B>
@@ -109,10 +80,6 @@ public:
         return lhs->stack(n1, n2) + rhs->stack(n1, n2);
     }
 
-    virtual BoundaryCondition BC() const override
-    {
-        return rhs->BC();
-    }
 private:
     const StackContainer<A, T, N1, N2, N3>* lhs;
     const StackContainer<B, T, N1, N2, N3>* rhs;
@@ -126,7 +93,6 @@ public:
     : lhs(lhs)
     , rhs(rhs)
     {
-        assert(lhs->BC() == rhs->BC());
     }
     virtual
         CwiseBinaryOp<internal::scalar_product_op<T, T>, const A, const B>
@@ -135,10 +101,6 @@ public:
         return lhs->stack(n1, n2) * rhs->stack(n1, n2);
     }
 
-    virtual BoundaryCondition BC() const override
-    {
-        return rhs->BC();
-    }
 private:
     const StackContainer<A, T, N1, N2, N3>* lhs;
     const StackContainer<B, T, N1, N2, N3>* rhs;
@@ -160,10 +122,6 @@ public:
         return matrix.diagonal()(n1)*field.stack(n1, n2);
     }
 
-    virtual BoundaryCondition BC() const override
-    {
-        return field.BC();
-    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const DiagonalMatrix<T1, -1>& matrix;
@@ -185,10 +143,6 @@ public:
         return matrix.diagonal()(n2)*field.stack(n1, n2);
     }
 
-    virtual BoundaryCondition BC() const override
-    {
-        return field.BC();
-    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const DiagonalMatrix<T1, -1>& matrix;
@@ -201,13 +155,6 @@ public:
     Dim3MatMul(const Matrix<T1, -1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field)
     : matrix(matrix)
     , field(field)
-    , resultingBC(field.BC())
-    {}
-
-    Dim3MatMul(const Matrix<T1, -1, -1>& matrix, const StackContainer<A, T2, N1, N2, N3>& field, BoundaryCondition resultBC)
-    : matrix(matrix)
-    , field(field)
-    , resultingBC(resultBC)
     {}
 
     virtual
@@ -217,14 +164,9 @@ public:
         return (matrix*field.stack(n1, n2).matrix()).array();
     }
 
-    virtual BoundaryCondition BC() const override
-    {
-        return resultingBC;
-    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const Matrix<T1, -1, -1>& matrix;
-    BoundaryCondition resultingBC;
 };
 
 template<typename A, typename T1, typename T2, int N1, int N2, int N3>
@@ -234,13 +176,6 @@ public:
     MatMul(const std::vector<Matrix<T1, -1, -1>>& matrices, const StackContainer<A, T2, N1, N2, N3>& field)
     : matrices(matrices)
     , field(field)
-    , resultingBC(field.BC())
-    {}
-
-    MatMul(const std::vector<Matrix<T1, -1, -1>>& matrices, const StackContainer<A, T2, N1, N2, N3>& field, BoundaryCondition resultBC)
-    : matrices(matrices)
-    , field(field)
-    , resultingBC(resultBC)
     {}
 
     virtual
@@ -250,43 +185,33 @@ public:
         return (matrices[n1*N2+n2]*field.stack(n1, n2).matrix()).array();
     }
 
-    virtual BoundaryCondition BC() const override
-    {
-        return resultingBC;
-    }
 private:
     const StackContainer<A, T2, N1, N2, N3>& field;
     const std::vector<Matrix<T1, -1, -1>>& matrices;
-    BoundaryCondition resultingBC;
 };
 
 template<typename T, int N1, int N2, int N3>
 class Field : public StackContainer<Map<const Array<T, -1, 1>, Aligned16>,T,N1,N2,N3>
 {
 public:
-    Field(BoundaryCondition bc)
+    Field()
     : _data(N1*N2*N3, 0)
-    , _bc(bc)
     {
     }
 
     Field(const Field<T, N1, N2, N3>& other)
     : _data(other._data)
     {
-        assert(other.BC() == BC());
     }
 
-    void Reset(BoundaryCondition bc)
+    void Reset()
     {
         Zero();
-        _bc = bc;
     }
 
     template<typename A>
     const Field<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
     {
-        assert(other.BC() == BC());
-
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) = other.stack(j1,j2);
         });
@@ -297,8 +222,6 @@ public:
     // seem to explicitly require this
     const Field<T, N1, N2, N3>& operator=(const Field<T, N1, N2, N3>& other)
     {
-        assert(other.BC() == BC());
-
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) = other.stack(j1,j2);
         });
@@ -308,10 +231,6 @@ public:
 
     bool operator==(const Field<T, N1, N2, N3>& other) const
     {
-        if (other.BC() != BC())
-        {
-            return false;
-        }
 
         // because of the way isApprox works, need to fail on both slice and stack to count
         bool failedSlice = false;
@@ -356,8 +275,6 @@ public:
     template<typename A>
     const Field<T, N1, N2, N3>& operator+=(const StackContainer<A, T, N1, N2, N3>& other)
     {
-        assert(other.BC() == BC());
-
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) += other.stack(j1, j2);
         });
@@ -367,8 +284,6 @@ public:
     template<typename A>
     const Field<T, N1, N2, N3>& operator-=(const StackContainer<A, T, N1, N2, N3>& other)
     {
-        assert(other.BC() == BC());
-
         ParallelPerStack([&other,this](int j1, int j2){
             stack(j1, j2) -= other.stack(j1, j2);
         });
@@ -477,38 +392,6 @@ public:
         filestream.read(reinterpret_cast<char*>(Raw()), sizeof(T)*N1*N2*N3);
     }
 
-    void ZeroEnds()
-    {
-        slice(0).setZero();
-        slice(1).setZero();
-        slice(N3-1).setZero();
-        slice(N3-2).setZero();
-
-        if (BC() == BoundaryCondition::Dirichlet)
-        {
-            slice(2).setZero();
-        }
-    }
-
-    void NeumannEnds()
-    {
-        slice(0) = slice(1);
-
-        if (BC() == BoundaryCondition::Neumann)
-        {
-            slice(N3-1) = slice(N3-2);
-        }
-        else
-        {
-            assert(false);
-        }
-    }
-
-    virtual BoundaryCondition BC() const override
-    {
-        return _bc;
-    }
-
 private:
 
     template<typename Solver>
@@ -538,165 +421,7 @@ private:
 
     // stored in column-major ordering of size (N1, N2, N3)
     std::vector<T, aligned_allocator<T>> _data;
-
-    BoundaryCondition _bc;
-
 };
-
-template<typename T, int N1, int N2, int N3>
-class Field1D : public StackContainer<Map<const Array<T, -1, 1>, Aligned16>, T, N1, N2, N3>
-{
-public:
-    Field1D(BoundaryCondition bc)
-    : _data(N3)
-    , _bc(bc)
-    {
-        _data.setZero();
-    }
-
-    void Reset(BoundaryCondition bc)
-    {
-        Zero();
-        _bc = bc;
-    }
-
-    void Zero()
-    {
-        _data.setZero();
-    }
-
-    template<typename A>
-    const Field1D<T, N1, N2, N3>& operator=(const StackContainer<A,T,N1,N2,N3>& other)
-    {
-        assert(other.BC() == BC());
-
-        Get() = other.stack(0, 0);
-
-        return *this;
-    }
-
-    bool operator==(const Field1D<T, N1, N2, N3>& other) const
-    {
-        if (other.BC() != BC())
-        {
-            return false;
-        }
-        return Get().isApprox(other.Get(), 0.05);
-    }
-
-    const Field1D<T, N1, N2, N3>& operator*=(T mult)
-    {
-        Get() *= mult;
-
-        return *this;
-    }
-
-    virtual Map<const Array<T, -1, 1>, Aligned16> stack(int n1, int n2) const override
-    {
-        return Map<const Array<T, -1, 1>, Aligned16>(Raw(), N3);
-    }
-
-
-    template<typename Solver>
-    void Solve(Solver& solver, Field1D<T, N1, N2, N3>& result) const
-    {
-        assert(solver.rows() == N3);
-
-        Matrix<T, N3, 1> in = Get();
-        Matrix<T, N3, 1> out(N3);
-        out = solver.solve(in);
-        result.Get() = out;
-    }
-
-    T* Raw()
-    {
-        return _data.data();
-    }
-    const T* Raw() const
-    {
-        return _data.data();
-    }
-
-    Array<T, -1, 1>& Get()
-    {
-        return _data;
-    }
-
-    const Array<T, -1, 1>& Get() const
-    {
-        return _data;
-    }
-
-    void ZeroEnds()
-    {
-        Get()(0) = 0;
-        Get()(1) = 0;
-        Get()(N3-2) = 0;
-        Get()(N3-1) = 0;
-
-        if (BC() == BoundaryCondition::Dirichlet)
-        {
-            Get()(2) = 0;
-        }
-    }
-
-    virtual BoundaryCondition BC() const override
-    {
-        return _bc;
-    }
-private:
-    Array<T, -1, 1> _data;
-    BoundaryCondition _bc;
-};
-
-template<int N1, int N2, int N3>
-class Nodal1D : public Field1D<stratifloat, N1, N2, N3>
-{
-public:
-    using Field1D<stratifloat, N1, N2, N3>::Field1D;
-
-    template<typename A>
-    const Nodal1D<N1, N2, N3>& operator=(const StackContainer<A,stratifloat,N1,N2,N3>& other)
-    {
-        assert(other.BC() == this->BC());
-        Field1D<stratifloat, N1, N2, N3>::operator=(other);
-        return *this;
-    }
-
-    void SetValue(std::function<stratifloat(stratifloat)> f, stratifloat L3)
-    {
-        ArrayX z = VerticalPointsFractional(L3, N3);
-        for (int j3=0; j3<N3; j3++)
-        {
-            this->Get()(j3) = f(z(j3));
-        }
-
-        if (this->BC() == BoundaryCondition::Neumann)
-        {
-            this->Get()(1)=this->Get()(2);
-            this->Get()(0)=this->Get()(1);
-            this->Get()(N3-2)=this->Get()(N3-3);
-            this->Get()(N3-1)=this->Get()(N3-2);
-        }
-        else
-        {
-            this->Get()(1)=-this->Get()(2);
-            this->Get()(0)=this->Get()(1);
-            this->Get()(N3-1)=-this->Get()(N3-2);
-        }
-    }
-
-    stratifloat Max() const
-    {
-        return this->Get().maxCoeff();
-    }
-
-    stratifloat Min() const
-    {
-        return this->Get().minCoeff();
-    }
-};
-
 
 template<int N1, int N2, int N3>
 class ModalField;
@@ -712,8 +437,8 @@ public:
         return *this;
     }
 
-    NodalField(BoundaryCondition bc)
-    : Field<stratifloat, N1, N2, N3>(bc)
+    NodalField()
+    : Field<stratifloat, N1, N2, N3>()
     {
         int dims[] = {N2, N1};
         int odims[] = {N2, N1/2+1};
@@ -738,7 +463,6 @@ public:
 
     void ToModal(ModalField<N1,N2,N3>& other, bool filter = true) const
     {
-        assert(other.BC() == this->BC());
 
         // do FFT in 1st and 2nd dimensions
 
@@ -789,46 +513,11 @@ public:
         return max;
     }
 
-    void SetValue(std::function<stratifloat(stratifloat)> f, stratifloat L3)
-    {
-        ArrayX z = VerticalPointsFractional(L3, N3);
-
-        if (this->BC() == BoundaryCondition::Dirichlet)
-        {
-            z = VerticalPoints(L3,N3);
-        }
-
-        for (int j3=0; j3<N3; j3++)
-        {
-            this->slice(j3).setConstant(f(z(j3)));
-        }
-
-        if (this->BC() == BoundaryCondition::Neumann)
-        {
-            this->slice(1)=this->slice(2);
-            this->slice(0)=this->slice(1);
-            this->slice(N3-2)=this->slice(N3-3);
-            this->slice(N3-1)=this->slice(N3-2);
-        }
-        else
-        {
-            this->slice(1)=-this->slice(2);
-            this->slice(0)=this->slice(1);
-            this->slice(N3-1)=-this->slice(N3-2);
-        }
-    }
-
-    void SetValue(std::function<stratifloat(stratifloat,stratifloat,stratifloat)> f, stratifloat L1, stratifloat L2, stratifloat L3, bool imposeVelBC=false)
+    void SetValue(std::function<stratifloat(stratifloat,stratifloat,stratifloat)> f, stratifloat L1, stratifloat L2, stratifloat L3)
     {
         ArrayX x = FourierPoints(L1, N1);
         ArrayX y = FourierPoints(L2, N2);
-
-        ArrayX z = VerticalPointsFractional(L3, N3);
-
-        if (this->BC() == BoundaryCondition::Dirichlet)
-        {
-            z = VerticalPoints(L3,N3);
-        }
+        ArrayX z = FourierPoints(L3, N3);
 
         for (int j1=0; j1<N1; j1++)
         {
@@ -841,29 +530,6 @@ public:
             }
         }
 
-        if (this->BC() == BoundaryCondition::Neumann)
-        {
-
-            if (imposeVelBC)
-            {
-                this->slice(1)=this->slice(2);
-                this->slice(N3-2)=this->slice(N3-3);
-
-                this->slice(0)=this->slice(1);
-                this->slice(N3-1)=this->slice(N3-2);
-            }
-            else
-            {
-                this->slice(0).setZero();
-                this->slice(N3-1).setZero();
-            }
-        }
-        else
-        {
-            this->slice(1)=-this->slice(2);
-            this->slice(0)=this->slice(1);
-            this->slice(N3-1)=-this->slice(N3-2);
-        }
     }
 
     NodalField& operator-=(stratifloat other)
@@ -873,36 +539,6 @@ public:
         });
 
         return *this;
-    }
-
-    void Antisymmetrise()
-    {
-        for (int j1=1; j1<N1/2; j1++)
-        {
-            int otherj1 = N1-j1;
-            for (int j2=0; j2<N2; j2++)
-            {
-                for (int j3=0; j3<N3/2; j3++)
-                {
-                    int otherj3 = N3-j3;
-
-                    if (this->BC() == BoundaryCondition::Neumann)
-                    {
-                        otherj3--;
-
-                        stratifloat average = 0.5*(this->operator()(j1,j2,j3)-this->operator()(otherj1,j2,otherj3));
-                        this->operator()(j1,j2,j3) = average;
-                        this->operator()(otherj1,j2,otherj3) = -average;
-                    }
-                    else
-                    {
-                        stratifloat average = 0.5*(this->operator()(j1,j2,j3)-this->operator()(otherj1,j2,otherj3));
-                        this->operator()(j1,j2,j3) = average;
-                        this->operator()(otherj1,j2,otherj3) = -average;
-                    }
-                }
-            }
-        }
     }
 
     using Field<stratifloat, N1, N2, N3>::operator-=;
@@ -920,8 +556,8 @@ public:
         return *this;
     }
 
-    ModalField(BoundaryCondition bc)
-    : Field<complex, N1/2+1, N2, N3>(bc)
+    ModalField()
+    : Field<complex, N1/2+1, N2, N3>()
     {
         inputData.resize(actualN1*N2*N3);
 
@@ -948,8 +584,6 @@ public:
 
     void ToNodal(NodalField<N1, N2, N3>& other) const
     {
-        assert(other.BC() == this->BC());
-
         // do IFT in 1st and 2nd dimensions
 
         // make a copy of the input data as it is modified by the transform
@@ -1019,12 +653,6 @@ public:
         this->slice(0).setZero();
         this->slice(N3-1).setZero();
 
-        if (this->BC() == BoundaryCondition::Dirichlet)
-        {
-            j3min = 2;
-
-            this->slice(1).setZero();
-        }
 
         for (int j1=0; j1<0.5*cutoff*N1; j1++)
         {
@@ -1044,42 +672,7 @@ public:
 
     void ExciteLowWavenumbers(stratifloat L)
     {
-        std::random_device rd;
-        std::mt19937 generator(rd());
-        std::uniform_real_distribution<stratifloat> rng(-1.0,1.0);
-
-        ArrayX z = VerticalPointsFractional(L,N3);
-
-        if (this->BC() == BoundaryCondition::Dirichlet)
-        {
-            z = VerticalPoints(L,N3);
-        }
-
-        for (int j1=0; j1<N1/6; j1++)
-        {
-            for (int j2=-N2/6; j2<=N2/6; j2++)
-            {
-                complex hermiteCoeff[4];
-
-                for (int h=0; h<4; h++)
-                {
-                    hermiteCoeff[h] = pow(j1*j1+j2*j2+h*h+1,-5.0/3.0)*(rng(generator) + i*rng(generator));
-                }
-
-                int actualj2 = j2;
-                if (actualj2<0) actualj2 += N2;
-
-                for (int j3=0; j3<N3; j3++)
-                {
-                    this->operator()(j1,actualj2,j3) = 0;
-
-                    for (int h=0; h<4; h++)
-                    {
-                        this->operator()(j1,actualj2,j3) += hermiteCoeff[h]*exp(-z(j3)*z(j3)*2)*Hermite(h, z(j3)*2);
-                    }
-                }
-            }
-        }
+        assert(false);
     }
 
     void MakeMode2()
@@ -1137,34 +730,6 @@ public:
         });
     }
 
-    void SetValue(std::function<stratifloat(stratifloat)> f, stratifloat L3)
-    {
-        ArrayX z = VerticalPointsFractional(L3, N3);
-
-        if (this->BC() == BoundaryCondition::Dirichlet)
-        {
-            z = VerticalPoints(L3,N3);
-        }
-
-        for (int j3=0; j3<N3; j3++)
-        {
-            this->operator()(0, 0, j3) = f(z(j3));
-        }
-
-        if (this->BC() == BoundaryCondition::Neumann)
-        {
-            this->slice(1)=this->slice(2);
-            this->slice(0)=this->slice(1);
-            this->slice(N3-2)=this->slice(N3-3);
-            this->slice(N3-1)=this->slice(N3-2);
-        }
-        else
-        {
-            this->slice(1)=-this->slice(2);
-            this->slice(0)=this->slice(1);
-            this->slice(N3-1)=-this->slice(N3-2);
-        }
-    }
 
 private:
     static std::vector<complex, aligned_allocator<complex>> inputData;
