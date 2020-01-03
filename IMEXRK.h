@@ -358,11 +358,11 @@ public:
 
     stratifloat KE() const
     {
-        stratifloat energy = 0.5f*(InnerProd(u1, u1, flowParams.L3) + InnerProd(u3, u3, flowParams.L3));
+        stratifloat energy = 0.5f*(InnerProd(u1, u1) + InnerProd(u3, u3));
 
         if(gridParams.ThreeDimensional)
         {
-            energy += 0.5f*InnerProd(u2, u2, flowParams.L3);
+            energy += 0.5f*InnerProd(u2, u2);
         }
 
         return energy;
@@ -371,7 +371,7 @@ public:
 
     stratifloat PE() const
     {
-        return flowParams.Ri*0.5f*InnerProd(b, b, flowParams.L3);
+        return flowParams.Ri*0.5f*InnerProd(b, b);
     }
 
     void RemoveDivergence(stratifloat pressureMultiplier=1.0);

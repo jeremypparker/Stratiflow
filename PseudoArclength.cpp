@@ -23,11 +23,11 @@ int main(int argc, char *argv[])
     flowParams.Ri = x2.p;
 
     x1.x.RemovePhaseShift();
-    RemoveAverage(x1.x.u1, flowParams.L3);
-    RemoveAverage(x1.x.b, flowParams.L3);
+    RemoveAverage(x1.x.u1);
+    RemoveAverage(x1.x.b);
     x2.x.RemovePhaseShift();
-    RemoveAverage(x2.x.u1, flowParams.L3);
-    RemoveAverage(x2.x.b, flowParams.L3);
+    RemoveAverage(x2.x.u1);
+    RemoveAverage(x2.x.b);
 
     // see stationarystates.pdf
     ExtendedStateVector v;
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
     ExtendedStateVector guess = x2;
     guess.MulAdd(delta, v);
 
-    std::cout << "Guess averages: " << IntegrateAllSpace(guess.x.b,1,1,flowParams.L3) << " " << IntegrateAllSpace(guess.x.u1,1,1,flowParams.L3) << std::endl;
+    std::cout << "Guess averages: " << IntegrateAllSpace(guess.x.b) << " " << IntegrateAllSpace(guess.x.u1) << std::endl;
 
     PseudoArclengthContinuation solver(x2, v, delta);
 

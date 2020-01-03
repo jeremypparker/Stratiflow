@@ -15,8 +15,8 @@ public:
     virtual void EnforceConstraints(ExtendedStateVector& at) override
     {
         at.x.RemovePhaseShift();
-        RemoveAverage(at.x.u1, flowParams.L3);
-        RemoveAverage(at.x.b, flowParams.L3);
+        RemoveAverage(at.x.u1);
+        RemoveAverage(at.x.b);
     }
 
 protected:

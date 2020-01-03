@@ -115,13 +115,13 @@ public:
 
     stratifloat Dot(const StateVector& other) const
     {
-        stratifloat prod = InnerProd(u1, other.u1, flowParams.L3)
-                         + InnerProd(u3, other.u3, flowParams.L3)
-                         + flowParams.Ri*InnerProd(b, other.b, flowParams.L3); // TODO: is this correct PE?
+        stratifloat prod = InnerProd(u1, other.u1)
+                         + InnerProd(u3, other.u3)
+                         + flowParams.Ri*InnerProd(b, other.b); // TODO: is this correct PE?
 
         if (gridParams.ThreeDimensional)
         {
-            prod += InnerProd(u2, other.u2, flowParams.L3);
+            prod += InnerProd(u2, other.u2);
         }
 
         return prod;
@@ -147,7 +147,7 @@ public:
         Modal FractionalTemp;
         FractionalTemp = ddz(u1)+-1.0*ddx(u3);
 
-        return InnerProd(FractionalTemp, FractionalTemp, flowParams.L3);
+        return InnerProd(FractionalTemp, FractionalTemp);
     }
 
     void Zero()

@@ -120,8 +120,8 @@ public:
         }
 
         // Remove any average in eigenvector (another symmetry)
-        RemoveAverage(at.v.u1, flowParams.L3);
-        RemoveAverage(at.v.b, flowParams.L3);
+        RemoveAverage(at.v.u1);
+        RemoveAverage(at.v.b);
 
         at.v.Rescale(weight);
     }
@@ -164,18 +164,18 @@ int main(int argc, char *argv[])
         x2.LoadFromFile(argv[3]);
 
         stratifloat shift = x1.x.RemovePhaseShift();
-        RemoveAverage(x1.x.u1, flowParams.L3);
-        RemoveAverage(x1.x.b, flowParams.L3);
+        RemoveAverage(x1.x.u1);
+        RemoveAverage(x1.x.b);
         x1.v.RemovePhaseShift(shift);
-        RemoveAverage(x1.v.u1, flowParams.L3);
-        RemoveAverage(x1.v.b, flowParams.L3);
+        RemoveAverage(x1.v.u1);
+        RemoveAverage(x1.v.b);
 
         shift = x2.x.RemovePhaseShift();
-        RemoveAverage(x2.x.u1, flowParams.L3);
-        RemoveAverage(x2.x.b, flowParams.L3);
+        RemoveAverage(x2.x.u1);
+        RemoveAverage(x2.x.b);
         x2.v.RemovePhaseShift(shift);
-        RemoveAverage(x2.v.u1, flowParams.L3);
-        RemoveAverage(x2.v.b, flowParams.L3);
+        RemoveAverage(x2.v.u1);
+        RemoveAverage(x2.v.b);
 
         stratifloat Pr1 = std::stof(argv[4]);
         stratifloat Pr2 = std::stof(argv[5]);

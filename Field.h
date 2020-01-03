@@ -679,7 +679,7 @@ public:
         }
     }
 
-    void ExciteLowWavenumbers(stratifloat L)
+    void ExciteLowWavenumbers()
     {
         std::random_device rd;
         std::mt19937 generator(rd());

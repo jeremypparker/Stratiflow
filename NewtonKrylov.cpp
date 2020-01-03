@@ -46,8 +46,8 @@ int main(int argc, char *argv[])
     DumpParameters();
 
 
-    RemoveAverage(guess.u1, flowParams.L3);
-    RemoveAverage(guess.b, flowParams.L3);
+    RemoveAverage(guess.u1);
+    RemoveAverage(guess.b);
 
     BasicNewtonKrylov solver;
 

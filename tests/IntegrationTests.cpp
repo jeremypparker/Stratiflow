@@ -8,9 +8,9 @@ TEST_CASE("Integration of gaussian")
     NodalField<1, 1, 32> gaussian;
     gaussian.SetValue([](stratifloat x, stratifloat y, stratifloat z){return exp(-z*z);}, L3, 1, 1);
 
-    stratifloat integral = IntegrateAllSpace(gaussian, 1, 1, L3);
+    stratifloat integral = IntegrateAllSpace(gaussian);
 
-    REQUIRE(integral == Approx(sqrt(pi)));
+    REQUIRE(integral == Approx(sqrt(pi)/2.0f));
 }
 
 TEST_CASE("Quadratic")

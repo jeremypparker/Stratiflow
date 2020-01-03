@@ -223,10 +223,10 @@ void StateVector::Rescale(stratifloat energy)
 
 void StateVector::ExciteLowWavenumbers(stratifloat energy)
 {
-    u1.ExciteLowWavenumbers(flowParams.L3);
-    u2.ExciteLowWavenumbers(flowParams.L3);
-    u3.ExciteLowWavenumbers(flowParams.L3);
-    b.ExciteLowWavenumbers(flowParams.L3);
+    u1.ExciteLowWavenumbers();
+    u2.ExciteLowWavenumbers();
+    u3.ExciteLowWavenumbers();
+    b.ExciteLowWavenumbers();
 
     Rescale(energy);
 }
