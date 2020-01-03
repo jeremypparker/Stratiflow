@@ -59,14 +59,17 @@ public:
                 laplacian += dim1Derivative2.diagonal()(j1)*MatrixX::Identity(M3, M3);
                 laplacian += dim2Derivative2.diagonal()(j2)*MatrixX::Identity(M3, M3);
 
-                // // correct for singularity
-                // if (j1==0 && j2==0)
-                // {
-                //     laplacian.row(0).setZero();
-                //     laplacian(0,0) = 1;
-                //     laplacian.row(1).setZero();
-                //     laplacian(1,1) = 1;
-                // }
+                // correct for singularity
+                if (dim1Derivative2.diagonal()(j1)==0 && dim2Derivative2.diagonal()(j2)==0)
+                {
+                    for (int j3=0;j3<M3; j3++)
+                    {
+                        if (laplacian(j3,j3)==0)
+                        {
+                            laplacian(j3,j3)=1;
+                        }
+                    }
+                }
 
                 solveLaplacian[j1*gridParams.N2+j2].compute(laplacian);
             }

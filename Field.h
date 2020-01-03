@@ -659,9 +659,6 @@ public:
 
         int j3min = 1;
         int j3max = N3-1;
-        this->slice(0).setZero();
-        this->slice(N3-1).setZero();
-
 
         for (int j1=0; j1<0.5*cutoff*N1; j1++)
         {
