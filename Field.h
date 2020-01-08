@@ -485,14 +485,14 @@ public:
 
         if (filter)
         {
-            other *= 1/static_cast<stratifloat>(N1*N2);
+            other *= 1/static_cast<stratifloat>(N1*N2*N3);
             other.Filter();
         }
         else
         {
             for (int j=0; j<N1*N2*(N3/2+1); j++)
             {
-                other.Raw()[j] *= 1/static_cast<stratifloat>(N1*N2);
+                other.Raw()[j] *= 1/static_cast<stratifloat>(N1*N2*N3);
             }
         }
     }
