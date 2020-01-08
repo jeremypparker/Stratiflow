@@ -32,14 +32,13 @@ inline void HeatPlot(const NodalField<N1, N2, N3> &U, stratifloat L1, stratifloa
 template<int K1, int K2, int K3>
 inline void HeatPlot(const NodalField<K1, K2, K3> &U, stratifloat L1, stratifloat L3, int j2, std::string filename)
 {
-    const stratifloat zcutoff = 6;
 
     const int N1 = L1*50;
-    const int N3 = 2*zcutoff*50;
+    const int N3 = L3*50;
 
-    matplotlibcpp::figure(L1, zcutoff);
+    matplotlibcpp::figure(L1, L3);
 
-    std::vector<stratifloat> imdata(N1*2*N3);
+    std::vector<stratifloat> imdata(N1*N3*4);
 
     for (int j1=0; j1<N1*2; j1++)
     {
@@ -59,12 +58,12 @@ inline void HeatPlot(const NodalField<K1, K2, K3> &U, stratifloat L1, stratifloa
         while (k1_left>=K1) k1_left -= K1;
         while (k1_right>=K1) k1_right -= K1;
 
-        for (int j3=0; j3<N3; j3++)
+        for (int j3=0; j3<N3*2; j3++)
         {
 
-            stratifloat z = j3*2*zcutoff/N3 - zcutoff;
+            stratifloat z = j3*L3/N3;
 
-	    int k3_below = static_cast<int>(z/(L3/K3));
+	        int k3_below = static_cast<int>(z/(L3/K3));
             int k3_above = k3_below+1;
 
             stratifloat z_below = k3_below*L3/K3;
@@ -73,14 +72,19 @@ inline void HeatPlot(const NodalField<K1, K2, K3> &U, stratifloat L1, stratifloa
             stratifloat weight_above = (z-z_below)/(z_above-z_below);
             stratifloat weight_below = (z_above-z)/(z_above-z_below);
 
-            imdata[(N3-1-j3)*N1*2 + j1] = weight_left*weight_below*U(k1_left,j2,k3_below)
-                                      + weight_left*weight_above*U(k1_left,j2,k3_above)
-                                      + weight_right*weight_below*U(k1_right,j2,k3_below)
-                                      + weight_right*weight_above*U(k1_right,j2,k3_above);
+            while (k3_above<0) k3_above += K3;
+            while (k3_below<0) k3_below += K3;
+            while (k3_above>=K3) k3_above -= K3;
+            while (k3_below>=K3) k3_below -= K3;
+
+            imdata[j3*N1*2 + j1] = weight_left*weight_below*U(k1_left,j2,k3_below)
+                                   + weight_left*weight_above*U(k1_left,j2,k3_above)
+                                   + weight_right*weight_below*U(k1_right,j2,k3_below)
+                                   + weight_right*weight_above*U(k1_right,j2,k3_above);
         }
     }
 
-    matplotlibcpp::imshow(imdata, N3, 2*N1, 0, 2*L1, -zcutoff, zcutoff);
+    matplotlibcpp::imshow(imdata, N3*2, N1*2, 0, L1, 0, L3);
 
     matplotlibcpp::save(filename);
     matplotlibcpp::close();
