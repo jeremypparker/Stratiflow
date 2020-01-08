@@ -148,7 +148,7 @@ void IMEXRK::BuildRHS()
     r1 -= ddx(neumannTemp);
 
     InterpolateProduct(U1_tot, U3, dirichletTemp);
-    r1 -= ddz(neumannTemp);
+    r1 -= ddz(dirichletTemp);
     InterpolateProduct(U3, U3, neumannTemp);
     r3 -= ddx(dirichletTemp)+ddz(neumannTemp);
 
