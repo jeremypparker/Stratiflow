@@ -62,7 +62,7 @@ void DumpParameters()
     PrintParam(gridParams.N1);
     PrintParam(gridParams.N2);
     PrintParam(gridParams.N3);
-    PrintParam(gridParams.ThreeDimensional);
+    PrintParam((gridParams.dimensionality == Dimensionality::ThreeDimensional));
 
     PrintParam(flowParams.L1);
     PrintParam(flowParams.L2);
@@ -81,7 +81,7 @@ void LoadParameters(const std::string& file)
     CheckParam(gridParams.N1);
     CheckParam(gridParams.N2);
     CheckParam(gridParams.N3);
-    CheckParam(gridParams.ThreeDimensional);
+    CheckParam((gridParams.dimensionality == Dimensionality::ThreeDimensional));
 
     // LoadParam(flowParams.L1);
     // LoadParam(flowParams.L2);
@@ -98,7 +98,7 @@ void PrintParameters()
     PrintParam(gridParams.N1);
     PrintParam(gridParams.N2);
     PrintParam(gridParams.N3);
-    PrintParam(gridParams.ThreeDimensional);
+    PrintParam((gridParams.dimensionality == Dimensionality::ThreeDimensional));
 
     PrintParam(flowParams.L1);
     PrintParam(flowParams.L2);

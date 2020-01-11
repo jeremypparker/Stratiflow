@@ -40,7 +40,7 @@ public:
     , implicitSolveVelocityDirichlet{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
     , implicitSolveBuoyancyNeumann{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
     {
-        assert(gridParams.ThreeDimensional || gridParams.N2 == 1);
+        assert((gridParams.dimensionality == Dimensionality::ThreeDimensional) || gridParams.N2 == 1);
 
         std::cout << "Evaluating derivative matrices..." << std::endl;
 
@@ -131,7 +131,7 @@ public:
     {
         // To prevent anything dodgy accumulating in the unused coefficients
         u1.Filter();
-        if(gridParams.ThreeDimensional)
+        if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             u2.Filter();
         }
@@ -143,7 +143,7 @@ public:
     void PopulateNodalVariables()
     {
         u1.ToNodal(U1);
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             u2.ToNodal(U2);
         }
@@ -151,7 +151,7 @@ public:
         b.ToNodal(B);
 
         // U1.Antisymmetrise();
-        // if (gridParams.ThreeDimensional)
+        // if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         // {
         //     U2.Antisymmetrise();
         // }
@@ -249,7 +249,7 @@ public:
 
     void PlotSpanwiseVelocity(std::string filename, int j2) const
     {
-        if(gridParams.ThreeDimensional)
+        if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             HeatPlot(u2, flowParams.L1, flowParams.L3, j2, filename);
         }
@@ -336,7 +336,7 @@ public:
     void SetBackground(const NeumannModal& velocity1, const NeumannModal& velocity2, const DirichletModal& velocity3, const NeumannModal& buoyancy)
     {
         u1_tot = velocity1;
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             u2_tot = velocity2;
         }
@@ -345,7 +345,7 @@ public:
 
         u1_tot.ToNodal(U1_tot);
 
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             u2_tot.ToNodal(U2_tot);
         }
@@ -398,7 +398,7 @@ public:
     {
         stratifloat energy = 0.5f*(InnerProd(u1, u1, flowParams.L3) + InnerProd(u3, u3, flowParams.L3));
 
-        if(gridParams.ThreeDimensional)
+        if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             energy += 0.5f*InnerProd(u2, u2, flowParams.L3);
         }

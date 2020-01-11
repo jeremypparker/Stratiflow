@@ -211,7 +211,7 @@ void StateVector::Rescale(stratifloat energy)
     }
 
     u1 *= scale;
-    if (gridParams.ThreeDimensional)
+    if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
     {
         u2 *= scale;
     }

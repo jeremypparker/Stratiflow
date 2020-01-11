@@ -87,6 +87,13 @@ enum class BoundaryCondition
     Neumann    // these are located on a fractional grid that includes the boundaries
 };
 
+enum class Dimensionality
+{
+    ThreeDimensional,
+    TwoDimensional,
+    TwoAndAHalf // linear evolution about 1D background profile
+};
+
 template <typename T>
 int sgn(T val)
 {

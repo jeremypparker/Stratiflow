@@ -40,7 +40,7 @@ public:
     const StateVector& operator+=(const StateVector& other)
     {
         u1 += other.u1;
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             u2 += other.u2;
         }
@@ -54,7 +54,7 @@ public:
     const StateVector& operator-=(const StateVector& other)
     {
         u1 -= other.u1;
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             u2 -= other.u2;
         }
@@ -67,7 +67,7 @@ public:
     const StateVector& MulAdd(stratifloat a, const StateVector& B)
     {
         u1 += a*B.u1;
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             u2 += a*B.u2;
         }
@@ -80,7 +80,7 @@ public:
     const StateVector& operator*=(stratifloat other)
     {
         u1 *= other;
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             u2 *= other;
         }
@@ -109,7 +109,7 @@ public:
     stratifloat RemovePhaseShift(stratifloat shift)
     {
         u1.PhaseShift(shift);
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             u2.PhaseShift(shift);
         }
@@ -125,7 +125,7 @@ public:
                          + InnerProd(u3, other.u3, flowParams.L3)
                          + flowParams.Ri*InnerProd(b, other.b, flowParams.L3); // TODO: is this correct PE?
 
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             prod += InnerProd(u2, other.u2, flowParams.L3);
         }
@@ -186,7 +186,7 @@ public:
     void Zero()
     {
         u1.Zero();
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             u2.Zero();
         }
@@ -202,7 +202,7 @@ public:
     void Randomise(stratifloat energy, bool restrictToMiddle = false)
     {
         u1.RandomizeCoefficients(0.3);
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             u2.RandomizeCoefficients(0.3);
         }
@@ -297,7 +297,7 @@ public:
         // just 2D for simplicity for now
         assert(K2==1);
         assert(gridParams.N2==1);
-        assert(!gridParams.ThreeDimensional);
+        assert(!(gridParams.dimensionality == Dimensionality::ThreeDimensional));
 
         for (int j1=0; j1<std::min(K1/2+1,gridParams.N1/2+1); j1++)
         {
@@ -466,7 +466,7 @@ public:
         MakeCleanDir(directory);
 
         HeatPlot(u1, flowParams.L1, flowParams.L3, 0, directory+"/u1.png");
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             HeatPlot(u2, flowParams.L1, flowParams.L3, 0, directory+"/u2.png");
         }
@@ -489,7 +489,7 @@ private:
     void CopyToSolver() const
     {
         solver.u1 = u1;
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             solver.u2 = u2;
         }
@@ -510,7 +510,7 @@ private:
     void CopyFromSolver(StateVector& into) const
     {
         into.u1 = solver.u1;
-        if (gridParams.ThreeDimensional)
+        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
         {
             into.u2 = solver.u2;
         }

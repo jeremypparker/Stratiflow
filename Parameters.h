@@ -8,7 +8,7 @@ struct GridParams
     int N1; // Number of streamwise gridpoints
     int N2; // Number of spanwise gridpoints
     int N3; // Number of vertical gridpoints
-    bool ThreeDimensional; // whether to resolve spanwise direction
+    Dimensionality dimensionality; // whether to resolve spanwise direction
 };
 
 // In principle these can be changed mid-run
@@ -34,6 +34,6 @@ void PrintParameters();
 void LoadParameters(const std::string& file);
 
 constexpr GridParams gridParams
-    = {256, 1, 768, false};
+    = {256, 1, 768, Dimensionality::TwoDimensional};
 
 extern FlowParams flowParams;
