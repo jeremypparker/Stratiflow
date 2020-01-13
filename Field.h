@@ -472,11 +472,6 @@ public:
         filestream.write(reinterpret_cast<char*>(Raw()), sizeof(T)*N1*N2*N3);
     }
 
-    void Load(std::ifstream& filestream)
-    {
-        filestream.read(reinterpret_cast<char*>(Raw()), sizeof(T)*N1*N2*N3);
-    }
-
     void ZeroEnds()
     {
         slice(0).setZero();
@@ -762,7 +757,7 @@ public:
         if (filter)
         {
             other *= 1/static_cast<stratifloat>(N1*N2);
-            other.Filter();
+            other.Filter(false);
         }
         else
         {
@@ -905,6 +900,25 @@ public:
         }
     }
 
+    void Load(std::ifstream& filestream, bool twoDimensional = false)
+    {
+        if (twoDimensional)
+        {
+            // load into first plane
+            filestream.read(reinterpret_cast<char*>(this->Raw()), sizeof(stratifloat)*N1*N3);
+
+            // then duplicate spanwise
+            for (int n=1; n<N2; n++)
+            {
+                std::memcpy(&this->operator()(0,n,0), &this->operator()(0,n-1,0), sizeof(stratifloat)*N1*N3);
+            }
+        }
+        else
+        {
+            filestream.read(reinterpret_cast<char*>(this->Raw()), sizeof(stratifloat)*N1*N2*N3);
+        }
+    }
+
     using Field<stratifloat, N1, N2, N3>::operator-=;
 };
 
@@ -977,7 +991,7 @@ public:
         f3_destroy_plan(plan);
     }
 
-    void Filter()
+    void Filter(bool filterSpanwise)
     {
         if (N1>2)
         {
@@ -991,7 +1005,7 @@ public:
             }
         }
 
-        if (N2>2)
+        if (N2>2 && filterSpanwise)
         {
             #pragma omp parallel for collapse(2)
             for (int j2=(N2/3); j2<=N2-(N2/3); j2++)

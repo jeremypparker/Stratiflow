@@ -95,9 +95,9 @@ public:
         SaveValueToFile(p, filename+".params");
     }
 
-    void LoadFromFile(const std::string& filename)
+    void LoadFromFile(const std::string& filename, bool twoDimensional = false)
     {
-        x.LoadFromFile(filename+".fields");
+        x.LoadFromFile(filename+".fields", twoDimensional);
         LoadValueFromFile(p, filename+".params");
     }
 

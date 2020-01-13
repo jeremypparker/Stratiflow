@@ -43,7 +43,7 @@ void IMEXRK::TimeStepLinear()
 void IMEXRK::RemoveDivergence(stratifloat pressureMultiplier)
 {
     // construct the diverence of u
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         divergence = ddx(u1) + ddy(u2) + ddz(u3);
     }
@@ -60,7 +60,7 @@ void IMEXRK::RemoveDivergence(stratifloat pressureMultiplier)
 
     // subtract the gradient of this from the velocity
     u1 -= ddx(q);
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         u2 -= ddy(q);
     }
@@ -79,7 +79,7 @@ void IMEXRK::CrankNicolson(int k, bool evolveBackground)
                          +MatMulDim3(dim3Derivative2Neumann, u1));
     CNSolve(R1, u1, k);
 
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         R2 += (0.5f*h[k]/flowParams.Re)*(MatMulDim1(dim1Derivative2, u2)
                              +MatMulDim2(dim2Derivative2, u2)
@@ -108,7 +108,7 @@ void IMEXRK::FinishRHS(int k)
 {
     // now add on explicit terms to RHS
     R1 += (h[k]*beta[k])*r1;
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         R2 += (h[k]*beta[k])*r2;
     }
@@ -120,7 +120,7 @@ void IMEXRK::ExplicitRK(int k, bool evolveBackground)
 {
     //   old      last rk step         pressure
     R1 = u1 + (h[k]*zeta[k])*r1 + (-h[k])*ddx(p) ;
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
     R2 = u2 + (h[k]*zeta[k])*r2 + (-h[k])*ddy(p) ;
     }
@@ -162,7 +162,7 @@ void IMEXRK::BuildRHS()
     InterpolateProduct(U3, U3, neumannTemp);
     r3 -= ddx(dirichletTemp)+ddz(neumannTemp);
 
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         InterpolateProduct(U2, U2, neumannTemp);
         r2 -= ddy(neumannTemp);
@@ -182,7 +182,7 @@ void IMEXRK::BuildRHS()
     DifferentiateProductBar(B, U3, neumannTemp);
     rB -= neumannTemp;
 
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         InterpolateProduct(U2, B, neumannTemp);
         rB -= ddy(neumannTemp);
@@ -221,19 +221,25 @@ void IMEXRK::BuildRHSLinear()
     InterpolateProduct(U3, U3_tot, neumannTemp);
     r3 -= ddx(dirichletTemp)+2.0*ddz(neumannTemp);
 
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
-        InterpolateProduct(U2, U2_tot, neumannTemp);
-        r2 -= 2.0*ddy(neumannTemp);
-
         DifferentiateProductBar(U2, U2_tot, U3_tot, U3, neumannTemp);
         r2 -= neumannTemp;
 
-        InterpolateProductTilde(U2, U2_tot, U3_tot, U3,  dirichletTemp);
-        r3 -= ddy(dirichletTemp);
+        if (gridParams.dimensionality == Dimensionality::ThreeDimensional)
+        {
+            InterpolateProduct(U2, U2_tot, neumannTemp);
+            r2 -= 2.0*ddy(neumannTemp);
+
+            InterpolateProductTilde(U2, U2_tot, U3_tot, U3,  dirichletTemp);
+            r3 -= ddy(dirichletTemp);
+        }
 
         InterpolateProduct(U1, nnTemp, U2_tot, U2, neumannTemp);
-        r1 -= ddy(neumannTemp);
+        if (gridParams.dimensionality == Dimensionality::ThreeDimensional)
+        {
+            r1 -= ddy(neumannTemp);
+        }
         r2 -= ddx(neumannTemp);
     }
 
@@ -241,7 +247,7 @@ void IMEXRK::BuildRHSLinear()
     DifferentiateProductBar(B, B_tot, U3_tot, U3, neumannTemp);
     rB -= neumannTemp;
 
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         InterpolateProduct(B, B_tot, U2_tot, U2, neumannTemp);
         rB -= ddy(neumannTemp);
@@ -270,7 +276,7 @@ void IMEXRK::BuildRHSAdjoint()
     InterpolateProduct(U3, U3_tot, neumannTemp);
     r3 += ddx(dirichletTemp)+ddz(neumannTemp);
 
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         InterpolateProduct(U2, U2_tot, neumannTemp);
         r2 += ddy(neumannTemp);
@@ -292,7 +298,7 @@ void IMEXRK::BuildRHSAdjoint()
     DifferentiateProductBar(B, U3_tot, neumannTemp);
     rB += neumannTemp;
 
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         InterpolateProduct(B, U2_tot, neumannTemp);
         rB += ddy(neumannTemp);
@@ -306,7 +312,7 @@ void IMEXRK::BuildRHSAdjoint()
     neumannTemp = ddx(u1_tot);
     neumannTemp.ToNodal(nnTemp);
     nnTemp2 = nnTemp*U1;
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         neumannTemp = ddx(u2_tot);
         neumannTemp.ToNodal(nnTemp);
@@ -316,7 +322,7 @@ void IMEXRK::BuildRHSAdjoint()
     dirichletTemp.ToNodal(ndTemp);
     u1Forcing -= nnTemp2 + ReinterpolateDirichlet(ndTemp*U3);
 
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         neumannTemp = ddy(u1_tot);
         neumannTemp.ToNodal(nnTemp);
@@ -332,7 +338,7 @@ void IMEXRK::BuildRHSAdjoint()
     dirichletTemp = ddz(u1_tot);
     dirichletTemp.ToNodal(ndTemp);
     ndTemp2 = ndTemp*ReinterpolateFull(U1);
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         dirichletTemp = ddz(u2_tot);
         dirichletTemp.ToNodal(ndTemp);
@@ -347,7 +353,7 @@ void IMEXRK::BuildRHSAdjoint()
     neumannTemp.ToNodal(nnTemp);
     u1Forcing -= nnTemp*B;
 
-    if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if(gridParams.ThirdDimension())
     {
         neumannTemp = ddy(b_tot);
         neumannTemp.ToNodal(nnTemp);
@@ -361,7 +367,7 @@ void IMEXRK::BuildRHSAdjoint()
     // Now include all the forcing terms
     u1Forcing.ToModal(neumannTemp);
     r1 += neumannTemp;
-    if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+    if (gridParams.ThirdDimension())
     {
         u2Forcing.ToModal(neumannTemp);
         r2 += neumannTemp;

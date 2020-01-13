@@ -40,7 +40,7 @@ public:
     , implicitSolveVelocityDirichlet{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
     , implicitSolveBuoyancyNeumann{std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2), std::vector<Tridiagonal<stratifloat, gridParams.N3>, aligned_allocator<Tridiagonal<stratifloat, gridParams.N3>>>(M1*gridParams.N2)}
     {
-        assert((gridParams.dimensionality == Dimensionality::ThreeDimensional) || gridParams.N2 == 1);
+        assert(gridParams.ThirdDimension() || gridParams.N2 == 1);
 
         std::cout << "Evaluating derivative matrices..." << std::endl;
 
@@ -130,20 +130,20 @@ public:
     void FilterAll()
     {
         // To prevent anything dodgy accumulating in the unused coefficients
-        u1.Filter();
-        if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+        u1.Filter(gridParams.dimensionality==Dimensionality::ThreeDimensional);
+        if(gridParams.ThirdDimension())
         {
-            u2.Filter();
+            u2.Filter(gridParams.dimensionality==Dimensionality::ThreeDimensional);
         }
-        u3.Filter();
-        b.Filter();
-        p.Filter();
+        u3.Filter(gridParams.dimensionality==Dimensionality::ThreeDimensional);
+        b.Filter(gridParams.dimensionality==Dimensionality::ThreeDimensional);
+        p.Filter(gridParams.dimensionality==Dimensionality::ThreeDimensional);
     }
 
     void PopulateNodalVariables()
     {
         u1.ToNodal(U1);
-        if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+        if (gridParams.ThirdDimension())
         {
             u2.ToNodal(U2);
         }
@@ -151,7 +151,7 @@ public:
         b.ToNodal(B);
 
         // U1.Antisymmetrise();
-        // if ((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+        // if (gridParams.ThirdDimension())
         // {
         //     U2.Antisymmetrise();
         // }
@@ -249,7 +249,7 @@ public:
 
     void PlotSpanwiseVelocity(std::string filename, int j2) const
     {
-        if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+        if(gridParams.ThirdDimension())
         {
             HeatPlot(u2, flowParams.L1, flowParams.L3, j2, filename);
         }
@@ -398,7 +398,7 @@ public:
     {
         stratifloat energy = 0.5f*(InnerProd(u1, u1, flowParams.L3) + InnerProd(u3, u3, flowParams.L3));
 
-        if((gridParams.dimensionality == Dimensionality::ThreeDimensional))
+        if(gridParams.ThirdDimension())
         {
             energy += 0.5f*InnerProd(u2, u2, flowParams.L3);
         }
@@ -424,14 +424,19 @@ public:
         B.Save(filestream);
     }
 
-    void LoadFlow(const std::string& filename)
+    void LoadFlow(const std::string& filename, bool twoDimensional)
     {
         std::ifstream filestream(filename, std::ios::in | std::ios::binary);
 
-        U1.Load(filestream);
-        U2.Load(filestream);
-        U3.Load(filestream);
-        B.Load(filestream);
+        U1.Load(filestream, twoDimensional);
+        U2.Load(filestream, twoDimensional);
+        U3.Load(filestream, twoDimensional);
+        B.Load(filestream, twoDimensional);
+
+        if (twoDimensional)
+        {
+            U2.Zero(); // just to be sure
+        }
 
         U1.ToModal(u1);
         U2.ToModal(u2);
