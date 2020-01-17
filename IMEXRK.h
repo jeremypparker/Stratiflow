@@ -171,7 +171,9 @@ public:
             MakeCleanDir(imageDirectory+"/u3");
             MakeCleanDir(imageDirectory+"/buoyancy");
             MakeCleanDir(imageDirectory+"/pressure");
-            MakeCleanDir(imageDirectory+"/vorticity");
+            MakeCleanDir(imageDirectory+"/streamwisevorticity");
+            MakeCleanDir(imageDirectory+"/spanwisevorticity");
+            MakeCleanDir(imageDirectory+"/verticalvorticity");
         }
     }
 
@@ -188,7 +190,9 @@ public:
         MakeCleanDir(imageDirectory+"/u3");
         MakeCleanDir(imageDirectory+"/buoyancy");
         MakeCleanDir(imageDirectory+"/pressure");
-        MakeCleanDir(imageDirectory+"/vorticity");
+        MakeCleanDir(imageDirectory+"/streamwisevorticity");
+        MakeCleanDir(imageDirectory+"/spanwisevorticity");
+        MakeCleanDir(imageDirectory+"/verticalvorticity");
     }
 
     void PrepareRunLinear(std::string imageDir, bool makeDirs = true)
@@ -205,7 +209,9 @@ public:
             MakeCleanDir(imageDirectory+"/u3");
             MakeCleanDir(imageDirectory+"/buoyancy");
             MakeCleanDir(imageDirectory+"/pressure");
-            MakeCleanDir(imageDirectory+"/vorticity");
+            MakeCleanDir(imageDirectory+"/streamwisevorticity");
+            MakeCleanDir(imageDirectory+"/spanwisevorticity");
+            MakeCleanDir(imageDirectory+"/verticalvorticity");
         }
     }
 
@@ -238,6 +244,18 @@ public:
         HeatPlot(modalTemp2, flowParams.L1, flowParams.L3, j2, filename);
     }
 
+    void PlotStreamwiseVorticity(std::string filename, int j1) const
+    {
+        modalTemp2 = ddy(u3)+-1.0*ddz(u2);
+        HeatPlotSide(modalTemp2, flowParams.L2, flowParams.L3, j1, filename);
+    }
+
+    void PlotVerticalVorticity(std::string filename, int j3) const
+    {
+        modalTemp2 = ddx(u2)+-1.0*ddy(u1);
+        HeatPlotTop(modalTemp2, flowParams.L1, flowParams.L2, j3, filename);
+    }
+
     void PlotStreamwiseVelocity(std::string filename, int j2, bool includeBackground = true) const
     {
         if (includeBackground)
@@ -259,7 +277,13 @@ public:
         PlotVerticalVelocity(imageDirectory+"/u3/"+filename, gridParams.N2/2);
         PlotSpanwiseVelocity(imageDirectory+"/u2/"+filename, gridParams.N2/2);
         PlotStreamwiseVelocity(imageDirectory+"/u1/"+filename, gridParams.N2/2, includeBackground);
-        PlotSpanwiseVorticity(imageDirectory+"/vorticity/"+filename, gridParams.N2/2);
+        PlotSpanwiseVorticity(imageDirectory+"/spanwisevorticity/"+filename, gridParams.N2/2);
+
+        if (gridParams.ThreeDimensional)
+        {
+            PlotStreamwiseVorticity(imageDirectory+"/streamwisevorticity/"+filename, gridParams.N1/2);
+            PlotVerticalVorticity(imageDirectory+"/verticalvorticity/"+filename, gridParams.N3/2);
+        }
     }
 
     void SetInitial(const Nodal& velocity1, const Nodal& velocity2, const Nodal& velocity3, const Nodal& buoyancy)
