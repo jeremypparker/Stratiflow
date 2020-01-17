@@ -618,7 +618,7 @@ public:
             #pragma omp parallel for collapse(2)
             for (int j2=0; j2<N2; j2++)
             {
-                for (int j1=N1/3; j1<N1-(N1/3); j1++)
+                for (int j1=N1/3; j1<=N1-(N1/3); j1++)
                 {
                     this->stack(j1, j2).setZero();
                 }
@@ -716,22 +716,31 @@ public:
         int maxN1 = N1/3;
         int maxN2 = N2/3;
         int minN2 = N2-(N2/3)+1;
+        int minN1 = N1-(N1/3)+1;
 
         if(N2>1)
         {
-            #pragma omp parallel for collapse(2)
+            // #pragma omp parallel for collapse(2)
             for (int j2=0; j2<maxN2; j2++)
             {
                 for (int j1=0; j1<maxN1; j1++)
                 {
                     f(j1, j2);
                 }
+                for (int j1=minN1; j1<N1; j1++)
+                {
+                    f(j1, j2);
+                }
             }
 
-            #pragma omp parallel for collapse(2)
+            // #pragma omp parallel for collapse(2)
             for (int j2=minN2; j2<N2; j2++)
             {
                 for (int j1=0; j1<maxN1; j1++)
+                {
+                    f(j1, j2);
+                }
+                for (int j1=minN1; j1<N1; j1++)
                 {
                     f(j1, j2);
                 }
@@ -741,6 +750,12 @@ public:
         {
             #pragma omp parallel for
             for (int j1=0; j1<maxN1; j1++)
+            {
+                f(j1, 0);
+            }
+
+            #pragma omp parallel for
+            for (int j1=minN1; j1<N1; j1++)
             {
                 f(j1, 0);
             }

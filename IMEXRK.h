@@ -25,7 +25,6 @@
 #define MatMulDim1 Dim1MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, gridParams.N1, gridParams.N2, M3>
 #define MatMulDim2 Dim2MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, gridParams.N1, gridParams.N2, M3>
 #define MatMulDim3 Dim3MatMul<Map<const Array<complex, -1, 1>, Aligned16>, stratifloat, complex, gridParams.N1, gridParams.N2, M3>
-#define MatMulDim3Nodal Dim3MatMul<Map<const Array<stratifloat, -1, 1>, Aligned16>, stratifloat, stratifloat, gridParams.N1, gridParams.N2, gridParams.N3>
 
 class IMEXRK
 {
@@ -171,10 +170,8 @@ public:
             MakeCleanDir(imageDirectory+"/u2");
             MakeCleanDir(imageDirectory+"/u3");
             MakeCleanDir(imageDirectory+"/buoyancy");
-            MakeCleanDir(imageDirectory+"/buoyancyBG");
             MakeCleanDir(imageDirectory+"/pressure");
             MakeCleanDir(imageDirectory+"/vorticity");
-            MakeCleanDir(imageDirectory+"/perturbvorticity");
         }
     }
 
@@ -192,8 +189,6 @@ public:
         MakeCleanDir(imageDirectory+"/buoyancy");
         MakeCleanDir(imageDirectory+"/pressure");
         MakeCleanDir(imageDirectory+"/vorticity");
-        MakeCleanDir(imageDirectory+"/perturbvorticity");
-        MakeCleanDir(imageDirectory+"/buoyancyBG");
     }
 
     void PrepareRunLinear(std::string imageDir, bool makeDirs = true)
@@ -211,8 +206,6 @@ public:
             MakeCleanDir(imageDirectory+"/buoyancy");
             MakeCleanDir(imageDirectory+"/pressure");
             MakeCleanDir(imageDirectory+"/vorticity");
-            MakeCleanDir(imageDirectory+"/perturbvorticity");
-            MakeCleanDir(imageDirectory+"/buoyancyBG");
         }
     }
 
@@ -241,17 +234,8 @@ public:
 
     void PlotSpanwiseVorticity(std::string filename, int j2) const
     {
-        nnTemp = U1;
-        nnTemp.ToModal(neumannTemp);
-
-        dirichletTemp = -1.0*ddz(neumannTemp)+ddx(u3);
-        HeatPlot(dirichletTemp, flowParams.L1, flowParams.L3, j2, filename);
-    }
-
-    void PlotPerturbationVorticity(std::string filename, int j2) const
-    {
-        dirichletTemp = ddz(u1)+-1.0*ddx(u3);
-        HeatPlot(dirichletTemp, flowParams.L1, flowParams.L3, j2, filename);
+        modalTemp2 = ddz(u1)+-1.0*ddx(u3);
+        HeatPlot(modalTemp2, flowParams.L1, flowParams.L3, j2, filename);
     }
 
     void PlotStreamwiseVelocity(std::string filename, int j2, bool includeBackground = true) const
@@ -259,8 +243,8 @@ public:
         if (includeBackground)
         {
             nnTemp = U1;
-            nnTemp.ToModal(neumannTemp);
-            HeatPlot(neumannTemp, flowParams.L1, flowParams.L3, j2, filename);
+            nnTemp.ToModal(modalTemp1);
+            HeatPlot(modalTemp1, flowParams.L1, flowParams.L3, j2, filename);
         }
         else
         {
@@ -275,17 +259,7 @@ public:
         PlotVerticalVelocity(imageDirectory+"/u3/"+filename, gridParams.N2/2);
         PlotSpanwiseVelocity(imageDirectory+"/u2/"+filename, gridParams.N2/2);
         PlotStreamwiseVelocity(imageDirectory+"/u1/"+filename, gridParams.N2/2, includeBackground);
-        PlotPerturbationVorticity(imageDirectory+"/perturbvorticity/"+filename, gridParams.N2/2);
-
-        if (includeBackground)
-        {
-            PlotSpanwiseVorticity(imageDirectory+"/vorticity/"+filename, gridParams.N2/2);
-        }
-        else
-        {
-            //PlotPerturbationVorticity(imageDirectory+"/perturbvorticity/"+filename, gridParams.N2/2);
-            //PlotBuoyancyBG(imageDirectory+"/buoyancyBG/"+filename, gridParams.N2/2);
-        }
+        PlotSpanwiseVorticity(imageDirectory+"/vorticity/"+filename, gridParams.N2/2);
     }
 
     void SetInitial(const Nodal& velocity1, const Nodal& velocity2, const Nodal& velocity3, const Nodal& buoyancy)
@@ -442,11 +416,11 @@ public:
 
         // (<b>-b)*w
         ndTemp = -1*nnTemp*U3_tot;
-        ndTemp.ToModal(dirichletTemp);
+        ndTemp.ToModal(modalTemp2);
 
         // construct integrand for J
         static Dirichlet1D Jintegrand;
-        HorizontalAverage(dirichletTemp, Jintegrand);
+        HorizontalAverage(modalTemp2, Jintegrand);
         J = IntegrateVertically(Jintegrand, flowParams.L3);
 
         K = 2;
@@ -556,8 +530,8 @@ private:
     mutable Nodal nnTemp, nnTemp2;
     mutable Nodal ndTemp, ndTemp2;
 
-    mutable Modal neumannTemp;
-    mutable Modal dirichletTemp;
+    mutable Modal modalTemp1;
+    mutable Modal modalTemp2;
 
     Modal divergence;
     Modal q;

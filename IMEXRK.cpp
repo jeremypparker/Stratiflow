@@ -129,55 +129,50 @@ void IMEXRK::BuildRHS()
 {
     // build up right hand sides for the implicit solve in R
 
-    // buoyancy force without hydrostatic part
-    neumannTemp = b;
-    RemoveHorizontalAverage(neumannTemp);
-    r3 += flowParams.Ri*neumannTemp; // buoyancy force
+    // // buoyancy force without hydrostatic part
+    // modalTemp1 = b;
+    // RemoveHorizontalAverage(modalTemp1);
+    // r3 += flowParams.Ri*modalTemp1; // buoyancy force
 
-    // background stratification term
-    dirichletTemp = u3;
-    rB -= dirichletTemp;
+    // // background stratification term
+    // modalTemp2 = u3;
+    // rB -= modalTemp2;
 
     //////// NONLINEAR TERMS ////////
     // calculate products at nodes in physical space
 
-    // take into account background shear for nonlinear terms
-    U1_tot = U1;
-
-    InterpolateProduct(U1_tot, U1_tot, neumannTemp);
-    r1 -= ddx(neumannTemp);
-
-    InterpolateProduct(U1_tot, U3, dirichletTemp);
-    r1 -= ddz(dirichletTemp);
-    InterpolateProduct(U3, U3, neumannTemp);
-    r3 -= ddx(dirichletTemp)+ddz(neumannTemp);
+    InterpolateProduct(U1, U1, modalTemp1);
+    InterpolateProduct(U1, U3, modalTemp2);
+    r1 -= ddx(modalTemp1) + ddz(modalTemp2);
+    InterpolateProduct(U3, U3, modalTemp1);
+    r3 -= ddx(modalTemp2) + ddz(modalTemp1);
 
     if(gridParams.ThreeDimensional)
     {
-        InterpolateProduct(U2, U2, neumannTemp);
-        r2 -= ddy(neumannTemp);
+        InterpolateProduct(U2, U2, modalTemp1);
+        r2 -= ddy(modalTemp1);
 
-        InterpolateProduct(U2, U3, neumannTemp);
-        r2 -= ddz(neumannTemp);
-        r3 -= ddy(neumannTemp);
+        InterpolateProduct(U2, U3, modalTemp1);
+        r2 -= ddz(modalTemp1);
+        r3 -= ddy(modalTemp1);
 
-        InterpolateProduct(U1_tot, U2, neumannTemp);
-        r1 -= ddy(neumannTemp);
-        r2 -= ddx(neumannTemp);
+        InterpolateProduct(U1, U2, modalTemp1);
+        r1 -= ddy(modalTemp1);
+        r2 -= ddx(modalTemp1);
     }
 
-    // buoyancy nonlinear terms
-    InterpolateProduct(B, U3, neumannTemp);
-    rB -= ddz(neumannTemp);
+    // // buoyancy nonlinear terms
+    // InterpolateProduct(B, U3, modalTemp1);
+    // rB -= ddz(modalTemp1);
 
-    if(gridParams.ThreeDimensional)
-    {
-        InterpolateProduct(U2, B, neumannTemp);
-        rB -= ddy(neumannTemp);
-    }
+    // if(gridParams.ThreeDimensional)
+    // {
+    //     InterpolateProduct(U2, B, modalTemp1);
+    //     rB -= ddy(modalTemp1);
+    // }
 
-    InterpolateProduct(U1_tot, B, neumannTemp);
-    rB -= ddx(neumannTemp);
+    // InterpolateProduct(U1_tot, B, modalTemp1);
+    // rB -= ddx(modalTemp1);
 }
 
 void IMEXRK::BuildRHSLinear()
@@ -185,13 +180,13 @@ void IMEXRK::BuildRHSLinear()
     // build up right hand sides for the implicit solve in R
 
     // buoyancy force without hydrostatic part
-    neumannTemp = b;
-    RemoveHorizontalAverage(neumannTemp);
-    r3 += flowParams.Ri*neumannTemp; // buoyancy force
+    modalTemp1 = b;
+    RemoveHorizontalAverage(modalTemp1);
+    r3 += flowParams.Ri*modalTemp1; // buoyancy force
 
     // background stratification term
-    dirichletTemp = u3;
-    rB -= dirichletTemp;
+    modalTemp2 = u3;
+    rB -= modalTemp2;
 
     //////// NONLINEAR TERMS ////////
     // calculate products at nodes in physical space
@@ -199,44 +194,44 @@ void IMEXRK::BuildRHSLinear()
     // take into account background shear for nonlinear terms
     nnTemp = U1_tot;
 
-    InterpolateProduct(U1, nnTemp, neumannTemp);
-    r1 -= 2.0*ddx(neumannTemp);
+    InterpolateProduct(U1, nnTemp, modalTemp1);
+    r1 -= 2.0*ddx(modalTemp1);
 
-    InterpolateProduct(U1, nnTemp, U3_tot, U3, neumannTemp);
-    r1 -= ddz(neumannTemp);
+    InterpolateProduct(U1, nnTemp, U3_tot, U3, modalTemp1);
+    r1 -= ddz(modalTemp1);
 
-    InterpolateProduct(U1, nnTemp, U3_tot, U3, dirichletTemp);
-    InterpolateProduct(U3, U3_tot, neumannTemp);
-    r3 -= ddx(dirichletTemp)+2.0*ddz(neumannTemp);
+    InterpolateProduct(U1, nnTemp, U3_tot, U3, modalTemp2);
+    InterpolateProduct(U3, U3_tot, modalTemp1);
+    r3 -= ddx(modalTemp2)+2.0*ddz(modalTemp1);
 
     if(gridParams.ThreeDimensional)
     {
-        InterpolateProduct(U2, U2_tot, neumannTemp);
-        r2 -= 2.0*ddy(neumannTemp);
+        InterpolateProduct(U2, U2_tot, modalTemp1);
+        r2 -= 2.0*ddy(modalTemp1);
 
-        InterpolateProduct(U2, U2_tot, U3_tot, U3, neumannTemp);
-        r2 -= ddz(neumannTemp);
+        InterpolateProduct(U2, U2_tot, U3_tot, U3, modalTemp1);
+        r2 -= ddz(modalTemp1);
 
-        InterpolateProduct(U2, U2_tot, U3_tot, U3,  dirichletTemp);
-        r3 -= ddy(dirichletTemp);
+        InterpolateProduct(U2, U2_tot, U3_tot, U3,  modalTemp2);
+        r3 -= ddy(modalTemp2);
 
-        InterpolateProduct(U1, nnTemp, U2_tot, U2, neumannTemp);
-        r1 -= ddy(neumannTemp);
-        r2 -= ddx(neumannTemp);
+        InterpolateProduct(U1, nnTemp, U2_tot, U2, modalTemp1);
+        r1 -= ddy(modalTemp1);
+        r2 -= ddx(modalTemp1);
     }
 
     // buoyancy nonlinear terms
-    InterpolateProduct(B, B_tot, U3_tot, U3, neumannTemp);
-    rB -= ddz(neumannTemp);
+    InterpolateProduct(B, B_tot, U3_tot, U3, modalTemp1);
+    rB -= ddz(modalTemp1);
 
     if(gridParams.ThreeDimensional)
     {
-        InterpolateProduct(B, B_tot, U2_tot, U2, neumannTemp);
-        rB -= ddy(neumannTemp);
+        InterpolateProduct(B, B_tot, U2_tot, U2, modalTemp1);
+        rB -= ddy(modalTemp1);
     }
 
-    InterpolateProduct(B, B_tot, nnTemp, U1, neumannTemp);
-    rB -= ddx(neumannTemp);
+    InterpolateProduct(B, B_tot, nnTemp, U1, modalTemp1);
+    rB -= ddx(modalTemp1);
 }
 
 void IMEXRK::BuildRHSAdjoint()
@@ -248,114 +243,114 @@ void IMEXRK::BuildRHSAdjoint()
 
     //////// NONLINEAR TERMS ////////
     // advection of adjoint quantities by the direct flow
-    InterpolateProduct(U1, U1_tot, neumannTemp);
-    r1 += ddx(neumannTemp);
+    InterpolateProduct(U1, U1_tot, modalTemp1);
+    r1 += ddx(modalTemp1);
 
-    InterpolateProduct(U1, U3_tot, neumannTemp);
-    r1 += ddz(neumannTemp);
+    InterpolateProduct(U1, U3_tot, modalTemp1);
+    r1 += ddz(modalTemp1);
 
-    InterpolateProduct(U1_tot, U3, dirichletTemp);
-    InterpolateProduct(U3, U3_tot, neumannTemp);
-    r3 += ddx(dirichletTemp)+ddz(neumannTemp);
+    InterpolateProduct(U1_tot, U3, modalTemp2);
+    InterpolateProduct(U3, U3_tot, modalTemp1);
+    r3 += ddx(modalTemp2)+ddz(modalTemp1);
 
     if(gridParams.ThreeDimensional)
     {
-        InterpolateProduct(U2, U2_tot, neumannTemp);
-        r2 += ddy(neumannTemp);
+        InterpolateProduct(U2, U2_tot, modalTemp1);
+        r2 += ddy(modalTemp1);
 
-        InterpolateProduct(U2, U3_tot, neumannTemp);
-        r2 += ddz(neumannTemp);
+        InterpolateProduct(U2, U3_tot, modalTemp1);
+        r2 += ddz(modalTemp1);
 
-        InterpolateProduct(U2_tot, U3, dirichletTemp);
-        r3 += ddy(dirichletTemp);
+        InterpolateProduct(U2_tot, U3, modalTemp2);
+        r3 += ddy(modalTemp2);
 
-        InterpolateProduct(U1, U2_tot, neumannTemp);
-        r1 += ddy(neumannTemp);
+        InterpolateProduct(U1, U2_tot, modalTemp1);
+        r1 += ddy(modalTemp1);
 
-        InterpolateProduct(U2, U1_tot, neumannTemp);
-        r2 += ddx(neumannTemp);
+        InterpolateProduct(U2, U1_tot, modalTemp1);
+        r2 += ddx(modalTemp1);
     }
 
     // buoyancy nonlinear terms
-    InterpolateProduct(B, U3_tot, neumannTemp);
-    rB += ddz(neumannTemp);
+    InterpolateProduct(B, U3_tot, modalTemp1);
+    rB += ddz(modalTemp1);
 
     if(gridParams.ThreeDimensional)
     {
-        InterpolateProduct(B, U2_tot, neumannTemp);
-        rB += ddy(neumannTemp);
+        InterpolateProduct(B, U2_tot, modalTemp1);
+        rB += ddy(modalTemp1);
     }
 
-    InterpolateProduct(B, U1_tot, neumannTemp);
-    rB += ddx(neumannTemp);
+    InterpolateProduct(B, U1_tot, modalTemp1);
+    rB += ddx(modalTemp1);
 
 
     // extra adjoint nonlinear terms
-    neumannTemp = ddx(u1_tot);
-    neumannTemp.ToNodal(nnTemp);
+    modalTemp1 = ddx(u1_tot);
+    modalTemp1.ToNodal(nnTemp);
     nnTemp2 = nnTemp*U1;
     if(gridParams.ThreeDimensional)
     {
-        neumannTemp = ddx(u2_tot);
-        neumannTemp.ToNodal(nnTemp);
+        modalTemp1 = ddx(u2_tot);
+        modalTemp1.ToNodal(nnTemp);
         nnTemp2 += nnTemp*U2;
     }
-    dirichletTemp = ddx(u3_tot);
-    dirichletTemp.ToNodal(ndTemp);
+    modalTemp2 = ddx(u3_tot);
+    modalTemp2.ToNodal(ndTemp);
     u1Forcing -= nnTemp2 + ndTemp*U3;
 
     if(gridParams.ThreeDimensional)
     {
-        neumannTemp = ddy(u1_tot);
-        neumannTemp.ToNodal(nnTemp);
+        modalTemp1 = ddy(u1_tot);
+        modalTemp1.ToNodal(nnTemp);
         nnTemp2 = nnTemp*U1;
-        neumannTemp = ddy(u2_tot);
-        neumannTemp.ToNodal(nnTemp);
+        modalTemp1 = ddy(u2_tot);
+        modalTemp1.ToNodal(nnTemp);
         nnTemp2 += nnTemp*U2;
-        dirichletTemp = ddy(u3_tot);
-        dirichletTemp.ToNodal(ndTemp);
+        modalTemp2 = ddy(u3_tot);
+        modalTemp2.ToNodal(ndTemp);
         u2Forcing -= nnTemp2 + ndTemp*U3;
     }
 
-    dirichletTemp = ddz(u1_tot);
-    dirichletTemp.ToNodal(ndTemp);
+    modalTemp2 = ddz(u1_tot);
+    modalTemp2.ToNodal(ndTemp);
     ndTemp2 = ndTemp*U1;
     if(gridParams.ThreeDimensional)
     {
-        dirichletTemp = ddz(u2_tot);
-        dirichletTemp.ToNodal(ndTemp);
+        modalTemp2 = ddz(u2_tot);
+        modalTemp2.ToNodal(ndTemp);
         ndTemp2 += ndTemp*U2;
     }
-    neumannTemp = ddz(u3_tot);
-    neumannTemp.ToNodal(nnTemp);
+    modalTemp1 = ddz(u3_tot);
+    modalTemp1.ToNodal(nnTemp);
     u3Forcing -= ndTemp2 + nnTemp*U3;
 
 
-    neumannTemp = ddx(b_tot);
-    neumannTemp.ToNodal(nnTemp);
+    modalTemp1 = ddx(b_tot);
+    modalTemp1.ToNodal(nnTemp);
     u1Forcing -= nnTemp*B;
 
     if(gridParams.ThreeDimensional)
     {
-        neumannTemp = ddy(b_tot);
-        neumannTemp.ToNodal(nnTemp);
+        modalTemp1 = ddy(b_tot);
+        modalTemp1.ToNodal(nnTemp);
         u2Forcing -= nnTemp*B;
     }
 
-    dirichletTemp = ddz(b_tot);
-    dirichletTemp.ToNodal(ndTemp);
+    modalTemp2 = ddz(b_tot);
+    modalTemp2.ToNodal(ndTemp);
     u3Forcing -= ndTemp*B;
 
     // Now include all the forcing terms
-    u1Forcing.ToModal(neumannTemp);
-    r1 += neumannTemp;
+    u1Forcing.ToModal(modalTemp1);
+    r1 += modalTemp1;
     if (gridParams.ThreeDimensional)
     {
-        u2Forcing.ToModal(neumannTemp);
-        r2 += neumannTemp;
+        u2Forcing.ToModal(modalTemp1);
+        r2 += modalTemp1;
     }
-    u3Forcing.ToModal(dirichletTemp);
-    r3 += dirichletTemp;
-    bForcing.ToModal(neumannTemp);
-    rB += neumannTemp;
+    u3Forcing.ToModal(modalTemp2);
+    r3 += modalTemp2;
+    bForcing.ToModal(modalTemp1);
+    rB += modalTemp1;
 }
