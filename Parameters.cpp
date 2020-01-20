@@ -4,7 +4,7 @@
 #include <iomanip>
 
 FlowParams flowParams
-    = {8.885765876, 1.570795, 10, 1000, 0.16, 0.7};
+    = {4*2*pi, 0.25*2*pi, 2*pi, 1000, 0, 0.7};
 
 #define PrintParam(parameter) paramFile << #parameter << " " << parameter << std::endl
 

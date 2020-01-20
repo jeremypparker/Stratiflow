@@ -217,7 +217,20 @@ public:
 
     void PlotBuoyancy(std::string filename, int j2, bool includeBackground = true) const
     {
+        if (includeBackground)
+	{
+
+	    Nodal nodalB;
+	    nodalB.SetValue([](stratifloat x, stratifloat y, stratifloat z){return z;}, flowParams.L1, flowParams.L2, flowParams.L3);
+	    Modal modalB;
+	    nodalB.ToModal(modalB);
+	    modalB += b;
+        HeatPlot(modalB, flowParams.L1, flowParams.L3, j2, filename);
+	}
+	else
+	{
         HeatPlot(b, flowParams.L1, flowParams.L3, j2, filename);
+	}
     }
 
     void PlotPressure(std::string filename, int j2) const

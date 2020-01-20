@@ -129,14 +129,13 @@ void IMEXRK::BuildRHS()
 {
     // build up right hand sides for the implicit solve in R
 
-    // // buoyancy force without hydrostatic part
-    // modalTemp1 = b;
-    // RemoveHorizontalAverage(modalTemp1);
-    // r3 += flowParams.Ri*modalTemp1; // buoyancy force
+    // buoyancy force without hydrostatic part
+    modalTemp1 = b;
+    RemoveHorizontalAverage(modalTemp1);
+    r3 += flowParams.Ri*modalTemp1; // buoyancy force
 
-    // // background stratification term
-    // modalTemp2 = u3;
-    // rB -= modalTemp2;
+    // background stratification term
+    rB -= u3;
 
     //////// NONLINEAR TERMS ////////
     // calculate products at nodes in physical space
@@ -161,18 +160,16 @@ void IMEXRK::BuildRHS()
         r2 -= ddx(modalTemp1);
     }
 
-    // // buoyancy nonlinear terms
-    // InterpolateProduct(B, U3, modalTemp1);
-    // rB -= ddz(modalTemp1);
+    // buoyancy nonlinear terms
+    if(gridParams.ThreeDimensional)
+    {
+        InterpolateProduct(U2, B, modalTemp1);
+        rB -= ddy(modalTemp1);
+    }
 
-    // if(gridParams.ThreeDimensional)
-    // {
-    //     InterpolateProduct(U2, B, modalTemp1);
-    //     rB -= ddy(modalTemp1);
-    // }
-
-    // InterpolateProduct(U1_tot, B, modalTemp1);
-    // rB -= ddx(modalTemp1);
+    InterpolateProduct(B, U3, modalTemp2);
+    InterpolateProduct(U1, B, modalTemp1);
+    rB -= ddx(modalTemp1)+ddz(modalTemp2);
 }
 
 void IMEXRK::BuildRHSLinear()
