@@ -5,22 +5,72 @@ int main(int argc, char* argv[])
 {
     PrintParameters();
 
-    StateVector state;
 
-    stratifloat energy = std::stof(argv[1]);
+    // Load state at tmax of interval
+    std::string filenameabove(argv[2]);
+    int extension = filenameabove.find(".fields");
+    int hyphen = filenameabove.find_last_of("-");
+    int slash = filenameabove.find_last_of("/");
 
-    if (argc == 2)
+    int stepabove = std::stoi(filenameabove.substr(slash+1, hyphen-slash-1));
+    stratifloat timeabove = std::stof(filenameabove.substr(hyphen+1, extension-hyphen-1));
+
+    // Load state at tmin
+    std::string filenamebelow(argv[1]);
+    extension = filenamebelow.find(".fields");
+    hyphen = filenamebelow.find_last_of("-");
+    slash = filenamebelow.find_last_of("/");
+
+    int stepbelow = std::stoi(filenamebelow.substr(slash+1, hyphen-slash-1));
+    stratifloat timebelow = std::stof(filenamebelow.substr(hyphen+1, extension-hyphen-1));
+
+    std::cout << "Between " << timebelow << " and " << timeabove << std::endl;
+    stratifloat steps = stepabove - stepbelow;
+    stratifloat deltaT = (timeabove - timebelow)/steps;
+    std::cout << steps << " steps, deltaT=" << deltaT << std::endl;
+
+    // Fill in the gaps by doing extra forward integration
+    StateVector directState;
+    directState.LoadFromFile(filenamebelow);
+
+    std::vector<StateVector> intermediateStates;
+    directState.FixedEvolve(deltaT, steps, intermediateStates);
+
+    directState.LoadFromFile(filenameabove);
+    intermediateStates.push_back(directState);
+
+
+    // Now do adjoint integration
+    StateVector linearState;
+    std::string linearFile = "direct-"+std::to_string(stepbelow)+".fields";
+
+    if (FileExists(linearFile))
     {
-        state.ExciteLowWavenumbers(energy);
+        linearState.LoadFromFile(linearFile);
     }
     else
     {
-        state.LoadFromFile(argv[2]);
-        state.Rescale(energy);
+        if(argc>3)
+        {
+            linearState.LoadFromFile(argv[3]);
+        }
+        else
+        {
+            linearState.ExciteLowWavenumbers(0.1);
+        }
     }
 
-    std::cout << state.Energy() << std::endl;
 
-    stratifloat mixing = state.FullEvolve(25, state, true, true, true);
-    SaveValueToFile(mixing, "mixing");
+    stratifloat energy = 0.01;
+
+    linearState.Rescale(energy);
+
+    stratifloat initialEnergy = linearState.Energy();
+    std::cout << initialEnergy << std::endl;
+
+    linearState.PlotAll(std::to_string(timebelow));
+    linearState.LinearEvolve(deltaT, steps, intermediateStates, linearState);
+    linearState.SaveToFile("direct-"+std::to_string(stepbelow)+".fields");
+    linearState.SaveToFile("final.fields");
+    linearState.PlotAll(std::to_string(timeabove));
 }

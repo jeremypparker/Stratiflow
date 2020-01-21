@@ -111,3 +111,9 @@ target_link_libraries(Adjoint StratiLib)
 
 add_executable(Direct Direct.cpp)
 target_link_libraries(Direct StratiLib)
+
+add_executable(Optimise Optimise.cpp)
+target_link_libraries(Optimise StratiLib)
+
+add_executable(PreDAL PreDAL.cpp)
+target_link_libraries(PreDAL StratiLib)

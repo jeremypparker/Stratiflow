@@ -27,11 +27,13 @@ public:
     Modal b;
     Modal p;
 
-    stratifloat FullEvolve(stratifloat T, StateVector& result, bool snapshot = false, bool screenshot = true, bool calcmixing = false) const;
+    void FullEvolve(stratifloat T, StateVector& result, bool snapshot = false, bool screenshot = true) const;
 
     void FixedEvolve(stratifloat deltaT, int steps, std::vector<StateVector>& result) const;
 
     void LinearEvolve(stratifloat T, const StateVector& about, StateVector& result) const;
+
+    void LinearEvolve(stratifloat deltaT, int steps, const std::vector<StateVector>& intermediate, StateVector& result) const;
 
     void AdjointEvolve(stratifloat deltaT, int steps, const std::vector<StateVector>& intermediate, StateVector& result) const;
 

@@ -182,44 +182,31 @@ void IMEXRK::BuildRHSLinear()
     r3 += flowParams.Ri*modalTemp1; // buoyancy force
 
     // background stratification term
-    modalTemp2 = u3;
-    rB -= modalTemp2;
+    rB -= u3;
 
     //////// NONLINEAR TERMS ////////
     // calculate products at nodes in physical space
 
-    // take into account background shear for nonlinear terms
-    nnTemp = U1_tot;
+    InterpolateProduct(U1, U1_tot, modalTemp1);
+    InterpolateProduct(U1, U1_tot, U3_tot, U3, modalTemp2);
+    r1 -= 2.0*ddx(modalTemp1) + ddz(modalTemp2);
 
-    InterpolateProduct(U1, nnTemp, modalTemp1);
-    r1 -= 2.0*ddx(modalTemp1);
-
-    InterpolateProduct(U1, nnTemp, U3_tot, U3, modalTemp1);
-    r1 -= ddz(modalTemp1);
-
-    InterpolateProduct(U1, nnTemp, U3_tot, U3, modalTemp2);
     InterpolateProduct(U3, U3_tot, modalTemp1);
-    r3 -= ddx(modalTemp2)+2.0*ddz(modalTemp1);
+    r3 -= ddx(modalTemp2) + 2.0*ddz(modalTemp1);
 
     if(gridParams.ThreeDimensional)
     {
-        InterpolateProduct(U2, U2_tot, modalTemp1);
-        r2 -= 2.0*ddy(modalTemp1);
-
+        InterpolateProduct(U2, U2_tot, modalTemp2);
         InterpolateProduct(U2, U2_tot, U3_tot, U3, modalTemp1);
-        r2 -= ddz(modalTemp1);
+        r2 -= ddz(modalTemp1) + 2.0*ddy(modalTemp2);
+        r3 -= ddy(modalTemp1);
 
-        InterpolateProduct(U2, U2_tot, U3_tot, U3,  modalTemp2);
-        r3 -= ddy(modalTemp2);
-
-        InterpolateProduct(U1, nnTemp, U2_tot, U2, modalTemp1);
+        InterpolateProduct(U1, U1_tot, U2_tot, U2, modalTemp1);
         r1 -= ddy(modalTemp1);
         r2 -= ddx(modalTemp1);
     }
 
     // buoyancy nonlinear terms
-    InterpolateProduct(B, B_tot, U3_tot, U3, modalTemp1);
-    rB -= ddz(modalTemp1);
 
     if(gridParams.ThreeDimensional)
     {
@@ -227,8 +214,9 @@ void IMEXRK::BuildRHSLinear()
         rB -= ddy(modalTemp1);
     }
 
-    InterpolateProduct(B, B_tot, nnTemp, U1, modalTemp1);
-    rB -= ddx(modalTemp1);
+    InterpolateProduct(B, B_tot, U3_tot, U3, modalTemp2);
+    InterpolateProduct(B, B_tot, U1_tot, U1, modalTemp1);
+    rB -= ddx(modalTemp1) + ddz(modalTemp2);
 }
 
 void IMEXRK::BuildRHSAdjoint()
@@ -238,25 +226,24 @@ void IMEXRK::BuildRHSAdjoint()
     // adjoint buoyancy
     bForcing += flowParams.Ri*U3;
 
+    // background stratification term
+    r3 -= b;
+
     //////// NONLINEAR TERMS ////////
     // advection of adjoint quantities by the direct flow
     InterpolateProduct(U1, U1_tot, modalTemp1);
-    r1 += ddx(modalTemp1);
-
-    InterpolateProduct(U1, U3_tot, modalTemp1);
-    r1 += ddz(modalTemp1);
+    InterpolateProduct(U1, U3_tot, modalTemp2);
+    r1 += ddx(modalTemp1) + ddz(modalTemp2);
 
     InterpolateProduct(U1_tot, U3, modalTemp2);
     InterpolateProduct(U3, U3_tot, modalTemp1);
-    r3 += ddx(modalTemp2)+ddz(modalTemp1);
+    r3 += ddx(modalTemp2) + ddz(modalTemp1);
 
     if(gridParams.ThreeDimensional)
     {
-        InterpolateProduct(U2, U2_tot, modalTemp1);
-        r2 += ddy(modalTemp1);
-
+        InterpolateProduct(U2, U2_tot, modalTemp2);
         InterpolateProduct(U2, U3_tot, modalTemp1);
-        r2 += ddz(modalTemp1);
+        r2 += ddy(modalTemp2) + ddz(modalTemp1);
 
         InterpolateProduct(U2_tot, U3, modalTemp2);
         r3 += ddy(modalTemp2);

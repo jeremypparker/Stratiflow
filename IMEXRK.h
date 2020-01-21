@@ -99,11 +99,6 @@ public:
             u3_tot = (1-interpFrac)*u3Below + interpFrac*u3Above;
             b_tot = (1-interpFrac)*bBelow + interpFrac*bAbove;
 
-            // todo: add on background in modal?
-            u1_tot.ToNodal(U1_tot);
-
-            U1_tot.ToModal(u1_tot);
-
             UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
 
             ExplicitRK(k);
@@ -121,6 +116,44 @@ public:
             interpFrac += h[k]/deltaT;
         }
     }
+
+    void TimeStepLinear(stratifloat time,
+                         const Modal& u1Below,
+                         const Modal& u2Below,
+                         const Modal& u3Below,
+                         const Modal& bBelow,
+                         const Modal& u1Above,
+                         const Modal& u2Above,
+                         const Modal& u3Above,
+                         const Modal& bAbove)
+    {
+        stratifloat interpFrac = 0;
+        for (int k=0; k<s; k++)
+        {
+            // interpolate the direct state at the RK substep
+            u1_tot = (1-interpFrac)*u1Above + interpFrac*u1Below;
+            u2_tot = (1-interpFrac)*u2Above + interpFrac*u2Below;
+            u3_tot = (1-interpFrac)*u3Above + interpFrac*u3Below;
+            b_tot = (1-interpFrac)*bAbove + interpFrac*bBelow;
+
+            UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
+
+            ExplicitRK(k);
+            BuildRHSLinear();
+            FinishRHS(k);
+
+            CrankNicolson(k);
+
+            RemoveDivergence(1/h[k]);
+            FilterAll();
+
+            PopulateNodalVariables();
+
+            time += h[k];
+            interpFrac += h[k]/deltaT;
+        }
+    }
+
 
     void FilterAll()
     {
@@ -201,6 +234,7 @@ public:
 
         PopulateNodalVariables();
 
+        p.Zero();
 
         if (makeDirs)
         {
@@ -415,22 +449,6 @@ public:
         B.ToModal(b);
     }
 
-    stratifloat JoverK()
-    {
-        static Modal u1_total;
-        static Modal b_total;
-
-        nnTemp = U1;
-        nnTemp.ToModal(u1_total);
-
-        nnTemp = B;
-        nnTemp.ToModal(b_total);
-
-        UpdateAdjointVariables(u1_total, u2, u3, b_total);
-
-        return J/K;
-    }
-
     void UpdateAdjointVariables(const Modal& u1_total,
                                 const Modal& u2_total,
                                 const Modal& u3_total,
@@ -441,36 +459,11 @@ public:
         u2_total.ToNodal(U2_tot);
         u3_total.ToNodal(U3_tot);
         b_total.ToNodal(B_tot);
-/*
-        // work out variation of buoyancy from average
-        static Neumann1D bAve;
-        HorizontalAverage(b_total, bAve);
-
-        static Dirichlet1D wAve;
-        HorizontalAverage(u3_total, wAve);
-
-        nnTemp = B_tot + -1*bAve;
-
-        // (<b>-b)*w
-        ndTemp = -1*nnTemp*U3_tot;
-        ndTemp.ToModal(modalTemp2);
-
-        // construct integrand for J
-        static Dirichlet1D Jintegrand;
-        HorizontalAverage(modalTemp2, Jintegrand);
-        J = IntegrateVertically(Jintegrand, flowParams.L3);
-
-        K = 2;
-
-        // forcing term for u3
-        u3Forcing = (1/K)*(B_tot+(-1)*bAve);
-
-        // forcing term for b
-        bForcing = (1/K)*(U3_tot+(-1)*wAve);
 
         u1Forcing.Zero();
-        u2Forcing.Zero();*/
-	assert(0);
+        u2Forcing.Zero();
+        u3Forcing.Zero();
+        bForcing.Zero();
     }
 
     void UpdateForTimestep()

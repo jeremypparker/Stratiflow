@@ -1,6 +1,6 @@
 #include "StateVector.h"
 
-stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, bool screenshot, bool calcmixing) const
+void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, bool screenshot) const
 {
     CopyToSolver();
 
@@ -19,7 +19,7 @@ stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool sna
     solver.PrepareRun(std::string("images-")+std::to_string(runnum)+"/", screenshot);
     MakeCleanDir("snapshots");
 
-    const int stepinterval = 100;
+    const int stepinterval = 20;
 
     stratifloat mixing = 0;
 
@@ -53,11 +53,6 @@ stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool sna
 
         solver.TimeStep();
 
-        if (calcmixing)
-        {
-            mixing += solver.JoverK() * solver.deltaT;
-        }
-
         t += solver.deltaT;
         step++;
 
@@ -76,8 +71,6 @@ stratifloat StateVector::FullEvolve(stratifloat T, StateVector& result, bool sna
     }
 
     CopyFromSolver(result);
-
-    return mixing;
 }
 
 void StateVector::FixedEvolve(stratifloat deltaT, int steps, std::vector<StateVector>& result) const
@@ -147,6 +140,36 @@ void StateVector::LinearEvolve(stratifloat T, const StateVector& about, StateVec
         solver.TimeStepLinear();
         t += solver.deltaT;
         step++;
+    }
+
+    CopyFromSolver(result);
+}
+
+void StateVector::LinearEvolve(stratifloat deltaT, int steps, const std::vector<StateVector>& intermediate, StateVector& result) const
+{
+    CopyToSolver();
+
+    solver.FilterAll();
+    solver.PopulateNodalVariables();
+    solver.RemoveDivergence(0.0f);
+
+    static int runnum = 0;
+    runnum++;
+    solver.PrepareRunLinear("blah", false);
+
+    stratifloat t = deltaT*steps;
+
+    for (int step=0; step<steps; step++)
+    {
+        solver.TimeStepLinear(t,
+                               intermediate[steps-1-step].u1,
+                               intermediate[steps-1-step].u2,
+                               intermediate[steps-1-step].u3,
+                               intermediate[steps-1-step].b,
+                               intermediate[steps-step].u1,
+                               intermediate[steps-step].u2,
+                               intermediate[steps-step].u3,
+                               intermediate[steps-step].b);
     }
 
     CopyFromSolver(result);
