@@ -19,7 +19,7 @@ void StateVector::FullEvolve(stratifloat T, StateVector& result, bool snapshot, 
     solver.PrepareRun(std::string("images-")+std::to_string(runnum)+"/", screenshot);
     MakeCleanDir("snapshots");
 
-    const int stepinterval = 20;
+    const int stepinterval = 100;
 
     stratifloat mixing = 0;
 

@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
     intermediateStates.push_back(directState);
 
 
-    // Now do adjoint integration
+    // Now do linear integration
     StateVector linearState;
     std::string linearFile = "direct-"+std::to_string(stepbelow)+".fields";
 
@@ -58,19 +58,18 @@ int main(int argc, char* argv[])
         {
             linearState.ExciteLowWavenumbers(0.1);
         }
+
+        stratifloat energy = 0.01;
+
+        linearState.Rescale(energy);
     }
-
-
-    stratifloat energy = 0.01;
-
-    linearState.Rescale(energy);
 
     stratifloat initialEnergy = linearState.Energy();
     std::cout << initialEnergy << std::endl;
 
     linearState.PlotAll(std::to_string(timebelow));
     linearState.LinearEvolve(deltaT, steps, intermediateStates, linearState);
-    linearState.SaveToFile("direct-"+std::to_string(stepbelow)+".fields");
+    linearState.SaveToFile("direct-"+std::to_string(stepabove)+".fields");
     linearState.SaveToFile("final.fields");
     linearState.PlotAll(std::to_string(timeabove));
 }

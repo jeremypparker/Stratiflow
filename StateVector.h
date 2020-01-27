@@ -372,17 +372,25 @@ public:
         MakeCleanDir(directory);
 
         HeatPlot(u1, flowParams.L1, flowParams.L3, 0, directory+"/u1.png");
-        if (gridParams.ThreeDimensional)
-        {
-            HeatPlot(u2, flowParams.L1, flowParams.L3, 0, directory+"/u2.png");
-        }
         HeatPlot(u3, flowParams.L1, flowParams.L3, 0, directory+"/u3.png");
         HeatPlot(b, flowParams.L1, flowParams.L3, 0, directory+"/b.png");
 
         Modal FractionalTemp;
         FractionalTemp = -1.0*ddz(u1)+ddx(u3);
         HeatPlot(FractionalTemp, flowParams.L1, flowParams.L3, 0, directory+"/vorticity.png");
-        HeatPlot(FractionalTemp, flowParams.L1, flowParams.L3, 0, directory+"/vorticity.eps");
+
+
+        if (gridParams.ThreeDimensional)
+        {
+            HeatPlot(u2, flowParams.L1, flowParams.L3, 0, directory+"/u2.png");
+
+            FractionalTemp = -1.0*ddy(u3)+ddz(u2);
+	        HeatPlotSide(FractionalTemp, flowParams.L2, flowParams.L3, 0, directory+"/streamwisevort.png");
+
+            HeatPlotSide(b, flowParams.L2, flowParams.L3, 0, directory+"/buoyancyfront.png");
+        }
+
+        //HeatPlot(FractionalTemp, flowParams.L1, flowParams.L3, 0, directory+"/vorticity.eps");
     }
 
 
