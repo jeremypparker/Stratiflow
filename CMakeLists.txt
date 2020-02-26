@@ -77,8 +77,6 @@ if(TARGET Eigen3::Eigen)
     target_link_libraries(StratiLib Eigen3::Eigen)
 endif()
 
-add_subdirectory(tests)
-
 add_executable(NewtonKrylov NewtonKrylov.cpp)
 target_link_libraries(NewtonKrylov StratiLib)
 

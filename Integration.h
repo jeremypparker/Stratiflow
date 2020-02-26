@@ -56,17 +56,17 @@ stratifloat IntegrateAllSpace(const ModalField<N1,N2,N3>& u, stratifloat L1, str
     return IntegrateVertically(horzAve,L3)*L1*L2;
 }
 
-template<int N1, int N2, int N3>
-stratifloat IntegrateAllSpace(const NodalField<N1,N2,N3>& U, stratifloat L1, stratifloat L2, stratifloat L3)
-{
-    static ModalField<N1,N2,N3> u(U.BC());
-    u.Reset(U.BC());
-    U.ToModal(u);
-    static Nodal1D<N1,N2,N3> horzAve(U.BC());
-    horzAve.Reset(U.BC());
-    HorizontalAverage(u,horzAve);
-    return IntegrateVertically(horzAve,L3)*L1*L2;
-}
+// template<int N1, int N2, int N3>
+// stratifloat IntegrateAllSpace(const NodalField<N1,N2,N3>& U, stratifloat L1, stratifloat L2, stratifloat L3)
+// {
+//     static ModalField<N1,N2,N3> u(U.BC());
+//     u.Reset(U.BC());
+//     U.ToModal(u);
+//     static Nodal1D<N1,N2,N3> horzAve(U.BC());
+//     horzAve.Reset(U.BC());
+//     HorizontalAverage(u,horzAve);
+//     return IntegrateVertically(horzAve,L3)*L1*L2;
+// }
 
 template<int N1, int N2, int N3>
 void RemoveAverage(ModalField<N1,N2,N3>& field, stratifloat L3)

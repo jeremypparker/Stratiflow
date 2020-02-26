@@ -26,7 +26,7 @@ public:
         VectorType linEndPrevious;
         VectorType rhsPrevious;
 
-        stratifloat Delta = 100;
+        stratifloat Delta = 1;
         int step = 0;
         stratifloat targetResidual = 1e-7;
         int worsefor = 0;
@@ -45,8 +45,8 @@ public:
 
             std::cout << "NEWTON STEP " << step << ", RESIDUAL: " << residual << std::endl;
 
-            //if (residual < bestResidual || step == 1)
-            //{
+            if (true)//residual < bestResidual || step == 1)
+            {
                 if (residual < targetResidual)
                 {
                     return;
@@ -60,13 +60,13 @@ public:
                 rhsPrevious = rhs;
 
                 worsefor = 0;
-            //}
-            //else
-            //{
-            //    worsefor++;
-            //}
+            }
+            else
+            {
+                worsefor++;
+            }
 
-            if (worsefor > 0)
+            if (false)//worsefor > 0)
             {
                 // not good enough, reduce trust region size and retry
                 Delta /= 2;
@@ -81,8 +81,8 @@ public:
 
                 // if (worsefor == 1)
                 // {
-                //     vectorsToReuse = 0;
-                //     H.setZero();
+                //    vectorsToReuse = 0;
+                //    H.setZero();
                 // }
             }
             else

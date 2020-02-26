@@ -279,10 +279,10 @@ public:
         U3Loaded.Load(filestream);
         BLoaded.Load(filestream);
 
-        ModalField<K1,K2,K3> u1Loaded(BoundaryCondition::Neumann);
-        ModalField<K1,K2,K3> u2Loaded(BoundaryCondition::Neumann);
-        ModalField<K1,K2,K3> u3Loaded(BoundaryCondition::Dirichlet);
-        ModalField<K1,K2,K3> bLoaded(BoundaryCondition::Neumann);
+        ModalField<K1,K2,K3> u1Loaded(BoundaryCondition::Neumann, gridParams.dimensionality==Dimensionality::ThreeDimensional);
+        ModalField<K1,K2,K3> u2Loaded(BoundaryCondition::Neumann, gridParams.dimensionality==Dimensionality::ThreeDimensional);
+        ModalField<K1,K2,K3> u3Loaded(BoundaryCondition::Dirichlet, gridParams.dimensionality==Dimensionality::ThreeDimensional);
+        ModalField<K1,K2,K3> bLoaded(BoundaryCondition::Neumann, gridParams.dimensionality==Dimensionality::ThreeDimensional);
 
         U1Loaded.ToModal(u1Loaded);
         U2Loaded.ToModal(u2Loaded);
@@ -478,7 +478,15 @@ public:
         DirichletModal FractionalTemp;
         FractionalTemp = -1.0*ddz(u1)+ddx(u3);
         HeatPlot(FractionalTemp, flowParams.L1, flowParams.L3, 0, directory+"/vorticity.png");
-        HeatPlot(FractionalTemp, flowParams.L1, flowParams.L3, 0, directory+"/vorticity.eps");
+        //HeatPlot(FractionalTemp, flowParams.L1, flowParams.L3, 0, directory+"/vorticity.eps");
+
+        if (gridParams.dimensionality == Dimensionality::TwoAndAHalf)
+        {
+            for (int n=0; n<gridParams.N2; n++)
+            {
+                HeatPlot(FractionalTemp, flowParams.L1, flowParams.L3, n, directory+"/vorticity"+std::to_string(n)+".png");
+            }
+        }
     }
 
 

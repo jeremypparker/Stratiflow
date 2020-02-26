@@ -757,7 +757,7 @@ public:
         if (filter)
         {
             other *= 1/static_cast<stratifloat>(N1*N2);
-            other.Filter(false);
+            other.Filter();
         }
         else
         {
@@ -926,6 +926,8 @@ template<int N1, int N2, int N3>
 class ModalField : public Field<complex, N1/2+1, N2, N3>
 {
     static constexpr int actualN1 = N1/2 + 1;
+
+    bool filterSpanwise;
 public:
     template<typename A>
     const ModalField<N1, N2, N3>& operator=(const StackContainer<A,complex, N1/2+1, N2, N3>& other)
@@ -934,8 +936,8 @@ public:
         return *this;
     }
 
-    ModalField(BoundaryCondition bc)
-    : Field<complex, N1/2+1, N2, N3>(bc)
+    ModalField(BoundaryCondition bc, bool filterSpanwise)
+    : Field<complex, N1/2+1, N2, N3>(bc), filterSpanwise(filterSpanwise)
     {
         inputData.resize(actualN1*N2*N3);
 
@@ -991,7 +993,7 @@ public:
         f3_destroy_plan(plan);
     }
 
-    void Filter(bool filterSpanwise)
+    void Filter()
     {
         if (N1>2)
         {
@@ -1044,13 +1046,24 @@ public:
         {
             for (int j3=j3min; j3<j3max; j3++)
             {
-                for (int j2=0; j2<0.5*cutoff*N2; j2++)
+
+                if (!filterSpanwise)
                 {
-                    this->operator()(j1,j2,j3) = rng(generator) + i*rng(generator);
+                    for (int j2=0; j2<N2; j2++)
+                    {
+                        this->operator()(j1,j2,j3) = rng(generator) + i*rng(generator);
+                    }
                 }
-                for (int j2=N2-1; j2>(1-0.5*cutoff)*N2; j2--)
+                else
                 {
-                    this->operator()(j1,j2,j3) = rng(generator) + i*rng(generator);
+                    for (int j2=0; j2<0.5*cutoff*N2; j2++)
+                    {
+                        this->operator()(j1,j2,j3) = rng(generator) + i*rng(generator);
+                    }
+                    for (int j2=N2-1; j2>(1-0.5*cutoff)*N2; j2--)
+                    {
+                        this->operator()(j1,j2,j3) = rng(generator) + i*rng(generator);
+                    }
                 }
             }
         }
@@ -1069,9 +1082,15 @@ public:
             z = VerticalPoints(L,N3);
         }
 
+        int M2=N2/2;
+        if (filterSpanwise)
+        {
+            M2=N2/6;
+        }
+
         for (int j1=0; j1<N1/6; j1++)
         {
-            for (int j2=-N2/6; j2<=N2/6; j2++)
+            for (int j2=-M2; j2<=M2; j2++)
             {
                 complex hermiteCoeff[4];
 
@@ -1113,7 +1132,7 @@ public:
         int maxN2 = N2/3;
         int minN2 = N2-(N2/3)+1;
 
-        if(N2>1)
+        if(N2>1 && filterSpanwise)
         {
             #pragma omp parallel for collapse(2)
             for (int j2=0; j2<maxN2; j2++)
@@ -1135,10 +1154,13 @@ public:
         }
         else
         {
-            #pragma omp parallel for
-            for (int j1=0; j1<maxN1; j1++)
+            #pragma omp parallel for collapse(2)
+            for (int j2=0; j2<N2; j2++)
             {
-                f(j1, 0);
+                for (int j1=0; j1<maxN1; j1++)
+                {
+                    f(j1, j2);
+                }
             }
         }
     }

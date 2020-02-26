@@ -130,14 +130,14 @@ public:
     void FilterAll()
     {
         // To prevent anything dodgy accumulating in the unused coefficients
-        u1.Filter(gridParams.dimensionality==Dimensionality::ThreeDimensional);
+        u1.Filter();
         if(gridParams.ThirdDimension())
         {
-            u2.Filter(gridParams.dimensionality==Dimensionality::ThreeDimensional);
+            u2.Filter();
         }
-        u3.Filter(gridParams.dimensionality==Dimensionality::ThreeDimensional);
-        b.Filter(gridParams.dimensionality==Dimensionality::ThreeDimensional);
-        p.Filter(gridParams.dimensionality==Dimensionality::ThreeDimensional);
+        u3.Filter();
+        b.Filter();
+        p.Filter();
     }
 
     void PopulateNodalVariables()

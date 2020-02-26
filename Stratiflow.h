@@ -15,7 +15,7 @@ public:
 class NeumannModal : public ModalField<gridParams.N1,gridParams.N2,gridParams.N3>
 {
 public:
-    NeumannModal() : ModalField(BoundaryCondition::Neumann) {}
+    NeumannModal() : ModalField(BoundaryCondition::Neumann, gridParams.dimensionality==Dimensionality::ThreeDimensional) {}
     using ModalField::operator=;
 };
 
@@ -30,7 +30,7 @@ public:
 class DirichletModal : public ModalField<gridParams.N1,gridParams.N2,gridParams.N3>
 {
 public:
-    DirichletModal() : ModalField(BoundaryCondition::Dirichlet) {}
+    DirichletModal() : ModalField(BoundaryCondition::Dirichlet, gridParams.dimensionality==Dimensionality::ThreeDimensional) {}
     using ModalField::operator=;
 };
 

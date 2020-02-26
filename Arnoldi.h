@@ -22,7 +22,7 @@ public:
         phaseShift.u3 = ddx(at.u3);
         phaseShift.b = ddx(at.b);
 
-        q[0].Randomise(0.1, true);
+        q[0].ExciteLowWavenumbers(0.1);
 
         q[0].EnforceBCs();
 
@@ -198,7 +198,7 @@ protected:
     VectorType linearAboutStart;
 
 public:
-    int K = 1024; // max iterations
+    int K = 768; // max iterations
     std::vector<VectorType> q;
     MatrixX H; // upper Hessenberg matrix
 };
