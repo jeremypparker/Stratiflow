@@ -224,10 +224,10 @@ void IMEXRK::BuildRHSAdjoint()
     // build up right hand sides for the implicit solve in R
 
     // adjoint buoyancy
-    bForcing += flowParams.Ri*U3;
+    bForcing += U3;
 
     // background stratification term
-    r3 -= b;
+    r3 -= flowParams.Ri*b;
 
     //////// NONLINEAR TERMS ////////
     // advection of adjoint quantities by the direct flow
@@ -312,18 +312,18 @@ void IMEXRK::BuildRHSAdjoint()
 
     modalTemp1 = ddx(b_tot);
     modalTemp1.ToNodal(nnTemp);
-    u1Forcing -= nnTemp*B;
+    u1Forcing -= flowParams.Ri*nnTemp*B;
 
     if(gridParams.ThreeDimensional)
     {
         modalTemp1 = ddy(b_tot);
         modalTemp1.ToNodal(nnTemp);
-        u2Forcing -= nnTemp*B;
+        u2Forcing -= flowParams.Ri*nnTemp*B;
     }
 
     modalTemp2 = ddz(b_tot);
     modalTemp2.ToNodal(ndTemp);
-    u3Forcing -= ndTemp*B;
+    u3Forcing -= flowParams.Ri*ndTemp*B;
 
     // Now include all the forcing terms
     u1Forcing.ToModal(modalTemp1);

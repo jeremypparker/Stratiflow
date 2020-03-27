@@ -9,6 +9,7 @@ void MakeCleanDir(const std::string& dir);
 void MoveDirectory(const std::string& from, const std::string& to);
 
 void SaveValueToFile(stratifloat value, const std::string& filename);
+void SaveValuesToFile(const std::vector<stratifloat>& values, const std::string& filename);
 void LoadValueFromFile(stratifloat& value, const std::string& filename);
 
 template<typename T>

@@ -80,45 +80,7 @@ public:
     void TimeStep();
     void TimeStepLinear();
 
-    void TimeStepAdjoint(stratifloat time,
-                         const Modal& u1Below,
-                         const Modal& u2Below,
-                         const Modal& u3Below,
-                         const Modal& bBelow,
-                         const Modal& u1Above,
-                         const Modal& u2Above,
-                         const Modal& u3Above,
-                         const Modal& bAbove)
-    {
-        stratifloat interpFrac = 0;
-        for (int k=0; k<s; k++)
-        {
-            // interpolate the direct state at the RK substep
-            u1_tot = (1-interpFrac)*u1Below + interpFrac*u1Above;
-            u2_tot = (1-interpFrac)*u2Below + interpFrac*u2Above;
-            u3_tot = (1-interpFrac)*u3Below + interpFrac*u3Above;
-            b_tot = (1-interpFrac)*bBelow + interpFrac*bAbove;
-
-            UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
-
-            ExplicitRK(k);
-            BuildRHSAdjoint();
-            FinishRHS(k);
-
-            CrankNicolson(k);
-
-            RemoveDivergence(1/h[k]);
-            FilterAll();
-
-            PopulateNodalVariables();
-
-            time -= h[k];
-            interpFrac += h[k]/deltaT;
-        }
-    }
-
-    void TimeStepLinear(stratifloat time,
-                         const Modal& u1Below,
+    void TimeStepAdjoint(const Modal& u1Below,
                          const Modal& u2Below,
                          const Modal& u3Below,
                          const Modal& bBelow,
@@ -134,7 +96,42 @@ public:
             u1_tot = (1-interpFrac)*u1Above + interpFrac*u1Below;
             u2_tot = (1-interpFrac)*u2Above + interpFrac*u2Below;
             u3_tot = (1-interpFrac)*u3Above + interpFrac*u3Below;
-            b_tot = (1-interpFrac)*bAbove + interpFrac*bBelow;
+            b_tot =  (1-interpFrac)*bAbove  + interpFrac *bBelow;
+
+            UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
+
+            ExplicitRK(k);
+            BuildRHSAdjoint();
+            FinishRHS(k);
+
+            CrankNicolson(k);
+
+            RemoveDivergence(1/h[k]);
+            FilterAll();
+
+            PopulateNodalVariables();
+
+            interpFrac += h[k]/deltaT;
+        }
+    }
+
+    void TimeStepLinear(const Modal& u1Below,
+                        const Modal& u2Below,
+                        const Modal& u3Below,
+                        const Modal& bBelow,
+                        const Modal& u1Above,
+                        const Modal& u2Above,
+                        const Modal& u3Above,
+                        const Modal& bAbove)
+    {
+        stratifloat interpFrac = 0;
+        for (int k=0; k<s; k++)
+        {
+            // interpolate the direct state at the RK substep
+            u1_tot = (1-interpFrac)*u1Below + interpFrac*u1Above;
+            u2_tot = (1-interpFrac)*u2Below + interpFrac*u2Above;
+            u3_tot = (1-interpFrac)*u3Below + interpFrac*u3Above;
+            b_tot =  (1-interpFrac) *bBelow + interpFrac *bAbove;
 
             UpdateAdjointVariables(u1_tot, u2_tot, u3_tot, b_tot);
 
@@ -149,7 +146,6 @@ public:
 
             PopulateNodalVariables();
 
-            time += h[k];
             interpFrac += h[k]/deltaT;
         }
     }

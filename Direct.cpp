@@ -61,6 +61,8 @@ int main(int argc, char* argv[])
 
         stratifloat energy = 0.01;
 
+        std::cout << "Before rescale, energy = " << linearState.Energy() << std::endl;
+
         linearState.Rescale(energy);
     }
 
@@ -72,4 +74,6 @@ int main(int argc, char* argv[])
     linearState.SaveToFile("direct-"+std::to_string(stepabove)+".fields");
     linearState.SaveToFile("final.fields");
     linearState.PlotAll(std::to_string(timeabove));
+
+    SaveValuesToFile({timeabove, linearState.Energy(), linearState.KE(), linearState.PE()}, "energies");
 }

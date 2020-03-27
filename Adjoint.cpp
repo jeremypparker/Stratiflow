@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
         adjointState.u1 = -directFinal.u1;
         adjointState.u2 = -directFinal.u2;
         adjointState.u3 = -directFinal.u3;
-        adjointState.b = -flowParams.Ri*directFinal.b;
+        adjointState.b = -directFinal.b;
     }
     adjointState.PlotAll(std::to_string(timeabove));
     adjointState.AdjointEvolve(deltaT, steps, intermediateStates, adjointState);

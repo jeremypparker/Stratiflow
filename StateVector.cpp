@@ -157,19 +157,19 @@ void StateVector::LinearEvolve(stratifloat deltaT, int steps, const std::vector<
     runnum++;
     solver.PrepareRunLinear("blah", false);
 
-    stratifloat t = deltaT*steps;
+    solver.deltaT = deltaT;
+    solver.UpdateForTimestep();
 
     for (int step=0; step<steps; step++)
     {
-        solver.TimeStepLinear(t,
-                               intermediate[steps-1-step].u1,
-                               intermediate[steps-1-step].u2,
-                               intermediate[steps-1-step].u3,
-                               intermediate[steps-1-step].b,
-                               intermediate[steps-step].u1,
-                               intermediate[steps-step].u2,
-                               intermediate[steps-step].u3,
-                               intermediate[steps-step].b);
+        solver.TimeStepLinear(intermediate[step].u1,
+                              intermediate[step].u2,
+                              intermediate[step].u3,
+                              intermediate[step].b,
+                              intermediate[step+1].u1,
+                              intermediate[step+1].u2,
+                              intermediate[step+1].u3,
+                              intermediate[step+1].b);
     }
 
     CopyFromSolver(result);
@@ -187,12 +187,12 @@ void StateVector::AdjointEvolve(stratifloat deltaT, int steps, const std::vector
     runnum++;
     solver.PrepareRunAdjoint(std::string("images-adjoint-")+std::to_string(runnum)+"/");
 
-    stratifloat t = deltaT*steps;
+    solver.deltaT = deltaT;
+    solver.UpdateForTimestep();
 
     for (int step=0; step<steps; step++)
     {
-        solver.TimeStepAdjoint(t,
-                               intermediate[steps-1-step].u1,
+        solver.TimeStepAdjoint(intermediate[steps-1-step].u1,
                                intermediate[steps-1-step].u2,
                                intermediate[steps-1-step].u3,
                                intermediate[steps-1-step].b,

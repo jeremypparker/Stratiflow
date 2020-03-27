@@ -13,9 +13,11 @@ int main(int argc, char* argv[])
     result.u1 = -adjointState.u1;
     result.u2 = -adjointState.u2;
     result.u3 = -adjointState.u3;
-    result.b = -(1/flowParams.Ri)*adjointState.b;
+    result.b = -adjointState.b;
 
-    result.Rescale(directState.Energy());
+    result.Rescale(0.01);
+
+    std::cout << "Energy of final thing " << result.Energy() << std::endl;
 
     stratifloat residual = (directState-result).Norm2()/directState.Norm2();
 

@@ -85,7 +85,20 @@ void SaveValueToFile(stratifloat value, const std::string& filename)
 {
     std::ofstream paramFile(filename);
     paramFile << std::setprecision(30);
-    paramFile << value;
+    paramFile << value << std::endl;
+}
+
+void SaveValuesToFile(const std::vector<stratifloat>& values, const std::string& filename)
+{
+    std::ofstream file(filename, std::ios_base::app);
+    file << std::setprecision(30);
+
+    for (auto value : values)
+    {
+        file << value << " ";
+    }
+
+    file << std::endl;
 }
 
 void LoadValueFromFile(stratifloat& value, const std::string& filename)

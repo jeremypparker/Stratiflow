@@ -139,6 +139,24 @@ public:
         return 0.5*Norm2();
     }
 
+    stratifloat KE() const
+    {
+        stratifloat prod = InnerProd(u1, u1)
+                         + InnerProd(u3, u3);
+
+        if (gridParams.ThreeDimensional)
+        {
+            prod += InnerProd(u2, u2);
+        }
+
+        return 0.5*prod;
+    }
+
+    stratifloat PE() const
+    {
+        return 0.5*flowParams.Ri*InnerProd(b,b);
+    }
+
     stratifloat Norm() const
     {
         return sqrt(Norm2());
