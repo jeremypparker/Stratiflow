@@ -168,12 +168,12 @@ void StateVector::AdjointEvolve(stratifloat deltaT, int steps, const std::vector
     runnum++;
     solver.PrepareRunAdjoint(std::string("images-adjoint-")+std::to_string(runnum)+"/");
 
-    stratifloat t = deltaT*steps;
+    solver.deltaT = deltaT;
+    solver.UpdateForTimestep();
 
     for (int step=0; step<steps; step++)
     {
-        solver.TimeStepAdjoint(t,
-                               intermediate[steps-1-step].u1,
+        solver.TimeStepAdjoint(intermediate[steps-1-step].u1,
                                intermediate[steps-1-step].u2,
                                intermediate[steps-1-step].u3,
                                intermediate[steps-1-step].b,

@@ -83,8 +83,7 @@ public:
     void TimeStep();
     void TimeStepLinear();
 
-    void TimeStepAdjoint(stratifloat time,
-                         const NeumannModal& u1Below,
+    void TimeStepAdjoint(const NeumannModal& u1Below,
                          const NeumannModal& u2Below,
                          const DirichletModal& u3Below,
                          const NeumannModal& bBelow,
@@ -122,7 +121,6 @@ public:
 
             PopulateNodalVariables();
 
-            time -= h[k];
             interpFrac += h[k]/deltaT;
         }
     }
