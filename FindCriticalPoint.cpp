@@ -154,7 +154,7 @@ private:
 
 int main(int argc, char *argv[])
 {
-    flowParams.Re = 4000;
+    flowParams.Re = 1000;
     flowParams.Pr = std::stof(argv[1]);
     DumpParameters();
     StateVector::ResetForParams();

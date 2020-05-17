@@ -12,7 +12,7 @@ public:
         H.setZero();
     }
 
-    stratifloat Run(const VectorType& at, VectorType& result, bool getSecond=false)
+    stratifloat Run(const VectorType& at, VectorType& result, bool removePhaseShift=true, bool getSecond=false)
     {
         EvalFunction(at);
 
@@ -116,18 +116,21 @@ public:
         VectorXc eigenvector2 = ces.eigenvectors().col(maxIndex2);
         VectorXc eigenvector3 = ces.eigenvectors().col(maxIndex3);
 
-
+        
         // transform phase shift into arnoldi space
         VectorX phaseShiftTransformed = VectorX::Zero(K-1);
         for (int j=0; j<K-1; j++)
         {
             phaseShiftTransformed[j] = phaseShift.Dot(q[j]);
         }
-
-        // remove any phase shift component
-        eigenvector -= (eigenvector.dot(phaseShiftTransformed)/phaseShiftTransformed.squaredNorm())*phaseShiftTransformed;
-        eigenvector2 -= (eigenvector2.dot(phaseShiftTransformed)/phaseShiftTransformed.squaredNorm())*phaseShiftTransformed;
-        eigenvector3 -= (eigenvector3.dot(phaseShiftTransformed)/phaseShiftTransformed.squaredNorm())*phaseShiftTransformed;
+        
+        if (removePhaseShift)
+        {
+            // remove any phase shift component
+            eigenvector -= (eigenvector.dot(phaseShiftTransformed)/phaseShiftTransformed.squaredNorm())*phaseShiftTransformed;
+            eigenvector2 -= (eigenvector2.dot(phaseShiftTransformed)/phaseShiftTransformed.squaredNorm())*phaseShiftTransformed;
+            eigenvector3 -= (eigenvector3.dot(phaseShiftTransformed)/phaseShiftTransformed.squaredNorm())*phaseShiftTransformed;
+        }        
         eigenvector.normalize();
         eigenvector2.normalize();
         eigenvector3.normalize();
@@ -198,7 +201,7 @@ protected:
     VectorType linearAboutStart;
 
 public:
-    int K = 768; // max iterations
+    int K = 1024; // max iterations
     std::vector<VectorType> q;
     MatrixX H; // upper Hessenberg matrix
 };

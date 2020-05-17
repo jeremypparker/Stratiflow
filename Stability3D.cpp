@@ -3,12 +3,13 @@
 
 int main(int argc, char* argv[])
 {
-    PrintParameters();
 
     ExtendedStateVector testState;
     testState.LoadFromFile(argv[1], true);
 
     flowParams.Ri = testState.p;
+
+    PrintParameters();
 
     BasicArnoldi solver;
 

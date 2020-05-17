@@ -156,6 +156,18 @@ public:
         return InnerProd(FractionalTemp, FractionalTemp, flowParams.L3);
     }
 
+    stratifloat OtherAxis() const
+    {
+        NeumannModal pureSine;
+        
+        for (int j=0; j<gridParams.N3; j++)
+        {
+            pureSine(1,0,j) = i;
+        }
+
+        return InnerProd(u3, pureSine, flowParams.L3);
+    }
+
     stratifloat MinimumRi() const
     {
         solver.SetBackground(InitialU);
@@ -290,8 +302,8 @@ public:
         BLoaded.ToModal(bLoaded);
 
         // Vertical points to interpolate to/from
-        ArrayX oldNeumannPoints = VerticalPointsFractionalOld(10, K3);
-        ArrayX oldDirichletPoints = VerticalPointsOld(10, K3);
+        ArrayX oldNeumannPoints = VerticalPointsFractional(10, K3);
+        ArrayX oldDirichletPoints = VerticalPoints(10, K3);
 
         ArrayX newNeumannPoints = VerticalPointsFractional(flowParams.L3, gridParams.N3);
         ArrayX newDirichletPoints = VerticalPoints(flowParams.L3, gridParams.N3);
@@ -310,7 +322,7 @@ public:
 
                 // for each new gridpoint, find the old gridpoints either side
                 int k3_below;
-                int k3_above = 1;
+                int k3_above = 0;
                 stratifloat z_below;
                 stratifloat z_above;
 
@@ -364,7 +376,7 @@ public:
                 stratifloat z = newDirichletPoints(j3);
 
                 int k3_below;
-                int k3_above = 1;
+                int k3_above = 0;
                 stratifloat z_below;
                 stratifloat z_above;
 

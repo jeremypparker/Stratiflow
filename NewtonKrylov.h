@@ -26,7 +26,7 @@ public:
         VectorType linEndPrevious;
         VectorType rhsPrevious;
 
-        stratifloat Delta = 1;
+        stratifloat Delta = 100;
         int step = 0;
         stratifloat targetResidual = 1e-7;
         int worsefor = 0;

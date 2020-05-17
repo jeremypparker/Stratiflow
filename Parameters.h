@@ -40,6 +40,6 @@ void PrintParameters();
 void LoadParameters(const std::string& file);
 
 constexpr GridParams gridParams
-    = {256, 2, 768, Dimensionality::TwoAndAHalf};
+    = {48, 1, 512, Dimensionality::TwoDimensional};
 
 extern FlowParams flowParams;
