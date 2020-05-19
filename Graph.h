@@ -33,14 +33,14 @@ template<int K1, int K2, int K3>
 inline void HeatPlot(const NodalField<K1, K2, K3> &U, stratifloat L1, stratifloat L3, int j2, std::string filename)
 {
 
-    const int N1 = L1*50;
-    const int N3 = L3*50;
+    const int N1 = L1*200.0;
+    const int N3 = L3*200.0;
 
     matplotlibcpp::figure(L1, L3);
 
-    std::vector<stratifloat> imdata(N1*N3*4);
+    std::vector<stratifloat> imdata(N1*N3);
 
-    for (int j1=0; j1<N1*2; j1++)
+    for (int j1=0; j1<N1; j1++)
     {
         stratifloat x = j1*L1/N1;
 
@@ -58,7 +58,7 @@ inline void HeatPlot(const NodalField<K1, K2, K3> &U, stratifloat L1, stratifloa
         while (k1_left>=K1) k1_left -= K1;
         while (k1_right>=K1) k1_right -= K1;
 
-        for (int j3=0; j3<N3*2; j3++)
+        for (int j3=0; j3<N3; j3++)
         {
 
             stratifloat z = j3*L3/N3;
@@ -77,14 +77,14 @@ inline void HeatPlot(const NodalField<K1, K2, K3> &U, stratifloat L1, stratifloa
             while (k3_above>=K3) k3_above -= K3;
             while (k3_below>=K3) k3_below -= K3;
 
-            imdata[j3*N1*2 + j1] = weight_left*weight_below*U(k1_left,j2,k3_below)
+            imdata[j3*N1 + j1] = weight_left*weight_below*U(k1_left,j2,k3_below)
                                    + weight_left*weight_above*U(k1_left,j2,k3_above)
                                    + weight_right*weight_below*U(k1_right,j2,k3_below)
                                    + weight_right*weight_above*U(k1_right,j2,k3_above);
         }
     }
 
-    matplotlibcpp::imshow(imdata, N3*2, N1*2, 0, L1, 0, L3);
+    matplotlibcpp::imshow(imdata, N3, N1, 0, L1, 0, L3);
 
     matplotlibcpp::save(filename);
     matplotlibcpp::close();
@@ -94,14 +94,14 @@ template<int K1, int K2, int K3>
 inline void HeatPlotSide(const NodalField<K1, K2, K3> &U, stratifloat L2, stratifloat L3, int j1, std::string filename)
 {
 
-    const int N2 = L2*50;
-    const int N3 = L3*50;
+    const int N2 = L2*200.0;
+    const int N3 = L3*200.0;
 
-    matplotlibcpp::figure(L2, L3);
+    matplotlibcpp::figure(10*L2, 10*L3);
 
-    std::vector<stratifloat> imdata(N2*N3*4);
+    std::vector<stratifloat> imdata(N2*N3);
 
-    for (int j2=0; j2<N2*2; j2++)
+    for (int j2=0; j2<N2; j2++)
     {
         stratifloat x = j2*L2/N2;
 
@@ -119,7 +119,7 @@ inline void HeatPlotSide(const NodalField<K1, K2, K3> &U, stratifloat L2, strati
         while (k2_left>=K2) k2_left -= K2;
         while (k2_right>=K2) k2_right -= K2;
 
-        for (int j3=0; j3<N3*2; j3++)
+        for (int j3=0; j3<N3; j3++)
         {
 
             stratifloat z = j3*L3/N3;
@@ -138,14 +138,14 @@ inline void HeatPlotSide(const NodalField<K1, K2, K3> &U, stratifloat L2, strati
             while (k3_above>=K3) k3_above -= K3;
             while (k3_below>=K3) k3_below -= K3;
 
-            imdata[j3*N2*2 + j2] = weight_left*weight_below*U(j1,k2_left,k3_below)
+            imdata[j3*N2 + j2] = weight_left*weight_below*U(j1,k2_left,k3_below)
                                    + weight_left*weight_above*U(j1,k2_left,k3_above)
                                    + weight_right*weight_below*U(j1,k2_right,k3_below)
                                    + weight_right*weight_above*U(j1,k2_right,k3_above);
         }
     }
 
-    matplotlibcpp::imshow(imdata, N3*2, N2*2, 0, L2, 0, L3);
+    matplotlibcpp::imshow(imdata, N3, N2, 0, L2, 0, L3);
 
     matplotlibcpp::save(filename);
     matplotlibcpp::close();
@@ -158,11 +158,11 @@ inline void HeatPlotTop(const NodalField<K1, K2, K3> &U, stratifloat L1, stratif
     const int N1 = L1*50;
     const int N2 = L2*50;
 
-    matplotlibcpp::figure(L1, L2);
+    matplotlibcpp::figure(10*L1, 10*L2);
 
-    std::vector<stratifloat> imdata(N1*N2*4);
+    std::vector<stratifloat> imdata(N1*N2);
 
-    for (int j1=0; j1<N1*2; j1++)
+    for (int j1=0; j1<N1; j1++)
     {
         stratifloat x = j1*L1/N1;
 
@@ -180,7 +180,7 @@ inline void HeatPlotTop(const NodalField<K1, K2, K3> &U, stratifloat L1, stratif
         while (k1_left>=K1) k1_left -= K1;
         while (k1_right>=K1) k1_right -= K1;
 
-        for (int j2=0; j2<N2*2; j2++)
+        for (int j2=0; j2<N2; j2++)
         {
 
             stratifloat z = j2*L2/N2;
@@ -199,14 +199,14 @@ inline void HeatPlotTop(const NodalField<K1, K2, K3> &U, stratifloat L1, stratif
             while (k2_above>=K2) k2_above -= K2;
             while (k2_below>=K2) k2_below -= K2;
 
-            imdata[(N2*2-j2-1)*N1*2 + j1] = weight_left*weight_below*U(k1_left,k2_below,j3)
+            imdata[(N2-j2-1)*N1 + j1] = weight_left*weight_below*U(k1_left,k2_below,j3)
                                    + weight_left*weight_above*U(k1_left,k2_above,j3)
                                    + weight_right*weight_below*U(k1_right,k2_below,j3)
                                    + weight_right*weight_above*U(k1_right,k2_above,j3);
         }
     }
 
-    matplotlibcpp::imshow(imdata, N2*2, N1*2, 0, L1*2, 0, L2*2);
+    matplotlibcpp::imshow(imdata, N2, N1, 0, L1, 0, L2);
 
     matplotlibcpp::save(filename);
     matplotlibcpp::close();

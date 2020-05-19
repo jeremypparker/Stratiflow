@@ -613,7 +613,7 @@ public:
 
     void Filter()
     {
-        if (N1>2)
+        if (N1>3)
         {
             #pragma omp parallel for collapse(2)
             for (int j2=0; j2<N2; j2++)
@@ -625,7 +625,7 @@ public:
             }
         }
 
-        if (N2>2)
+        if (N2>3)
         {
             #pragma omp parallel for collapse(2)
             for (int j2=(N2/3); j2<=N2-(N2/3); j2++)
@@ -637,7 +637,7 @@ public:
             }
         }
 
-        if (N3>2)
+        if (N3>3)
         {
             #pragma omp parallel for
             for (int j3=(N3/3); j3<actualN3; j3++)
@@ -682,22 +682,41 @@ public:
         std::mt19937 generator(rd());
         std::uniform_real_distribution<stratifloat> rng(-1.0,1.0);
 
-        for (int j1=-N2/6; j1<N1/6; j1++)
-        {
-            for (int j2=-N2/6; j2<=N2/6; j2++)
+        if (N2>3)
+	{
+            for (int j1=-N1/6; j1<N1/6; j1++)
             {
-                for (int j3=0; j3<=N3/6; j3++)
+                for (int j2=-N2/6; j2<=N2/6; j2++)
                 {
-                    int actualj1 = j1;
-                    if (actualj1<0) actualj1 += N1;
+                    for (int j3=0; j3<=N3/6; j3++)
+                    {
+                        int actualj1 = j1;
+                        if (actualj1<0) actualj1 += N1;
 
-                    int actualj2 = j2;
-                    if (actualj2<0) actualj2 += N2;
+                        int actualj2 = j2;
+                        if (actualj2<0) actualj2 += N2;
 
-                    this->operator()(actualj1,actualj2,j3) = pow(j1*j1+j2*j2+j3*j3+1,-5.0/3.0)*(rng(generator) + i*rng(generator));
+                        this->operator()(actualj1,actualj2,j3) = pow(j1*j1+j2*j2+j3*j3+1,-5.0/3.0)*(rng(generator) + i*rng(generator));
+                    }
                 }
             }
-        }
+	}
+	else
+	{
+            for (int j1=-N1/6; j1<N1/6; j1++)
+            {
+                for (int j2=0; j2<N2; j2++)
+                {
+                    for (int j3=0; j3<=N3/6; j3++)
+                    {
+                        int actualj1 = j1;
+                        if (actualj1<0) actualj1 += N1;
+
+                        this->operator()(actualj1,j2,j3) = pow(j1*j1+j2*j2+j3*j3+1,-5.0/3.0)*(rng(generator) + i*rng(generator));
+                    }
+                }
+            }
+	}
     }
 
     void MakeMode2()
@@ -718,7 +737,7 @@ public:
         int minN2 = N2-(N2/3)+1;
         int minN1 = N1-(N1/3)+1;
 
-        if(N2>1)
+        if(N2>3)
         {
             #pragma omp parallel for
             for (int j2=0; j2<maxN2; j2++)
@@ -748,17 +767,20 @@ public:
         }
         else
         {
-            #pragma omp parallel for
-            for (int j1=0; j1<maxN1; j1++)
-            {
-                f(j1, 0);
-            }
-
-            #pragma omp parallel for
-            for (int j1=minN1; j1<N1; j1++)
-            {
-                f(j1, 0);
-            }
+	    for (int j2=0; j2<N2; j2++)
+	    {
+                #pragma omp parallel for
+                for (int j1=0; j1<maxN1; j1++)
+                {
+                    f(j1, j2);
+                }
+ 
+                #pragma omp parallel for
+                for (int j1=minN1; j1<N1; j1++)
+                {
+                    f(j1, j2);
+                }
+	    }
         }
     }
 
@@ -767,6 +789,14 @@ public:
         ParallelPerStack([this, shift](int j1, int j2)
         {
             this->stack(j1,j2) *= exp(i*(j1*shift));
+        });
+    }
+    
+    void PhaseShift3d(stratifloat shift)
+    {
+        ParallelPerStack([this, shift](int j1, int j2)
+        {
+            this->stack(j1,j2) *= exp(i*(j2*shift));
         });
     }
 

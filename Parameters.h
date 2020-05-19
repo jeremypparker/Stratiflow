@@ -28,6 +28,6 @@ void PrintParameters();
 void LoadParameters(const std::string& file);
 
 constexpr GridParams gridParams
-    = {384, 24, 96, true};
+    = {2048, 3, 512, true};
 
 extern FlowParams flowParams;

@@ -117,3 +117,6 @@ target_link_libraries(Optimise StratiLib)
 
 add_executable(PreDAL PreDAL.cpp)
 target_link_libraries(PreDAL StratiLib)
+
+add_executable(ValidateLinear ValidateLinear.cpp)
+target_link_libraries(ValidateLinear StratiLib)
