@@ -335,7 +335,7 @@ namespace matplotlibcpp {
 	}
 
 	template<typename T>
-	bool imshow(const std::vector<T> &x, int N1, int N2, double xmin, double xmax, double ymin, double ymax)
+	bool imshow(const std::vector<T> &x, int N1, int N2, double xmin, double xmax, double ymin, double ymax, double vmin = 0.0, double vmax = 0.0)
 	{
 		assert(x.size() == N1*N2);
 
@@ -380,8 +380,12 @@ namespace matplotlibcpp {
 
 		PyDict_SetItemString(kwargs, "cmap", custom_cmap);
 		PyDict_SetItemString(kwargs, "interpolation", PyString_FromString("nearest"));
-		//PyDict_SetItemString(kwargs, "vmin", PyFloat_FromDouble(-0.8));
-		//PyDict_SetItemString(kwargs, "vmax", PyFloat_FromDouble(0.8));
+
+                if (vmin!=vmax)
+                {
+		    PyDict_SetItemString(kwargs, "vmin", PyFloat_FromDouble(vmin));
+		    PyDict_SetItemString(kwargs, "vmax", PyFloat_FromDouble(vmax));
+                }
 
 		PyObject* extent = PyTuple_New(4);
 		PyTuple_SetItem(extent, 0, PyFloat_FromDouble(xmin));
